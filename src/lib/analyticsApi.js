@@ -1,0 +1,16 @@
+import axios from 'axios';
+
+const analyticsApi = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://rifas-backend-production.up.railway.app',
+});
+
+// ⚠️ SOLO para analytics (no afecta otros módulos)
+analyticsApi.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default analyticsApi;

@@ -1,0 +1,332 @@
+'use client'
+
+import { useState } from 'react'
+import { Cliente } from '@/types/cliente'
+
+interface ClienteListProps {
+  clientes: Cliente[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  onEdit: (cliente: Cliente) => void
+  onDelete: (id: string) => void
+  onView: (cliente: Cliente) => void
+  onSearch: (search: string) => void
+  onPageChange: (page: number) => void
+  onFilterEstado: (estado: string) => void
+  filtroActivo: string
+  loading: boolean
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+export default function ClienteList({
+  clientes,
+  pagination,
+  onEdit,
+  onDelete,
+  onView,
+  onSearch,
+  onPageChange,
+  onFilterEstado,
+  filtroActivo,
+  loading,
+}: ClienteListProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSearch(searchTerm)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
+  // Compute summary totals from current data
+  const summary = clientes.reduce(
+    (acc, c) => {
+      acc.total++
+      if ((c.total_boletas || 0) > 0) acc.conBoletas++
+      acc.pagadas += c.boletas_pagadas || 0
+      acc.reservadas += c.boletas_reservadas || 0
+      acc.abonadas += c.boletas_abonadas || 0
+      acc.deuda += c.deuda_total || 0
+      return acc
+    },
+    { total: 0, conBoletas: 0, pagadas: 0, reservadas: 0, abonadas: 0, deuda: 0 }
+  )
+
+  const filters = [
+    { key: 'todos', label: 'Todos', count: pagination.total, color: 'bg-slate-900', textColor: 'text-white' },
+    { key: 'con_boletas', label: 'Con Boletas', count: summary.conBoletas, color: 'bg-indigo-600', textColor: 'text-white' },
+    { key: 'pagadas', label: 'Con Pagadas', count: summary.pagadas, color: 'bg-green-600', textColor: 'text-white' },
+    { key: 'reservadas', label: 'Con Reservadas', count: summary.reservadas, color: 'bg-yellow-500', textColor: 'text-white' },
+    { key: 'abonadas', label: 'Con Abonadas', count: summary.abonadas, color: 'bg-blue-600', textColor: 'text-white' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Filter Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => onFilterEstado(f.key)}
+            className={`rounded-xl p-3 text-center transition-all cursor-pointer hover:scale-105 hover:shadow-md ${f.color} ${
+              filtroActivo === f.key ? 'ring-2 ring-offset-2 ring-slate-900 scale-105' : ''
+            }`}
+          >
+            <div className={`text-xl font-black ${f.textColor}`}>{f.count}</div>
+            <div className={`text-xs font-semibold mt-1 ${f.textColor} opacity-80`}>{f.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <form onSubmit={handleSearchSubmit} className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Buscar por nombre, email, teléfono o identificación..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none text-black placeholder-slate-500 bg-white"
+          />
+          <button
+            type="submit"
+            className="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-800 transition-colors font-semibold"
+          >
+            🔍 Buscar
+          </button>
+        </form>
+      </div>
+
+      {/* Client Cards / Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mx-auto mb-3"></div>
+            <p className="text-slate-500 font-medium">Cargando clientes...</p>
+          </div>
+        ) : clientes.length === 0 ? (
+          <div className="p-12 text-center">
+            <div className="text-4xl mb-3">👥</div>
+            <p className="text-slate-500 font-medium">No se encontraron clientes</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Cliente</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Teléfono</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Identificación</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Boletas</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado Boletas</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Deuda</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {clientes.map((cliente) => (
+                    <tr key={cliente.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 bg-gradient-to-br from-slate-700 to-slate-500 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
+                            {cliente.nombre?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-black">{cliente.nombre}</div>
+                            <div className="text-xs text-slate-500">{cliente.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-black">{cliente.telefono}</td>
+                      <td className="px-4 py-3 text-sm text-black font-mono">{cliente.identificacion}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-sm font-black ${(cliente.total_boletas || 0) > 0 ? 'text-black' : 'text-slate-400'}`}>
+                          {cliente.total_boletas || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                          {(cliente.boletas_pagadas || 0) > 0 && (
+                            <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                              {cliente.boletas_pagadas} Pag
+                            </span>
+                          )}
+                          {(cliente.boletas_reservadas || 0) > 0 && (
+                            <span className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                              {cliente.boletas_reservadas} Res
+                            </span>
+                          )}
+                          {(cliente.boletas_abonadas || 0) > 0 && (
+                            <span className="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                              {cliente.boletas_abonadas} Abo
+                            </span>
+                          )}
+                          {(cliente.total_boletas || 0) === 0 && (
+                            <span className="text-xs text-slate-400">Sin boletas</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className={`px-4 py-3 text-right text-sm font-bold ${
+                        (cliente.deuda_total || 0) > 0 ? 'text-red-700' : 'text-green-700'
+                      }`}>
+                        {(cliente.deuda_total || 0) > 0 ? formatCurrency(cliente.deuda_total || 0) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => onView(cliente)}
+                            className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                            title="Ver detalle"
+                          >
+                            👁️ Ver
+                          </button>
+                          <button
+                            onClick={() => onEdit(cliente)}
+                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors"
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => onDelete(cliente.id)}
+                            className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500 transition-colors"
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="lg:hidden divide-y divide-slate-100">
+              {clientes.map((cliente) => (
+                <div key={cliente.id} className="p-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
+                        {cliente.nombre?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-black truncate">{cliente.nombre}</div>
+                        <div className="text-xs text-slate-500">{cliente.identificacion} · {cliente.telefono}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onView(cliente)}
+                      className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors shrink-0"
+                    >
+                      👁️ Ver
+                    </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {(cliente.total_boletas || 0) > 0 ? (
+                      <>
+                        <span className="text-xs font-bold text-black bg-slate-100 px-2 py-1 rounded">
+                          {cliente.total_boletas} boletas
+                        </span>
+                        {(cliente.boletas_pagadas || 0) > 0 && (
+                          <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                            {cliente.boletas_pagadas} Pag
+                          </span>
+                        )}
+                        {(cliente.boletas_reservadas || 0) > 0 && (
+                          <span className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                            {cliente.boletas_reservadas} Res
+                          </span>
+                        )}
+                        {(cliente.boletas_abonadas || 0) > 0 && (
+                          <span className="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded font-bold">
+                            {cliente.boletas_abonadas} Abo
+                          </span>
+                        )}
+                        {(cliente.deuda_total || 0) > 0 && (
+                          <span className="text-xs font-bold text-red-700">
+                            Deuda: {formatCurrency(cliente.deuda_total || 0)}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400">Sin boletas</span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex gap-2 justify-end">
+                    <button
+                      onClick={() => onEdit(cliente)}
+                      className="text-blue-600 text-xs font-bold hover:underline"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => onDelete(cliente.id)}
+                      className="text-red-600 text-xs font-bold hover:underline"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm text-slate-700 font-medium">
+              Mostrando {((pagination.page - 1) * pagination.limit) + 1} a{' '}
+              {Math.min(pagination.page * pagination.limit, pagination.total)} de{' '}
+              {pagination.total} clientes
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                ← Anterior
+              </button>
+              <span className="px-4 py-2 text-sm font-bold text-black">
+                {pagination.page} / {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

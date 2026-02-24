@@ -1,0 +1,20 @@
+import type { NextConfig } from "next";
+
+// Si tu API está en otro puerto (ej. 4000), define NEXT_PUBLIC_API_URL en .env.local
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://rifas-backend-production.up.railway.app/api";
+const backendOrigin = apiBase.replace(/\/api\/?$/, "");
+
+const nextConfig: NextConfig = {
+  reactCompiler: true,
+  async rewrites() {
+    return [
+      // Proxy /storage/* al backend para evitar ERR_BLOCKED_BY_RESPONSE.NotSameOrigin
+      {
+        source: "/storage/:path*",
+        destination: `${backendOrigin}/storage/:path*`,
+      },
+    ];
+  },
+};
+
+export default nextConfig;

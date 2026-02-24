@@ -1,0 +1,148 @@
+import {
+  VentaPublicaListado,
+  VentaPublicaDetalle,
+  EstadisticasPublicas,
+  EstadisticasPorRifa,
+  ApiResponse
+} from '@/types/ventasPublicas'
+
+class VentasPublicasApiService {
+  private baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || 'https://rifas-backend-production.up.railway.app/api'
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token')
+        : null
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+
+    if (token) {
+      ;(headers as Record<string, string>)['Authorization'] =
+        `Bearer ${token}`
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers
+    })
+
+    let data
+
+    try {
+      data = await response.json()
+    } catch {
+      throw new Error(
+        `No se pudo parsear JSON. Status: ${response.status}`
+      )
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.message || `Error: ${response.status}`)
+    }
+
+    return data
+  }
+
+  /**
+   * Obtener todas las ventas públicas con filtros opcionales
+   */
+  async getVentasPublicas(
+    estado?: string,
+    rifaId?: string,
+    clienteNombre?: string
+  ): Promise<ApiResponse<VentaPublicaListado[]>> {
+    const params = new URLSearchParams()
+    if (estado) params.append('estado', estado)
+    if (rifaId) params.append('rifa_id', rifaId)
+    if (clienteNombre) params.append('cliente_nombre', clienteNombre)
+
+    const query = params.toString()
+    const endpoint = `/admin/dashboard/ventas-publicas${query ? `?${query}` : ''}`
+
+    return this.request<VentaPublicaListado[]>(endpoint)
+  }
+
+  /**
+   * Obtener solo ventas públicas pendientes y abonadas
+   */
+  async getVentasPublicasPendientes(): Promise<
+    ApiResponse<VentaPublicaListado[]>
+  > {
+    return this.request<VentaPublicaListado[]>(
+      '/admin/dashboard/ventas-publicas/pendientes'
+    )
+  }
+
+  /**
+   * Obtener detalles completos de una venta pública
+   */
+  async getDetalleVentaPublica(
+    ventaId: string
+  ): Promise<ApiResponse<VentaPublicaDetalle>> {
+    return this.request<VentaPublicaDetalle>(
+      `/admin/dashboard/ventas-publicas/${ventaId}`
+    )
+  }
+
+  /**
+   * Confirmar pago manual de un abono
+   */
+  async confirmarPagoAbono(
+    abonoId: string
+  ): Promise<ApiResponse<{ abono_id: string; venta_id: string }>> {
+    return this.request(
+      `/admin/dashboard/abonos/${abonoId}/confirmar`,
+      {
+        method: 'POST'
+      }
+    )
+  }
+
+  /**
+   * Cancelar una venta pública
+   */
+  async cancelarVentaPublica(
+    ventaId: string,
+    motivo?: string
+  ): Promise<ApiResponse<{ venta_id: string }>> {
+    return this.request(
+      `/admin/dashboard/ventas-publicas/${ventaId}/cancelar`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ motivo })
+      }
+    )
+  }
+
+  /**
+   * Obtener estadísticas generales de ventas públicas
+   */
+  async getEstadisticasPublicas(): Promise<
+    ApiResponse<EstadisticasPublicas>
+  > {
+    return this.request<EstadisticasPublicas>(
+      '/admin/dashboard/estadisticas'
+    )
+  }
+
+  /**
+   * Obtener estadísticas por rifa
+   */
+  async getEstadisticasPorRifa(): Promise<
+    ApiResponse<EstadisticasPorRifa[]>
+  > {
+    return this.request<EstadisticasPorRifa[]>(
+      '/admin/dashboard/estadisticas/por-rifa'
+    )
+  }
+}
+
+export const ventasPublicasApi = new VentasPublicasApiService()

@@ -1,0 +1,104 @@
+export interface ClienteInfo {
+  id: string
+  nombre: string
+  email: string
+  telefono: string
+  identificacion: string
+}
+
+export interface VendedorInfo {
+  id: string
+  nombre: string
+  email: string
+}
+
+export interface Boleta {
+  id: string
+  numero: number
+  estado: string
+  qr_url: string | null
+  barcode: string | null
+  cliente_info: ClienteInfo | null
+  vendedor_info: VendedorInfo | null
+  tiene_cliente: boolean
+  tipo_estado: 'DISPONIBLE' | 'RESERVADA' | 'CON_PAGO' | 'TRANSFERIDA' | 'ANULADA'
+}
+
+export interface BoletaDetail {
+  id: string
+  rifa_id: string
+  numero: number
+  estado: string
+  qr_url: string
+  barcode: string
+  cliente_id: string | null
+  vendido_por: string | null
+  venta_id: string | null
+  reserva_token: string | null
+  bloqueo_hasta: string | null
+  created_at: string
+  updated_at: string
+  rifa_nombre: string
+  vendedor_nombre: string | null
+  imagen_url: string | null
+  qr_base_url: string | null
+  diseño_template: string | null
+  cliente_info?: ClienteInfo | null
+  vendedor_info?: VendedorInfo | null
+  venta_info?: {
+    id: string
+    fecha_venta: string
+    total_pagado: number
+    saldo_pendiente: number
+    metodo_pago: string
+    estado: string
+  } | null
+}
+
+export interface BoletaDetailResponse {
+  success: boolean
+  message: string
+  data: BoletaDetail
+}
+
+export interface BoletaListResponse {
+  success: boolean
+  message: string
+  data: Boleta[]
+}
+
+export interface BoletaGenerateRequest {
+  qr_base_url: string
+  imagen_url: string
+  diseño_template: string
+}
+
+export interface BoletaGenerateResponse {
+  success: boolean
+  message: string
+  data: {
+    rifa_id: string
+    total_boletas: number
+    boletas_generadas: number
+    estado: string
+    qr_base_url: string
+    imagen_url: string
+    diseño_template: string
+  }
+}
+
+export interface ApiError {
+  error: string
+  message: string
+  details?: Array<{
+    field: string
+    message: string
+  }>
+}
+
+export interface BoletaGenerateError {
+  success: false
+  message: string
+  error?: string
+  retryAfter?: string
+}
