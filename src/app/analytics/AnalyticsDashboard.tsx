@@ -31,8 +31,10 @@ export default function AnalyticsDashboard({ rifas }: Props) {
     rifas.length ? rifas[0].id : null
   );
 
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
+  // Por defecto mostrar datos de HOY (si no hay ventas hoy, todo sale en cero)
+  const hoy = new Date().toISOString().split("T")[0]; // "2026-02-24"
+  const [fechaInicio, setFechaInicio] = useState(hoy);
+  const [fechaFin, setFechaFin] = useState(hoy);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 

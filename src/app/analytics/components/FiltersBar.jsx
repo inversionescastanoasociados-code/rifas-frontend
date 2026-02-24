@@ -10,6 +10,22 @@ export default function FiltersBar({
   setFechaInicio,
   setFechaFin,
 }) {
+  const hoy = new Date().toISOString().split('T')[0];
+
+  // Detectar qué preset está activo
+  const isPresetTodo = !fechaInicio && !fechaFin;
+  const isPresetHoy = fechaInicio === hoy && fechaFin === hoy;
+
+  const getDaysAgoDate = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toISOString().split('T')[0];
+  };
+
+  const isPreset7 = fechaInicio === getDaysAgoDate(7) && fechaFin === hoy;
+  const isPreset30 = fechaInicio === getDaysAgoDate(30) && fechaFin === hoy;
+  const isCustomRange = !isPresetTodo && !isPresetHoy && !isPreset7 && !isPreset30;
+
   // Función para filtros rápidos de fecha
   const setDatePreset = (days) => {
     if (days === null) {
@@ -57,25 +73,25 @@ export default function FiltersBar({
           <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200">
             <button 
               onClick={() => setDatePreset(null)}
-              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${!fechaInicio ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${isPresetTodo ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Todo
             </button>
             <button 
               onClick={() => setDatePreset(0)}
-              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${fechaInicio === fechaFin && fechaInicio !== '' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${isPresetHoy ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
             >
               Hoy
             </button>
             <button 
               onClick={() => setDatePreset(7)}
-              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${fechaInicio && fechaInicio !== fechaFin ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${isPreset7 ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
             >
               7 Días
             </button>
             <button 
               onClick={() => setDatePreset(30)}
-              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${fechaInicio && fechaInicio !== fechaFin ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-4 py-1.5 text-sm rounded-md transition-colors ${isPreset30 ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
             >
               30 Días
             </button>
