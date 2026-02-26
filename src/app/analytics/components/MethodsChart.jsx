@@ -82,6 +82,7 @@ function MethodCard({ method, totalGeneral, isSelected, onSelect }) {
 
 export default function MethodsChart({ methods, serieDiaria, fechaInicio, fechaFin }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
+  const hayFiltro = !!(fechaInicio && fechaFin);
 
   if (!methods?.length) {
     return hayFiltro ? (
@@ -93,8 +94,6 @@ export default function MethodsChart({ methods, serieDiaria, fechaInicio, fechaF
       </div>
     ) : null;
   }
-
-  const hayFiltro = !!(fechaInicio && fechaFin);
 
   const totalGeneral = methods.reduce((sum, m) => sum + Number(m.total), 0);
   const totalTransacciones = methods.reduce((sum, m) => sum + Number(m.cantidad), 0);
