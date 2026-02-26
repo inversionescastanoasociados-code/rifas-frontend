@@ -26,7 +26,7 @@ export default function CrearBoletasPage() {
   
   // Form fields for the new parameters
   const [formData, setFormData] = useState<BoletaGenerateRequest>({
-    qr_base_url: 'https://rifas.com/boletas',
+    qr_base_url: 'https://elgrancamion.com/verificar/',
     imagen_url: '',
     diseño_template: 'modern' // Keep default but remove from UI
   })
@@ -275,19 +275,19 @@ export default function CrearBoletasPage() {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="qr_base_url" className="block text-sm font-bold text-black mb-2">
-                    URL Base para QR *
+                    URL de Verificación (QR) *
                   </label>
                   <input
                     type="url"
                     id="qr_base_url"
                     value={formData.qr_base_url}
                     onChange={(e) => handleInputChange('qr_base_url', e.target.value)}
-                    placeholder="https://rifas.com/boletas"
+                    placeholder="https://elgrancamion.com/verificar/"
                     className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none text-black bg-white"
                     disabled={creating}
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    URL base para generar los códigos QR. Se concatenará con: /rifa_id/numero_boleta
+                    URL donde el cliente verá el estado de su boleta al escanear el QR. Cada boleta genera un código único.
                   </p>
                 </div>
 
