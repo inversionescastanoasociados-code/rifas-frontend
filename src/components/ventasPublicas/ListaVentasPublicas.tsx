@@ -18,6 +18,7 @@ export default function ListaVentasPublicas({
   const [error, setError] = useState<string | null>(null)
   const [filtroRifa, setFiltroRifa] = useState('')
   const [filtroCliente, setFiltroCliente] = useState('')
+  const [autoRefresh, setAutoRefresh] = useState(true)
 
   const cargarVentas = async () => {
     try {
@@ -52,6 +53,13 @@ export default function ListaVentasPublicas({
     const timer = setTimeout(cargarVentas, 300)
     return () => clearTimeout(timer)
   }, [filtroEstado, filtroRifa, filtroCliente])
+
+  // Auto-refresh cada 30 segundos cuando está en modo pendientes
+  useEffect(() => {
+    if (!autoRefresh || filtroEstado !== 'pendientes') return
+    const interval = setInterval(cargarVentas, 30000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, filtroEstado])
 
   const getEstadoBadgeColor = (estado: string) => {
     switch (estado) {
@@ -144,6 +152,26 @@ export default function ListaVentasPublicas({
             <h3 className="text-sm font-semibold text-slate-900">
               Ventas encontradas: {ventas.length}
             </h3>
+            <div className="flex items-center gap-2">
+              {filtroEstado === 'pendientes' && (
+                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={autoRefresh} 
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Auto-refresh 30s
+                </label>
+              )}
+              <button 
+                onClick={cargarVentas} 
+                disabled={loading}
+                className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                🔄 Refrescar
+              </button>
+            </div>
           </div>
 
           {ventas.map((venta) => (

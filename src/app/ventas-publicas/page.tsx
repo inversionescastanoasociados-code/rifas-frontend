@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ListaVentasPublicas from '@/components/ventasPublicas/ListaVentasPublicas'
 import DetalleVentaPublica from '@/components/ventasPublicas/DetalleVentaPublica'
 import EstadisticasVentasPublicas from '@/components/ventasPublicas/EstadisticasVentasPublicas'
+import VentasOnlineBanner from '@/components/ventasPublicas/VentasOnlineBanner'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { VentaPublicaDetalle } from '@/types/ventasPublicas'
 
@@ -78,6 +79,14 @@ export default function GestionarVentasPublicasPage() {
             </svg>
           </div>
         </div>
+
+        {/* Banner de ventas online pendientes con auto-refresh */}
+        <VentasOnlineBanner 
+          onVerPendientes={() => {
+            setVistaActual('lista')
+            setFiltroEstado('pendientes')
+          }} 
+        />
 
         {/* Tabs de navegación */}
         <div className="flex gap-2 mb-6">

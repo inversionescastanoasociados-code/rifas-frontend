@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import VentasOnlineBanner from '@/components/ventasPublicas/VentasOnlineBanner'
 
 interface User {
   id: string
@@ -70,6 +71,11 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Banner de Ventas Online Pendientes */}
+        {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+          <VentasOnlineBanner onVerPendientes={() => router.push('/ventas-publicas')} />
+        )}
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-xl font-semibold text-black mb-4">
             Bienvenido al Dashboard
