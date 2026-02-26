@@ -22,8 +22,10 @@ export default function BoletaPreview({
 }: BoletaPreviewProps) {
   const [imageError, setImageError] = useState(false)
 
-  // URL objetivo que debe resolver el QR (p. ej. link a la boleta)
-  const targetUrl = `${qrBaseUrl}/${rifaId}/${boletaNumero}`
+  // URL de ejemplo para vista previa (en producción cada boleta tiene un hash HMAC único)
+  const previewHash = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  const baseUrl = qrBaseUrl.replace(/\/+$/, '').replace(/\/verificar\/?$/, '')
+  const targetUrl = `${baseUrl}/verificar/${previewHash}`
 
   // Genero la imagen del QR (BoletaTicket espera una URL de imagen para el QR)
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
@@ -49,8 +51,9 @@ export default function BoletaPreview({
       {/* Información de configuración (opcional, igual que antes) */}
       <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-          <div className="font-medium text-slate-700 mb-1">Configuración QR:</div>
-          <div className="text-slate-600 break-all text-xs">{targetUrl}</div>
+          <div className="font-medium text-slate-700 mb-1">Verificación QR:</div>
+          <div className="text-slate-600 break-all text-xs">{baseUrl}/verificar/[hash-único]</div>
+          <div className="text-green-600 text-xs mt-1">🔒 Hash HMAC-SHA256 por boleta</div>
         </div>
         <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
           <div className="font-medium text-slate-700 mb-1">Código de Barras:</div>
@@ -60,7 +63,8 @@ export default function BoletaPreview({
 
       <div className="mt-4 text-xs text-slate-500">
         <p>• Vista previa (DISPONIBLE) del diseño de boleta impresa</p>
-        <p>• El QR apunta a: {targetUrl}</p>
+        <p>• Cada boleta tendrá un QR único con hash de verificación seguro (HMAC-SHA256)</p>
+        <p>• URL de verificación: {baseUrl}/verificar/[hash-único]</p>
         <p>• Cada boleta tendrá número único y código de barras</p>
       </div>
     </div>
