@@ -18,6 +18,7 @@ export default function ListaVentasPublicas({
   const [error, setError] = useState<string | null>(null)
   const [filtroRifa, setFiltroRifa] = useState('')
   const [filtroCliente, setFiltroCliente] = useState('')
+  const [filtroCedula, setFiltroCedula] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
 
   const cargarVentas = async () => {
@@ -28,12 +29,16 @@ export default function ListaVentasPublicas({
       let response
 
       if (filtroEstado === 'pendientes') {
-        response = await ventasPublicasApi.getVentasPublicasPendientes()
+        response = await ventasPublicasApi.getVentasPublicasPendientes(
+          filtroCliente || undefined,
+          filtroCedula || undefined
+        )
       } else {
         response = await ventasPublicasApi.getVentasPublicas(
           filtroEstado || undefined,
           filtroRifa || undefined,
-          filtroCliente || undefined
+          filtroCliente || undefined,
+          filtroCedula || undefined
         )
       }
 
@@ -88,8 +93,22 @@ export default function ListaVentasPublicas({
     <div className="space-y-4">
       {/* Filtros */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-900">Filtros</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <h3 className="text-sm font-semibold text-slate-900">🔍 Filtros</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            type="text"
+            placeholder="Buscar por nombre del cliente..."
+            value={filtroCliente}
+            onChange={(e) => setFiltroCliente(e.target.value)}
+            className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="Buscar por cédula / identificación..."
+            value={filtroCedula}
+            onChange={(e) => setFiltroCedula(e.target.value)}
+            className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           <input
             type="text"
             placeholder="Filtrar por nombre de rifa..."
@@ -97,14 +116,15 @@ export default function ListaVentasPublicas({
             onChange={(e) => setFiltroRifa(e.target.value)}
             className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <input
-            type="text"
-            placeholder="Filtrar por cliente..."
-            value={filtroCliente}
-            onChange={(e) => setFiltroCliente(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
         </div>
+        {(filtroCliente || filtroCedula || filtroRifa) && (
+          <button
+            onClick={() => { setFiltroCliente(''); setFiltroCedula(''); setFiltroRifa('') }}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+          >
+            ✕ Limpiar filtros
+          </button>
+        )}
       </div>
 
       {/* Estado de carga */}

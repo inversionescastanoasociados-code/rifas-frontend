@@ -57,12 +57,14 @@ class VentasPublicasApiService {
   async getVentasPublicas(
     estado?: string,
     rifaId?: string,
-    clienteNombre?: string
+    clienteNombre?: string,
+    clienteIdentificacion?: string
   ): Promise<ApiResponse<VentaPublicaListado[]>> {
     const params = new URLSearchParams()
     if (estado) params.append('estado', estado)
     if (rifaId) params.append('rifa_id', rifaId)
     if (clienteNombre) params.append('cliente_nombre', clienteNombre)
+    if (clienteIdentificacion) params.append('cliente_identificacion', clienteIdentificacion)
 
     const query = params.toString()
     const endpoint = `/admin/dashboard/ventas-publicas${query ? `?${query}` : ''}`
@@ -73,11 +75,18 @@ class VentasPublicasApiService {
   /**
    * Obtener solo ventas públicas pendientes y abonadas
    */
-  async getVentasPublicasPendientes(): Promise<
+  async getVentasPublicasPendientes(
+    clienteNombre?: string,
+    clienteIdentificacion?: string
+  ): Promise<
     ApiResponse<VentaPublicaListado[]>
   > {
+    const params = new URLSearchParams()
+    if (clienteNombre) params.append('cliente_nombre', clienteNombre)
+    if (clienteIdentificacion) params.append('cliente_identificacion', clienteIdentificacion)
+    const qs = params.toString()
     return this.request<VentaPublicaListado[]>(
-      '/admin/dashboard/ventas-publicas/pendientes'
+      `/admin/dashboard/ventas-publicas/pendientes${qs ? `?${qs}` : ''}`
     )
   }
 
