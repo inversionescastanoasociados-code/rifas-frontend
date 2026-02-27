@@ -73,7 +73,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
   rifaNombre={boleta.rifa_nombre}
   estado={boleta.estado}
   clienteInfo={boleta.cliente_info}
-  deuda={boleta.venta_info?.saldo_pendiente}
+  deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
   reservadaHasta={boleta.bloqueo_hasta}
 />
       </div>
@@ -157,7 +157,40 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
           )}
         </div>
 
-        {/* Sale Information */}
+        {/* Estado Financiero de esta Boleta */}
+        {boleta.boleta_financiero && (
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+            <h3 className="text-lg font-medium text-slate-900 mb-4">Estado Financiero de esta Boleta</h3>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Precio Boleta:</span>
+                <span className="text-sm font-medium text-slate-900">{formatCurrency(boleta.boleta_financiero.precio_boleta)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Total Pagado:</span>
+                <span className="text-sm font-medium text-green-600">{formatCurrency(boleta.boleta_financiero.total_pagado)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Saldo Pendiente:</span>
+                <span className="text-sm font-medium text-orange-600">{formatCurrency(boleta.boleta_financiero.saldo_pendiente)}</span>
+              </div>
+
+              {boleta.boleta_financiero.precio_boleta > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Porcentaje Pagado:</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {Math.round((boleta.boleta_financiero.total_pagado / boleta.boleta_financiero.precio_boleta) * 100)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Información de Venta (referencia) */}
         {boleta.venta_info && (
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
             <h3 className="text-lg font-medium text-slate-900 mb-4">Información de Venta</h3>
@@ -171,16 +204,6 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
               <div className="flex justify-between">
                 <span className="text-sm text-slate-600">Fecha Venta:</span>
                 <span className="text-sm text-slate-900">{formatDate(boleta.venta_info.fecha_venta)}</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-600">Total Pagado:</span>
-                <span className="text-sm font-medium text-green-600">{formatCurrency(boleta.venta_info.total_pagado)}</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-600">Saldo Pendiente:</span>
-                <span className="text-sm font-medium text-orange-600">{formatCurrency(boleta.venta_info.saldo_pendiente)}</span>
               </div>
               
               <div className="flex justify-between">

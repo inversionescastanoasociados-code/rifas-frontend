@@ -65,6 +65,11 @@ export interface BoletaDetail {
     estado: string
   } | null
   abonos?: AbonoHistorial[]
+  boleta_financiero?: {
+    precio_boleta: number
+    total_pagado: number
+    saldo_pendiente: number
+  } | null
 }
 
 export interface BoletaDetailResponse {
