@@ -278,7 +278,7 @@ async liberarBloqueosMultiples(
 
   async registrarAbono(
     ventaId: string,
-    data: { monto: number; metodo_pago: string; notas?: string }
+    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string }
   ) {
     // Validar y limpiar datos antes de enviar
     const montoNum = Number(data.monto)
@@ -300,6 +300,11 @@ async liberarBloqueosMultiples(
     // Solo agregar notas si tiene contenido
     if (data.notas && typeof data.notas === 'string' && data.notas.trim()) {
       payload.notas = data.notas.trim()
+    }
+
+    // Agregar boleta_id si se especifica (abono por boleta individual)
+    if (data.boleta_id) {
+      payload.boleta_id = data.boleta_id
     }
     
     return this.request<{

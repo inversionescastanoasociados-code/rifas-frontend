@@ -11,9 +11,16 @@ interface Props {
   onAbonoRegistrado: () => void
 }
 
-type ExitoReciente = { tipo: 'abono' | 'pago_total'; monto: number } | null
+type ExitoReciente = { tipo: 'abono' | 'pago_total'; monto: number; boletaNumero?: number } | null
 
 type AccionGestionar = null | 'abonar' | 'cancelar'
+
+// Estado de abono por boleta individual
+type AbonarBoletaState = {
+  boletaId: string
+  boletaNumero: number
+  saldoPendiente: number
+} | null
 
 interface VentaNormalizada {
   id: string
@@ -60,6 +67,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [confirmarCancelar, setConfirmarCancelar] = useState(false)
   const [pagarTodo, setPagarTodo] = useState(false)
   const [exitoReciente, setExitoReciente] = useState<ExitoReciente>(null)
+  const [abonarBoleta, setAbonarBoleta] = useState<AbonarBoletaState>(null)
 
   useEffect(() => {
     cargarDetalle()
@@ -105,8 +113,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       setError('El monto debe ser un número mayor a 0')
       return
     }
-    if (montoValidado > venta.saldo_pendiente) {
-      setError('El monto no puede superar el saldo pendiente')
+
+    // Si estamos abonando a una boleta específica, validar contra el saldo de ESA boleta
+    const saldoMax = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
+    if (montoValidado > saldoMax) {
+      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero}` : ''}`)
       return
     }
 
@@ -119,27 +130,34 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
     setProcesando(true)
     setError(null)
     try {
-      const datosAbono = {
+      const datosAbono: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string } = {
         monto: montoValidado,
         metodo_pago: metodoPago,
         notas: notas.trim() || undefined
       }
+
+      // Si es abono por boleta individual, enviar boleta_id
+      if (abonarBoleta) {
+        datosAbono.boleta_id = abonarBoleta.boletaId
+      }
+
       await ventasApi.registrarAbono(ventaId, datosAbono)
       await cargarDetalle()
       setMonto(0)
       setNotas('')
       setAccion(null)
-      const esPagoTotal = venta.saldo_pendiente - montoValidado <= 0
+      const esPagoTotal = saldoMax - montoValidado <= 0
       setExitoReciente({
         tipo: esPagoTotal ? 'pago_total' : 'abono',
-        monto: montoValidado
+        monto: montoValidado,
+        boletaNumero: abonarBoleta?.boletaNumero
       })
+      setAbonarBoleta(null)
     } catch (err: any) {
       const responseData = err?.response?.data
       let mensajeError = 'Error registrando abono'
       
       if (responseData?.details && Array.isArray(responseData.details)) {
-        // Si hay detalles de validación, mostrarlos
         const detalles = responseData.details.map((d: any) => 
           `${d.field}: ${d.message}`
         ).join(', ')
@@ -214,13 +232,19 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           </div>
           <h2 className="text-xl font-semibold text-slate-900 mb-2">
             {exitoReciente.tipo === 'pago_total'
-              ? 'Deuda saldada'
-              : 'Abono registrado'}
+              ? (exitoReciente.boletaNumero !== undefined
+                  ? `Boleta #${exitoReciente.boletaNumero} pagada`
+                  : 'Deuda saldada')
+              : (exitoReciente.boletaNumero !== undefined
+                  ? `Abono a boleta #${exitoReciente.boletaNumero} registrado`
+                  : 'Abono registrado')}
           </h2>
           <p className="text-slate-600 mb-4">
             {exitoReciente.tipo === 'pago_total'
-              ? 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.'
-              : `Se registró un abono de $${exitoReciente.monto.toLocaleString()} correctamente.`}
+              ? (exitoReciente.boletaNumero !== undefined
+                  ? `La boleta #${exitoReciente.boletaNumero} quedó completamente pagada.`
+                  : 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.')
+              : `Se registró un abono de $${exitoReciente.monto.toLocaleString()}${exitoReciente.boletaNumero !== undefined ? ` a la boleta #${exitoReciente.boletaNumero}` : ''} correctamente.`}
           </p>
           <div className="bg-slate-50 rounded-lg p-4 mb-6 text-left text-sm">
             <div className="flex justify-between">
@@ -352,6 +376,55 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                     </div>
                   )}
                 </div>
+
+                {/* Botones de acción por boleta */}
+                {typeof boleta.saldo_pendiente_boleta === 'number' && boleta.saldo_pendiente_boleta > 0 && (
+                  <div className="mt-2 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAbonarBoleta({
+                          boletaId: boleta.id,
+                          boletaNumero: boleta.numero,
+                          saldoPendiente: boleta.saldo_pendiente_boleta!
+                        })
+                        setAccion('abonar')
+                        setMonto(0)
+                        setPagarTodo(false)
+                        setError(null)
+                      }}
+                      className={`w-full px-2 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        abonarBoleta?.boletaId === boleta.id
+                          ? 'bg-blue-700 text-white ring-2 ring-blue-400'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      💰 Abonar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAbonarBoleta({
+                          boletaId: boleta.id,
+                          boletaNumero: boleta.numero,
+                          saldoPendiente: boleta.saldo_pendiente_boleta!
+                        })
+                        setAccion('abonar')
+                        setMonto(boleta.saldo_pendiente_boleta!)
+                        setPagarTodo(true)
+                        setError(null)
+                      }}
+                      className="w-full px-2 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    >
+                      ✅ Pagar total
+                    </button>
+                  </div>
+                )}
+                {boleta.estado === 'PAGADA' && (
+                  <div className="mt-2 text-xs text-green-700 font-semibold text-center bg-green-50 rounded-lg py-1">
+                    ✅ Pagada
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -455,7 +528,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       {/* Acciones: Cancelar totalidad | Abonar */}
       {!mostrarFormularioAbono && !mostrarFormularioCancelar && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">¿Qué deseas hacer?</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">¿Qué deseas hacer?</h3>
+          <p className="text-sm text-slate-500 mb-4">Selecciona una boleta arriba para abonar a esa boleta específica, o usa las opciones generales:</p>
           <div className="flex flex-wrap gap-4">
             <button
               type="button"
@@ -464,13 +538,6 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             >
               Cancelar venta
             </button>
-            <button
-              type="button"
-              onClick={() => setAccion('abonar')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors"
-            >
-              Registrar abono
-            </button>
           </div>
         </div>
       )}
@@ -478,7 +545,34 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       {/* Formulario: Registrar abono */}
       {mostrarFormularioAbono && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Registrar abono</h3>
+          {/* Header con contexto de boleta */}
+          {abonarBoleta ? (
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Abonar a boleta #{abonarBoleta.boletaNumero}
+              </h3>
+              <div className="mt-2 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <span className="text-sm text-blue-800">
+                  Saldo pendiente de esta boleta: <strong>${abonarBoleta.saldoPendiente.toLocaleString()}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbonarBoleta(null)
+                    setAccion(null)
+                    setMonto(0)
+                    setPagarTodo(false)
+                    setError(null)
+                  }}
+                  className="ml-auto text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Cambiar boleta
+                </button>
+              </div>
+            </div>
+          ) : (
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Registrar abono general</h3>
+          )}
           {error && (
             <div className="bg-red-50 text-red-700 px-4 py-2 rounded mb-4 text-sm">{error}</div>
           )}
@@ -499,13 +593,13 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-bold text-black mb-1">
-                Valor a abonar (máx. ${venta.saldo_pendiente.toLocaleString()})
+                Valor a abonar (máx. ${(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente).toLocaleString()})
               </label>
               <div className="flex items-center gap-3">
                 <input
                   type="number"
                   min={1}
-                  max={venta.saldo_pendiente}
+                  max={abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente}
                   value={monto || ''}
                   onChange={(e) => setMonto(Number(e.target.value) || 0)}
                   placeholder="Valor a abonar"
@@ -520,15 +614,15 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                   onChange={(e) => {
                     const checked = e.target.checked
                     setPagarTodo(checked)
-                    if (checked && venta) {
-                      setMonto(venta.saldo_pendiente)
+                    if (checked) {
+                      setMonto(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente)
                     } else {
                       setMonto(0)
                     }
                   }}
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span>Pagar saldo total de la venta</span>
+                <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero}` : 'Pagar saldo total de la venta'}</span>
               </label>
             </div>
             <div>
@@ -544,7 +638,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas('') }}
+                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas(''); setAbonarBoleta(null); setPagarTodo(false) }}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
               >
                 Cancelar
@@ -555,7 +649,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 disabled={procesando || monto <= 0}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
-                {procesando ? 'Registrando...' : 'Registrar abono'}
+                {procesando
+                  ? 'Registrando...'
+                  : abonarBoleta
+                    ? `Registrar abono a boleta #${abonarBoleta.boletaNumero}`
+                    : 'Registrar abono'}
               </button>
             </div>
           </div>

@@ -12,6 +12,9 @@ export interface BoletaPublica {
   boleta_id: string
   numero: number
   estado: string
+  precio_boleta?: number
+  total_pagado_boleta?: number
+  saldo_pendiente_boleta?: number
 }
 
 export interface AbonoPublico {

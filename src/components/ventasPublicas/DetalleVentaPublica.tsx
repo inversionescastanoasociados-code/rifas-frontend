@@ -42,6 +42,13 @@ export default function DetalleVentaPublica({
   const [pagarTodo, setPagarTodo] = useState(false)
   const [procesandoAbono, setProcesandoAbono] = useState(false)
 
+  // Estado para abono por boleta individual
+  const [abonarBoleta, setAbonarBoleta] = useState<{
+    boletaId: string
+    boletaNumero: number
+    saldoPendiente: number
+  } | null>(null)
+
   const formatoMoneda = (valor: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -149,8 +156,11 @@ export default function DetalleVentaPublica({
       setError('El monto debe ser un número mayor a 0')
       return
     }
-    if (montoValidado > venta.saldo_pendiente) {
-      setError('El monto no puede superar el saldo pendiente')
+
+    // Validar contra saldo de boleta individual o saldo general
+    const saldoMax = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
+    if (montoValidado > saldoMax) {
+      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero}` : ''}`)
       return
     }
     if (!metodoPago || metodoPago.trim() === '') {
@@ -163,26 +173,34 @@ export default function DetalleVentaPublica({
     setExito(null)
 
     try {
-      const datosAbono = {
+      const datosAbono: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string } = {
         monto: montoValidado,
         metodo_pago: metodoPago,
         notas: notasAbono.trim() || undefined
       }
 
+      // Si es abono por boleta individual, enviar boleta_id
+      if (abonarBoleta) {
+        datosAbono.boleta_id = abonarBoleta.boletaId
+      }
+
       await ventasApi.registrarAbono(venta.id, datosAbono)
 
-      const esPagoTotal = venta.saldo_pendiente - montoValidado <= 0
+      const esPagoTotal = saldoMax - montoValidado <= 0
 
       setExito(
         esPagoTotal
-          ? '✅ ¡Pago total registrado! La venta queda PAGADA. Las boletas se han entregado al cliente.'
-          : `✅ Abono de ${formatoMoneda(montoValidado)} registrado exitosamente.`
+          ? (abonarBoleta
+              ? `✅ ¡Boleta #${abonarBoleta.boletaNumero} pagada completamente!`
+              : '✅ ¡Pago total registrado! La venta queda PAGADA. Las boletas se han entregado al cliente.')
+          : `✅ Abono de ${formatoMoneda(montoValidado)}${abonarBoleta ? ` a boleta #${abonarBoleta.boletaNumero}` : ''} registrado exitosamente.`
       )
 
       setMostrarFormAbono(false)
       setMontoAbono(0)
       setNotasAbono('')
       setPagarTodo(false)
+      setAbonarBoleta(null)
 
       if (onAbonoConfirmado) {
         onAbonoConfirmado(venta.id)
@@ -308,21 +326,89 @@ export default function DetalleVentaPublica({
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <p className="text-xs text-slate-500 font-medium mb-3">NÚMEROS</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs text-slate-500 font-medium mb-3">BOLETAS</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {venta.boletas.map((boleta) => (
                 <div
                   key={boleta.boleta_id}
-                  className="inline-flex items-center space-x-2 bg-slate-50 px-3 py-2 rounded-md border border-slate-200"
+                  className={`border-2 rounded-xl p-3 text-center flex flex-col gap-2 transition-colors ${
+                    abonarBoleta?.boletaId === boleta.boleta_id
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+                  }`}
                 >
-                  <span className="text-sm font-medium text-slate-900">
-                    #{boleta.numero}
-                  </span>
+                  <div className="text-xl font-bold text-slate-800">#{boleta.numero}</div>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getEstadoBadgeColor(boleta.estado)}`}
+                    className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${getEstadoBadgeColor(boleta.estado)}`}
                   >
                     {boleta.estado}
                   </span>
+
+                  {/* Datos financieros por boleta */}
+                  <div className="text-[11px] text-left space-y-1 mt-1 text-slate-700">
+                    {typeof boleta.precio_boleta === 'number' && (
+                      <div>Precio: {formatoMoneda(boleta.precio_boleta)}</div>
+                    )}
+                    {typeof boleta.total_pagado_boleta === 'number' && (
+                      <div>Pagado: {formatoMoneda(boleta.total_pagado_boleta)}</div>
+                    )}
+                    {typeof boleta.saldo_pendiente_boleta === 'number' && (
+                      <div className="font-semibold text-orange-700">
+                        Saldo: {formatoMoneda(boleta.saldo_pendiente_boleta)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de acción por boleta */}
+                  {typeof boleta.saldo_pendiente_boleta === 'number' && boleta.saldo_pendiente_boleta > 0 && venta.estado_venta !== 'CANCELADA' && (
+                    <div className="mt-1 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAbonarBoleta({
+                            boletaId: boleta.boleta_id,
+                            boletaNumero: boleta.numero,
+                            saldoPendiente: boleta.saldo_pendiente_boleta!
+                          })
+                          setMostrarFormAbono(true)
+                          setMontoAbono(0)
+                          setPagarTodo(false)
+                          setError(null)
+                          setExito(null)
+                        }}
+                        className={`w-full px-2 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                          abonarBoleta?.boletaId === boleta.boleta_id
+                            ? 'bg-blue-700 text-white ring-2 ring-blue-400'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        💰 Abonar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAbonarBoleta({
+                            boletaId: boleta.boleta_id,
+                            boletaNumero: boleta.numero,
+                            saldoPendiente: boleta.saldo_pendiente_boleta!
+                          })
+                          setMostrarFormAbono(true)
+                          setMontoAbono(boleta.saldo_pendiente_boleta!)
+                          setPagarTodo(true)
+                          setError(null)
+                          setExito(null)
+                        }}
+                        className="w-full px-2 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        ✅ Pagar total
+                      </button>
+                    </div>
+                  )}
+                  {boleta.estado === 'PAGADA' && (
+                    <div className="mt-1 text-xs text-green-700 font-semibold text-center bg-green-50 rounded-lg py-1">
+                      ✅ Pagada
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -471,40 +557,9 @@ export default function DetalleVentaPublica({
                 💰 Acciones de Pago
               </h3>
               <p className="text-xs text-slate-600">
-                Registra un abono parcial o el pago total para esta venta online.
-                El sistema actualizará automáticamente el estado de la venta y las boletas.
+                Selecciona una boleta arriba para abonar a esa boleta específica, o usa las opciones generales.
               </p>
               <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => {
-                    setMostrarFormAbono(true)
-                    setPagarTodo(false)
-                    setMontoAbono(0)
-                    setError(null)
-                    setExito(null)
-                  }}
-                  className="px-5 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Registrar Abono
-                </button>
-                <button
-                  onClick={() => {
-                    setMostrarFormAbono(true)
-                    setPagarTodo(true)
-                    setMontoAbono(venta.saldo_pendiente)
-                    setError(null)
-                    setExito(null)
-                  }}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Pagar Total ({formatoMoneda(venta.saldo_pendiente)})
-                </button>
                 <a
                   href={`/ventas`}
                   target="_blank"
@@ -522,7 +577,9 @@ export default function DetalleVentaPublica({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-900">
-                  {pagarTodo ? '💳 Registrar Pago Total' : '💰 Registrar Abono'}
+                  {abonarBoleta
+                    ? `💰 Abonar a boleta #${abonarBoleta.boletaNumero}`
+                    : (pagarTodo ? '💳 Registrar Pago Total' : '💰 Registrar Abono')}
                 </h3>
                 <button
                   onClick={() => {
@@ -531,6 +588,7 @@ export default function DetalleVentaPublica({
                     setMontoAbono(0)
                     setNotasAbono('')
                     setPagarTodo(false)
+                    setAbonarBoleta(null)
                   }}
                   className="text-slate-400 hover:text-slate-600 transition-colors"
                 >
@@ -542,9 +600,32 @@ export default function DetalleVentaPublica({
 
               {/* Info resumen rápido */}
               <div className="bg-slate-50 rounded-lg p-3 flex items-center justify-between text-sm">
-                <span className="text-slate-600">Saldo pendiente:</span>
-                <span className="font-bold text-red-700 text-lg">{formatoMoneda(venta.saldo_pendiente)}</span>
+                <span className="text-slate-600">
+                  {abonarBoleta
+                    ? `Saldo pendiente boleta #${abonarBoleta.boletaNumero}:`
+                    : 'Saldo pendiente:'}
+                </span>
+                <span className="font-bold text-red-700 text-lg">
+                  {formatoMoneda(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente)}
+                </span>
               </div>
+
+              {/* Botón para cambiar boleta */}
+              {abonarBoleta && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbonarBoleta(null)
+                    setMostrarFormAbono(false)
+                    setMontoAbono(0)
+                    setPagarTodo(false)
+                    setError(null)
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  ← Cambiar boleta
+                </button>
+              )}
 
               {/* Medio de pago */}
               <div>
@@ -565,7 +646,7 @@ export default function DetalleVentaPublica({
               {/* Monto */}
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-slate-800 mb-1">
-                  Monto a abonar (máx. {formatoMoneda(venta.saldo_pendiente)})
+                  Monto a abonar (máx. {formatoMoneda(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente)})
                 </label>
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
@@ -573,7 +654,7 @@ export default function DetalleVentaPublica({
                     <input
                       type="number"
                       min={1}
-                      max={venta.saldo_pendiente}
+                      max={abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente}
                       value={montoAbono || ''}
                       onChange={(e) => setMontoAbono(Number(e.target.value) || 0)}
                       placeholder="0"
@@ -589,11 +670,11 @@ export default function DetalleVentaPublica({
                     onChange={(e) => {
                       const checked = e.target.checked
                       setPagarTodo(checked)
-                      setMontoAbono(checked ? venta.saldo_pendiente : 0)
+                      setMontoAbono(checked ? (abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente) : 0)
                     }}
                     className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>Pagar saldo total de la venta</span>
+                  <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero}` : 'Pagar saldo total de la venta'}</span>
                 </label>
               </div>
 
@@ -618,6 +699,7 @@ export default function DetalleVentaPublica({
                     setMontoAbono(0)
                     setNotasAbono('')
                     setPagarTodo(false)
+                    setAbonarBoleta(null)
                   }}
                   className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
                 >
@@ -637,9 +719,13 @@ export default function DetalleVentaPublica({
                     <>
                       <span>{pagarTodo ? '✅' : '💰'}</span>
                       <span>
-                        {pagarTodo
-                          ? `Confirmar Pago Total (${formatoMoneda(montoAbono)})`
-                          : `Registrar Abono (${formatoMoneda(montoAbono)})`}
+                        {abonarBoleta
+                          ? (pagarTodo
+                              ? `Pagar boleta #${abonarBoleta.boletaNumero} (${formatoMoneda(montoAbono)})`
+                              : `Abonar a boleta #${abonarBoleta.boletaNumero} (${formatoMoneda(montoAbono)})`)
+                          : (pagarTodo
+                              ? `Confirmar Pago Total (${formatoMoneda(montoAbono)})`
+                              : `Registrar Abono (${formatoMoneda(montoAbono)})`)}
                       </span>
                     </>
                   )}
