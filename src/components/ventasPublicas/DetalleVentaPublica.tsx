@@ -49,6 +49,10 @@ export default function DetalleVentaPublica({
     saldoPendiente: number
   } | null>(null)
 
+  // Estado para abono múltiple por boleta (modo multi)
+  const [modoMultiBoleta, setModoMultiBoleta] = useState(false)
+  const [abonosPorBoleta, setAbonosPorBoleta] = useState<Record<string, number>>({})
+
   const formatoMoneda = (valor: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -212,6 +216,107 @@ export default function DetalleVentaPublica({
       }, 2000)
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Error registrando abono'
+      setError(msg)
+    } finally {
+      setProcesandoAbono(false)
+    }
+  }
+
+  // ── Helpers para modo multi-boleta ──
+  const boletasConSaldo = venta.boletas.filter(
+    (b) => typeof b.saldo_pendiente_boleta === 'number' && b.saldo_pendiente_boleta > 0
+  )
+
+  const totalAbonoMulti = Object.values(abonosPorBoleta).reduce((s, v) => s + (v || 0), 0)
+
+  const setAbonoBoleta = (boletaId: string, monto: number) => {
+    setAbonosPorBoleta((prev) => ({ ...prev, [boletaId]: monto }))
+  }
+
+  const aplicarPorcentajeATodas = (porcentaje: number) => {
+    const nuevos: Record<string, number> = {}
+    boletasConSaldo.forEach((b) => {
+      nuevos[b.boleta_id] = Math.round((b.saldo_pendiente_boleta! * porcentaje) / 100)
+    })
+    setAbonosPorBoleta(nuevos)
+  }
+
+  const handleIniciarMultiBoleta = () => {
+    setModoMultiBoleta(true)
+    setMostrarFormAbono(true)
+    setAbonarBoleta(null)
+    setPagarTodo(false)
+    setMontoAbono(0)
+    setError(null)
+    setExito(null)
+    // Inicializar todos en 0
+    const init: Record<string, number> = {}
+    boletasConSaldo.forEach((b) => { init[b.boleta_id] = 0 })
+    setAbonosPorBoleta(init)
+  }
+
+  const handleRegistrarAbonoMultiple = async () => {
+    // Filtrar boletas con monto > 0
+    const abonosARegistrar = Object.entries(abonosPorBoleta)
+      .filter(([, monto]) => monto > 0)
+      .map(([boletaId, monto]) => ({ boletaId, monto }))
+
+    if (abonosARegistrar.length === 0) {
+      setError('Debes ingresar un monto mayor a 0 en al menos una boleta')
+      return
+    }
+
+    // Validar que ningún monto exceda el saldo de su boleta
+    for (const { boletaId, monto } of abonosARegistrar) {
+      const boleta = venta.boletas.find((b) => b.boleta_id === boletaId)
+      if (boleta && typeof boleta.saldo_pendiente_boleta === 'number' && monto > boleta.saldo_pendiente_boleta) {
+        setError(`El monto para boleta #${boleta.numero.toString().padStart(4, '0')} excede su saldo pendiente`)
+        return
+      }
+    }
+
+    if (!metodoPago || metodoPago.trim() === '') {
+      setError('Debe seleccionar un método de pago')
+      return
+    }
+
+    setProcesandoAbono(true)
+    setError(null)
+    setExito(null)
+
+    try {
+      // Registrar abonos secuencialmente, uno por boleta
+      for (const { boletaId, monto } of abonosARegistrar) {
+        const payload: { monto: number; metodo_pago: string; notas?: string; boleta_id: string } = {
+          monto,
+          metodo_pago: metodoPago,
+          notas: notasAbono.trim() || undefined,
+          boleta_id: boletaId
+        }
+        await ventasApi.registrarAbono(venta.id, payload)
+      }
+
+      setExito(
+        `✅ Se registraron ${abonosARegistrar.length} abono(s) por un total de ${formatoMoneda(totalAbonoMulti)} exitosamente.`
+      )
+
+      setMostrarFormAbono(false)
+      setModoMultiBoleta(false)
+      setMontoAbono(0)
+      setAbonosPorBoleta({})
+      setNotasAbono('')
+      setPagarTodo(false)
+      setAbonarBoleta(null)
+
+      if (onAbonoConfirmado) {
+        onAbonoConfirmado(venta.id)
+      }
+
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Error registrando abonos'
       setError(msg)
     } finally {
       setProcesandoAbono(false)
@@ -560,6 +665,17 @@ export default function DetalleVentaPublica({
                 Selecciona una boleta arriba para abonar a esa boleta específica, o usa las opciones generales.
               </p>
               <div className="flex flex-wrap gap-3">
+                {boletasConSaldo.length > 1 && (
+                  <button
+                    onClick={handleIniciarMultiBoleta}
+                    className="px-5 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    </svg>
+                    Abonar a múltiples boletas
+                  </button>
+                )}
                 <a
                   href={`/ventas`}
                   target="_blank"
@@ -573,6 +689,196 @@ export default function DetalleVentaPublica({
                 </a>
               </div>
             </div>
+          ) : modoMultiBoleta ? (
+            /* ═══════════════════════════════════════════════════════ */
+            /* MODO MULTI-BOLETA: Abonar a varias boletas a la vez    */
+            /* ═══════════════════════════════════════════════════════ */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  💰 Abonar a múltiples boletas
+                </h3>
+                <button
+                  onClick={() => {
+                    setMostrarFormAbono(false)
+                    setModoMultiBoleta(false)
+                    setError(null)
+                    setAbonosPorBoleta({})
+                    setNotasAbono('')
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Info resumen */}
+              <div className="bg-slate-50 rounded-lg p-3 flex items-center justify-between text-sm">
+                <span className="text-slate-600">Saldo total pendiente:</span>
+                <span className="font-bold text-red-700 text-lg">
+                  {formatoMoneda(venta.saldo_pendiente)}
+                </span>
+              </div>
+
+              {/* Botones rápidos globales */}
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-slate-500 self-center mr-1">Aplicar a todas:</span>
+                {[30, 50, 70, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => aplicarPorcentajeATodas(pct)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                  >
+                    {pct}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const reset: Record<string, number> = {}
+                    boletasConSaldo.forEach((b) => { reset[b.boleta_id] = 0 })
+                    setAbonosPorBoleta(reset)
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                >
+                  Limpiar
+                </button>
+              </div>
+
+              {/* Lista de boletas con inputs individuales */}
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                {boletasConSaldo.map((boleta) => {
+                  const saldo = boleta.saldo_pendiente_boleta!
+                  const abonoActual = abonosPorBoleta[boleta.boleta_id] || 0
+                  return (
+                    <div
+                      key={boleta.boleta_id}
+                      className={`border rounded-xl p-3 transition-colors ${
+                        abonoActual > 0
+                          ? 'border-emerald-300 bg-emerald-50/50'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-800">
+                            #{boleta.numero.toString().padStart(4, '0')}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getEstadoBadgeColor(boleta.estado)}`}>
+                            {boleta.estado}
+                          </span>
+                        </div>
+                        <span className="text-xs text-orange-700 font-semibold">
+                          Saldo: {formatoMoneda(saldo)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={saldo}
+                            value={abonoActual || ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0
+                              setAbonoBoleta(boleta.boleta_id, Math.min(val, saldo))
+                            }}
+                            placeholder="0"
+                            className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 text-sm font-medium"
+                          />
+                        </div>
+                        {/* Botones rápidos por boleta */}
+                        <button
+                          type="button"
+                          onClick={() => setAbonoBoleta(boleta.boleta_id, Math.round(saldo * 0.5))}
+                          className="px-2 py-2 text-[11px] font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
+                        >
+                          50%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAbonoBoleta(boleta.boleta_id, saldo)}
+                          className="px-2 py-2 text-[11px] font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
+                        >
+                          100%
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Medio de pago */}
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1">Medio de pago</label>
+                <select
+                  value={metodoPago}
+                  onChange={(e) => setMetodoPago(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900"
+                >
+                  {MEDIOS_PAGO.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1">Notas (opcional)</label>
+                <textarea
+                  value={notasAbono}
+                  onChange={(e) => setNotasAbono(e.target.value)}
+                  placeholder="Ej: Comprobante Nequi #12345, pago verificado..."
+                  rows={2}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Resumen total */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-emerald-800">Total a abonar:</span>
+                <span className="text-lg font-bold text-emerald-700">{formatoMoneda(totalAbonoMulti)}</span>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setMostrarFormAbono(false)
+                    setModoMultiBoleta(false)
+                    setError(null)
+                    setAbonosPorBoleta({})
+                    setNotasAbono('')
+                  }}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleRegistrarAbonoMultiple}
+                  disabled={procesandoAbono || totalAbonoMulti <= 0}
+                  className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {procesandoAbono ? (
+                    <>
+                      <span className="inline-block animate-spin">⏳</span>
+                      <span>Procesando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>💰</span>
+                      <span>Registrar abonos ({formatoMoneda(totalAbonoMulti)})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -584,6 +890,7 @@ export default function DetalleVentaPublica({
                 <button
                   onClick={() => {
                     setMostrarFormAbono(false)
+                    setModoMultiBoleta(false)
                     setError(null)
                     setMontoAbono(0)
                     setNotasAbono('')
@@ -695,6 +1002,7 @@ export default function DetalleVentaPublica({
                 <button
                   onClick={() => {
                     setMostrarFormAbono(false)
+                    setModoMultiBoleta(false)
                     setError(null)
                     setMontoAbono(0)
                     setNotasAbono('')
