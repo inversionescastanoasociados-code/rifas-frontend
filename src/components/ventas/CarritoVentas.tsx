@@ -195,17 +195,17 @@ export default function CarritoVentas({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Total:</span>
-                    <span className="font-medium text-slate-900">${total.toLocaleString()}</span>
+                    <span className="font-medium text-slate-900">${total.toLocaleString('es-CO')}</span>
                   </div>
                   {tipoVenta === 'ABONO' && (
                     <>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Abono:</span>
-                        <span className="font-medium text-green-600">${montoAbono.toLocaleString()}</span>
+                        <span className="font-medium text-green-600">${montoAbono.toLocaleString('es-CO')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Saldo Pendiente:</span>
-                        <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString()}</span>
+                        <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Estado:</span>
@@ -292,7 +292,7 @@ export default function CarritoVentas({
                   #{boleta.numero.toString().padStart(4, '0')}
                 </div>
                 <div className="text-sm text-slate-600">
-                  ${precioBoleta.toFixed(2)}
+                  ${precioBoleta.toLocaleString('es-CO')}
                 </div>
                 <div className="text-xs text-amber-600">
                   Bloqueo: {tiempoRestante(boleta)}
@@ -380,7 +380,7 @@ export default function CarritoVentas({
               </div>
               {montoAbono > 0 && (
                 <div className="mt-2 text-sm text-slate-600">
-                  Saldo pendiente: <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString()}</span>
+                  Saldo pendiente: <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
                 </div>
               )}
             </div>
@@ -462,18 +462,18 @@ export default function CarritoVentas({
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-slate-600">Subtotal ({boletas.length} boletas)</span>
-            <span className="text-slate-900">${subtotal.toFixed(2)}</span>
+            <span className="text-slate-900">${subtotal.toLocaleString('es-CO')}</span>
           </div>
           
           {tipoVenta === 'ABONO' && montoAbono > 0 && (
             <>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Abono inicial</span>
-                <span className="text-green-600 font-medium">${montoAbono.toFixed(2)}</span>
+                <span className="text-green-600 font-medium">${montoAbono.toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Saldo pendiente</span>
-                <span className="text-orange-600 font-medium">${saldoPendiente.toFixed(2)}</span>
+                <span className="text-orange-600 font-medium">${saldoPendiente.toLocaleString('es-CO')}</span>
               </div>
             </>
           )}
@@ -482,13 +482,13 @@ export default function CarritoVentas({
             <span className="text-slate-900">
               {tipoVenta === 'ABONO' ? 'Total Venta' : 'Total a Pagar'}
             </span>
-            <span className="text-slate-900">${total.toFixed(2)}</span>
+            <span className="text-slate-900">${total.toLocaleString('es-CO')}</span>
           </div>
           
           {tipoVenta === 'ABONO' && (
             <div className="flex justify-between text-sm bg-amber-50 p-2 rounded">
               <span className="text-amber-800">Pagado hoy</span>
-              <span className="text-amber-800 font-medium">${montoAbono.toFixed(2)}</span>
+              <span className="text-amber-800 font-medium">${montoAbono.toLocaleString('es-CO')}</span>
             </div>
           )}
         </div>
@@ -523,8 +523,8 @@ export default function CarritoVentas({
             {procesando 
               ? 'Procesando...' 
               : tipoVenta === 'ABONO' 
-                ? `Crear Abono ($${montoAbono.toFixed(2)})`
-                : `Completar Venta ($${total.toFixed(2)})`
+                ? `Crear Abono ($${montoAbono.toLocaleString('es-CO')})`
+                : `Completar Venta ($${total.toLocaleString('es-CO')})`
             }
           </button>
         )}

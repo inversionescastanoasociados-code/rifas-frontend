@@ -247,7 +247,7 @@ export default function DialogoReserva({
               {boletas.slice(0, 3).map((boleta) => (
                 <div key={boleta.id} className="flex justify-between text-sm">
                   <span className="text-blue-800">#{boleta.numero.toString().padStart(4, '0')}</span>
-                  <span className="text-blue-600 font-medium">${precioBoleta.toLocaleString()}</span>
+                  <span className="text-blue-600 font-medium">${precioBoleta.toLocaleString('es-CO')}</span>
                 </div>
               ))}
               {boletas.length > 3 && (
@@ -259,7 +259,7 @@ export default function DialogoReserva({
             <div className="border-t border-blue-200 mt-3 pt-3">
               <div className="flex justify-between font-medium">
                 <span className="text-blue-900">Total ({boletas.length} boletas)</span>
-                <span className="text-blue-900">${subtotal.toLocaleString()}</span>
+                <span className="text-blue-900">${subtotal.toLocaleString('es-CO')}</span>
               </div>
             </div>
           </div>

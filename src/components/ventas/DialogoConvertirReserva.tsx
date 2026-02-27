@@ -136,17 +136,17 @@ export default function DialogoConvertirReserva({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Total:</span>
-                    <span className="font-medium text-slate-900">${ventaResponse.monto_total.toLocaleString()}</span>
+                    <span className="font-medium text-slate-900">${ventaResponse.monto_total.toLocaleString('es-CO')}</span>
                   </div>
                   {tipoVenta === 'ABONO' && (
                     <>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Pagado:</span>
-                        <span className="font-medium text-green-600">${ventaResponse.total_pagado.toLocaleString()}</span>
+                        <span className="font-medium text-green-600">${ventaResponse.total_pagado.toLocaleString('es-CO')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600">Saldo:</span>
-                        <span className="font-medium text-orange-600">${ventaResponse.saldo_pendiente.toLocaleString()}</span>
+                        <span className="font-medium text-orange-600">${ventaResponse.saldo_pendiente.toLocaleString('es-CO')}</span>
                       </div>
                     </>
                   )}
@@ -264,7 +264,7 @@ export default function DialogoConvertirReserva({
               >
                 <div className="font-medium">Completa</div>
                 <div className="text-xs text-slate-600 mt-1">
-                  Pago total de ${totalVenta.toLocaleString()}
+                  Pago total de ${totalVenta.toLocaleString('es-CO')}
                 </div>
               </button>
               <button
@@ -334,15 +334,15 @@ export default function DialogoConvertirReserva({
                   <div className="bg-slate-50 p-3 rounded-lg text-sm">
                     <div className="flex justify-between text-slate-600">
                       <span>Total:</span>
-                      <span className="font-medium text-slate-900">${totalVenta.toLocaleString()}</span>
+                      <span className="font-medium text-slate-900">${totalVenta.toLocaleString('es-CO')}</span>
                     </div>
                     <div className="flex justify-between text-green-600 mt-2">
                       <span>Pago hoy:</span>
-                      <span className="font-medium">${montoAbono.toLocaleString()}</span>
+                      <span className="font-medium">${montoAbono.toLocaleString('es-CO')}</span>
                     </div>
                     <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between text-orange-600">
                       <span className="font-medium">Saldo pendiente:</span>
-                      <span className="font-bold">${saldoPendiente.toLocaleString()}</span>
+                      <span className="font-bold">${saldoPendiente.toLocaleString('es-CO')}</span>
                     </div>
                   </div>
                 )}
@@ -373,18 +373,18 @@ export default function DialogoConvertirReserva({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Total de la Venta</span>
-                <span className="font-medium text-slate-900">${totalVenta.toLocaleString()}</span>
+                <span className="font-medium text-slate-900">${totalVenta.toLocaleString('es-CO')}</span>
               </div>
 
               {tipoVenta === 'ABONO' && montoAbono > 0 && (
                 <>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Pago inicial</span>
-                    <span className="font-medium text-green-600">${montoAbono.toLocaleString()}</span>
+                    <span className="font-medium text-green-600">${montoAbono.toLocaleString('es-CO')}</span>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-2">
                     <span className="text-slate-600 font-medium">Saldo pendiente</span>
-                    <span className="font-bold text-orange-600">${saldoPendiente.toLocaleString()}</span>
+                    <span className="font-bold text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
                   </div>
                 </>
               )}

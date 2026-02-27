@@ -137,7 +137,7 @@ intervalosRef.current.set(boleta.id, intervalId)
 
       
     } catch (error) {
-      setError(`La boleta #${boleta.numero} ya fue seleccionada por otro usuario. Por favor elige otra boleta.`)
+      setError(`La boleta #${String(boleta.numero).padStart(4, '0')} ya fue seleccionada por otro usuario. Por favor elige otra boleta.`)
       console.error('Error bloqueando boleta:', error)
       // refrescar lista inmediatamente
       // cargarBoletasDisponibles()
@@ -372,7 +372,7 @@ useEffect(() => {
                   #{boleta.numero.toString().padStart(4, '0')}
                 </div>
                 <div className="text-xs text-slate-600 mt-1">
-                  ${precioBoleta.toFixed(2)}
+                  ${precioBoleta.toLocaleString('es-CO')}
                 </div>
                 {bloqueando.has(boleta.id) && (
                   <div className="text-xs text-blue-600 mt-2">

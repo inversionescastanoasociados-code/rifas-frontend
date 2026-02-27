@@ -160,7 +160,7 @@ export default function DetalleVentaPublica({
     // Validar contra saldo de boleta individual o saldo general
     const saldoMax = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
     if (montoValidado > saldoMax) {
-      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero}` : ''}`)
+      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : ''}`)
       return
     }
     if (!metodoPago || metodoPago.trim() === '') {
@@ -191,9 +191,9 @@ export default function DetalleVentaPublica({
       setExito(
         esPagoTotal
           ? (abonarBoleta
-              ? `✅ ¡Boleta #${abonarBoleta.boletaNumero} pagada completamente!`
+              ? `✅ ¡Boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')} pagada completamente!`
               : '✅ ¡Pago total registrado! La venta queda PAGADA. Las boletas se han entregado al cliente.')
-          : `✅ Abono de ${formatoMoneda(montoValidado)}${abonarBoleta ? ` a boleta #${abonarBoleta.boletaNumero}` : ''} registrado exitosamente.`
+          : `✅ Abono de ${formatoMoneda(montoValidado)}${abonarBoleta ? ` a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : ''} registrado exitosamente.`
       )
 
       setMostrarFormAbono(false)
@@ -337,7 +337,7 @@ export default function DetalleVentaPublica({
                       : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
                   }`}
                 >
-                  <div className="text-xl font-bold text-slate-800">#{boleta.numero}</div>
+                  <div className="text-xl font-bold text-slate-800">#{boleta.numero.toString().padStart(4, '0')}</div>
                   <span
                     className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${getEstadoBadgeColor(boleta.estado)}`}
                   >
@@ -475,7 +475,7 @@ export default function DetalleVentaPublica({
                       BOLETA
                     </p>
                     <p className="text-sm font-medium text-slate-900">
-                      #{abono.boleta_numero}
+                      #{String(abono.boleta_numero).padStart(4, '0')}
                     </p>
                   </div>
 
@@ -578,7 +578,7 @@ export default function DetalleVentaPublica({
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-900">
                   {abonarBoleta
-                    ? `💰 Abonar a boleta #${abonarBoleta.boletaNumero}`
+                    ? `💰 Abonar a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}`
                     : (pagarTodo ? '💳 Registrar Pago Total' : '💰 Registrar Abono')}
                 </h3>
                 <button
@@ -602,7 +602,7 @@ export default function DetalleVentaPublica({
               <div className="bg-slate-50 rounded-lg p-3 flex items-center justify-between text-sm">
                 <span className="text-slate-600">
                   {abonarBoleta
-                    ? `Saldo pendiente boleta #${abonarBoleta.boletaNumero}:`
+                    ? `Saldo pendiente boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}:`
                     : 'Saldo pendiente:'}
                 </span>
                 <span className="font-bold text-red-700 text-lg">
@@ -674,7 +674,7 @@ export default function DetalleVentaPublica({
                     }}
                     className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero}` : 'Pagar saldo total de la venta'}</span>
+                  <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : 'Pagar saldo total de la venta'}</span>
                 </label>
               </div>
 
@@ -721,8 +721,8 @@ export default function DetalleVentaPublica({
                       <span>
                         {abonarBoleta
                           ? (pagarTodo
-                              ? `Pagar boleta #${abonarBoleta.boletaNumero} (${formatoMoneda(montoAbono)})`
-                              : `Abonar a boleta #${abonarBoleta.boletaNumero} (${formatoMoneda(montoAbono)})`)
+                              ? `Pagar boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')} (${formatoMoneda(montoAbono)})`
+                              : `Abonar a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')} (${formatoMoneda(montoAbono)})`)
                           : (pagarTodo
                               ? `Confirmar Pago Total (${formatoMoneda(montoAbono)})`
                               : `Registrar Abono (${formatoMoneda(montoAbono)})`)}

@@ -106,7 +106,7 @@ export default function VentasBoletasPage() {
                 className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col items-center justify-between gap-3"
               >
                 <div className="text-2xl font-bold text-slate-800">
-                  #{boleta.numero}
+                  #{boleta.numero.toString().padStart(4, '0')}
                 </div>
                 <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                   {boleta.estado}
@@ -115,7 +115,7 @@ export default function VentasBoletasPage() {
                   <div className="h-20 flex items-center justify-center">
                     <img
                       src={getStorageImageUrl(boleta.imagen_url) ?? getStorageImageUrl(boleta.qr_url) ?? boleta.imagen_url ?? boleta.qr_url}
-                      alt={`Boleta ${boleta.numero}`}
+                      alt={`Boleta ${boleta.numero.toString().padStart(4, '0')}`}
                       className="max-h-16 w-auto object-contain"
                     />
                   </div>

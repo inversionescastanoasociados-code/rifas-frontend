@@ -11,15 +11,15 @@ export function RealTimeNotifications({ eventos }: RealTimeNotificationsProps) {
     switch (event.type) {
       case 'BOLETA_BLOQUEADA':
         const bloqueada = event.data as BoletaBloqueadaEvent
-        return `Boleta #${bloqueada.numero} bloqueada por ${bloqueada.bloqueado_por}`
+        return `Boleta #${String(bloqueada.numero).padStart(4, '0')} bloqueada por ${bloqueada.bloqueado_por}`
         
       case 'BOLETA_DESBLOQUEADA':
         const desbloqueada = event.data as BoletaBloqueadaEvent
-        return `Boleta #${desbloqueada.numero} liberada`
+        return `Boleta #${String(desbloqueada.numero).padStart(4, '0')} liberada`
         
       case 'BOLETA_VENDIDA':
         const vendida = event.data as BoletaVendidaEvent
-        return `Boleta #${vendida.numero} vendida`
+        return `Boleta #${String(vendida.numero).padStart(4, '0')} vendida`
         
       case 'VENTA_COMPLETADA':
         return `Venta completada: ${event.data.boletas_vendidas} boletas`

@@ -117,7 +117,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
     // Si estamos abonando a una boleta específica, validar contra el saldo de ESA boleta
     const saldoMax = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
     if (montoValidado > saldoMax) {
-      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero}` : ''}`)
+      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : ''}`)
       return
     }
 
@@ -233,23 +233,23 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           <h2 className="text-xl font-semibold text-slate-900 mb-2">
             {exitoReciente.tipo === 'pago_total'
               ? (exitoReciente.boletaNumero !== undefined
-                  ? `Boleta #${exitoReciente.boletaNumero} pagada`
+                  ? `Boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} pagada`
                   : 'Deuda saldada')
               : (exitoReciente.boletaNumero !== undefined
-                  ? `Abono a boleta #${exitoReciente.boletaNumero} registrado`
+                  ? `Abono a boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} registrado`
                   : 'Abono registrado')}
           </h2>
           <p className="text-slate-600 mb-4">
             {exitoReciente.tipo === 'pago_total'
               ? (exitoReciente.boletaNumero !== undefined
-                  ? `La boleta #${exitoReciente.boletaNumero} quedó completamente pagada.`
+                  ? `La boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} quedó completamente pagada.`
                   : 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.')
-              : `Se registró un abono de $${exitoReciente.monto.toLocaleString()}${exitoReciente.boletaNumero !== undefined ? ` a la boleta #${exitoReciente.boletaNumero}` : ''} correctamente.`}
+              : `Se registró un abono de $${exitoReciente.monto.toLocaleString('es-CO')}${exitoReciente.boletaNumero !== undefined ? ` a la boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')}` : ''} correctamente.`}
           </p>
           <div className="bg-slate-50 rounded-lg p-4 mb-6 text-left text-sm">
             <div className="flex justify-between">
               <span className="text-slate-600">Monto registrado:</span>
-              <span className="font-medium text-slate-900">${exitoReciente.monto.toLocaleString()}</span>
+              <span className="font-medium text-slate-900">${exitoReciente.monto.toLocaleString('es-CO')}</span>
             </div>
           </div>
           {exitoReciente.tipo === 'pago_total' && venta.boletas && venta.boletas.length > 0 && (
@@ -340,7 +340,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 key={boleta.id}
                 className="border-2 border-slate-200 rounded-xl p-4 text-center hover:border-slate-300 transition-colors bg-slate-50/50 flex flex-col gap-2"
               >
-                <div className="text-2xl font-bold text-slate-800">#{boleta.numero}</div>
+                <div className="text-2xl font-bold text-slate-800">#{boleta.numero.toString().padStart(4, '0')}</div>
 
                 <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-semibold
                   bg-slate-100 text-slate-700">
@@ -351,7 +351,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                   <div className="mt-2 h-16 flex items-center justify-center">
                     <img
                       src={getStorageImageUrl(boleta.imagen_url) ?? getStorageImageUrl(boleta.qr_url) ?? boleta.imagen_url ?? boleta.qr_url}
-                      alt={`Boleta ${boleta.numero}`}
+                      alt={`Boleta ${boleta.numero.toString().padStart(4, '0')}`}
                       className="max-h-14 w-auto object-contain"
                     />
                   </div>
@@ -359,14 +359,14 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
 
                 <div className="text-[11px] text-left space-y-1 mt-1 text-slate-700">
                   {typeof boleta.precio_boleta === 'number' && (
-                    <div>Precio: ${boleta.precio_boleta.toLocaleString()}</div>
+                    <div>Precio: ${boleta.precio_boleta.toLocaleString('es-CO')}</div>
                   )}
                   {typeof boleta.total_pagado_boleta === 'number' && (
-                    <div>Pagado: ${boleta.total_pagado_boleta.toLocaleString()}</div>
+                    <div>Pagado: ${boleta.total_pagado_boleta.toLocaleString('es-CO')}</div>
                   )}
                   {typeof boleta.saldo_pendiente_boleta === 'number' && (
                     <div className="font-semibold text-orange-700">
-                      Saldo: ${boleta.saldo_pendiente_boleta.toLocaleString()}
+                      Saldo: ${boleta.saldo_pendiente_boleta.toLocaleString('es-CO')}
                     </div>
                   )}
                   {boleta.estado === 'RESERVADA' && boleta.bloqueo_hasta && (
@@ -447,15 +447,15 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
           <div>
             <div className="text-slate-500 text-xs mb-1">Total</div>
-            <div className="font-medium text-lg">${venta.monto_total.toLocaleString()}</div>
+            <div className="font-medium text-lg">${venta.monto_total.toLocaleString('es-CO')}</div>
           </div>
           <div>
             <div className="text-slate-500 text-xs mb-1">Pagado</div>
-            <div className="font-medium text-lg text-green-600">${venta.total_pagado.toLocaleString()}</div>
+            <div className="font-medium text-lg text-green-600">${venta.total_pagado.toLocaleString('es-CO')}</div>
           </div>
           <div>
             <div className="text-slate-500 text-xs mb-1">Saldo pendiente</div>
-            <div className="font-medium text-lg text-orange-600">${venta.saldo_pendiente.toLocaleString()}</div>
+            <div className="font-medium text-lg text-orange-600">${venta.saldo_pendiente.toLocaleString('es-CO')}</div>
           </div>
           <div>
             <div className="text-slate-500 text-xs mb-1">Estado</div>
@@ -549,11 +549,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           {abonarBoleta ? (
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-900">
-                Abonar a boleta #{abonarBoleta.boletaNumero}
+                Abonar a boleta #{abonarBoleta.boletaNumero.toString().padStart(4, '0')}
               </h3>
               <div className="mt-2 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
                 <span className="text-sm text-blue-800">
-                  Saldo pendiente de esta boleta: <strong>${abonarBoleta.saldoPendiente.toLocaleString()}</strong>
+                  Saldo pendiente de esta boleta: <strong>${abonarBoleta.saldoPendiente.toLocaleString('es-CO')}</strong>
                 </span>
                 <button
                   type="button"
@@ -593,7 +593,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-bold text-black mb-1">
-                Valor a abonar (máx. ${(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente).toLocaleString()})
+                Valor a abonar (máx. ${(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente).toLocaleString('es-CO')})
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -622,7 +622,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                   }}
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero}` : 'Pagar saldo total de la venta'}</span>
+                <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : 'Pagar saldo total de la venta'}</span>
               </label>
             </div>
             <div>
@@ -652,7 +652,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 {procesando
                   ? 'Registrando...'
                   : abonarBoleta
-                    ? `Registrar abono a boleta #${abonarBoleta.boletaNumero}`
+                    ? `Registrar abono a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}`
                     : 'Registrar abono'}
               </button>
             </div>

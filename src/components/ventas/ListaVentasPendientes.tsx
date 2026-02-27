@@ -104,15 +104,15 @@ export default function ListaVentasPendientes({ clienteId }: Props) {
                   </p>
 
                   <p className="text-sm text-slate-700">
-                    Total: ${venta.monto_total.toLocaleString()}
+                    Total: ${venta.monto_total.toLocaleString('es-CO')}
                   </p>
 
                   <p className="text-sm text-green-600">
-                    Pagado: ${venta.total_pagado.toLocaleString()}
+                    Pagado: ${venta.total_pagado.toLocaleString('es-CO')}
                   </p>
 
                   <p className="text-sm text-red-600 font-semibold">
-                    Saldo: ${venta.saldo_pendiente.toLocaleString()}
+                    Saldo: ${venta.saldo_pendiente.toLocaleString('es-CO')}
                   </p>
                 </div>
 

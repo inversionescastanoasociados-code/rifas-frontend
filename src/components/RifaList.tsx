@@ -91,9 +91,10 @@ export default function RifaList({
   }
 
   const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('es-DO', {
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'DOP'
+      currency: 'COP',
+      minimumFractionDigits: 0
     }).format(parseFloat(amount))
   }
 
