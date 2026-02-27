@@ -24,6 +24,17 @@ export interface Boleta {
   tipo_estado: 'DISPONIBLE' | 'RESERVADA' | 'CON_PAGO' | 'TRANSFERIDA' | 'ANULADA'
 }
 
+export interface AbonoHistorial {
+  id: string
+  monto: number
+  moneda: string
+  estado: string
+  referencia: string | null
+  metodo_pago: string
+  notas: string | null
+  fecha: string
+}
+
 export interface BoletaDetail {
   id: string
   rifa_id: string
@@ -53,6 +64,7 @@ export interface BoletaDetail {
     metodo_pago: string
     estado: string
   } | null
+  abonos?: AbonoHistorial[]
 }
 
 export interface BoletaDetailResponse {

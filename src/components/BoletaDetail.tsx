@@ -216,6 +216,59 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
         )}
       </div>
 
+      {/* Historial de Abonos */}
+      {boleta.abonos && boleta.abonos.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h3 className="text-lg font-medium text-slate-900 mb-4">
+            💰 Historial de Abonos ({boleta.abonos.length})
+          </h3>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">#</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Fecha</th>
+                  <th className="text-right py-2 px-3 text-slate-600 font-medium">Monto</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Método</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Estado</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Notas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {boleta.abonos.map((abono, index) => (
+                  <tr key={abono.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="py-2 px-3 text-slate-500">{index + 1}</td>
+                    <td className="py-2 px-3 text-slate-900">{formatDate(abono.fecha)}</td>
+                    <td className="py-2 px-3 text-right font-medium text-green-700">{formatCurrency(abono.monto)}</td>
+                    <td className="py-2 px-3 text-slate-900">{abono.metodo_pago}</td>
+                    <td className="py-2 px-3">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                        abono.estado === 'CONFIRMADO' ? 'bg-green-100 text-green-800' :
+                        abono.estado === 'REGISTRADO' ? 'bg-orange-100 text-orange-800' :
+                        'bg-slate-100 text-slate-800'
+                      }`}>
+                        {abono.estado}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-slate-500 text-xs max-w-[200px] truncate">{abono.notas || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-300">
+                  <td colSpan={2} className="py-2 px-3 font-semibold text-slate-900">Total abonado</td>
+                  <td className="py-2 px-3 text-right font-bold text-green-700">
+                    {formatCurrency(boleta.abonos.reduce((sum, a) => sum + a.monto, 0))}
+                  </td>
+                  <td colSpan={3}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Reservation Information */}
       {boleta.reserva_token && (
         <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-6">

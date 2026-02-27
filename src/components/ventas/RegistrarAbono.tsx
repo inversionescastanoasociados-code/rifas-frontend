@@ -22,6 +22,17 @@ type AbonarBoletaState = {
   saldoPendiente: number
 } | null
 
+interface AbonoBoletaHistorial {
+  id: string
+  monto: number
+  moneda: string
+  estado: string
+  referencia: string | null
+  metodo_pago: string
+  notas: string | null
+  fecha: string
+}
+
 interface VentaNormalizada {
   id: string
   monto_total: number
@@ -43,6 +54,7 @@ interface VentaNormalizada {
     saldo_pendiente_boleta?: number
     qr_url?: string
     imagen_url?: string
+    abonos?: AbonoBoletaHistorial[]
   }>
 }
 
@@ -68,6 +80,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [pagarTodo, setPagarTodo] = useState(false)
   const [exitoReciente, setExitoReciente] = useState<ExitoReciente>(null)
   const [abonarBoleta, setAbonarBoleta] = useState<AbonarBoletaState>(null)
+  const [historialExpandido, setHistorialExpandido] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     cargarDetalle()
@@ -423,6 +436,51 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 {boleta.estado === 'PAGADA' && (
                   <div className="mt-2 text-xs text-green-700 font-semibold text-center bg-green-50 rounded-lg py-1">
                     ✅ Pagada
+                  </div>
+                )}
+
+                {/* Historial de abonos por boleta */}
+                {boleta.abonos && boleta.abonos.length > 0 && (
+                  <div className="mt-2 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setHistorialExpandido(prev => ({
+                        ...prev,
+                        [boleta.id]: !prev[boleta.id]
+                      }))}
+                      className="w-full text-[11px] text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center gap-1"
+                    >
+                      <span>{historialExpandido[boleta.id] ? '▼' : '▶'}</span>
+                      <span>Historial ({boleta.abonos.length} abono{boleta.abonos.length !== 1 ? 's' : ''})</span>
+                    </button>
+                    {historialExpandido[boleta.id] && (
+                      <div className="mt-1 space-y-1 text-left">
+                        {boleta.abonos.map((abono, idx) => (
+                          <div key={abono.id} className="bg-white border border-slate-200 rounded-lg p-2 text-[10px]">
+                            <div className="flex justify-between items-start">
+                              <span className="text-slate-500">#{idx + 1}</span>
+                              <span className="font-semibold text-green-700">
+                                ${Number(abono.monto).toLocaleString('es-CO')}
+                              </span>
+                            </div>
+                            <div className="text-slate-500 mt-0.5">
+                              {new Date(abono.fecha).toLocaleDateString('es-CO')} {new Date(abono.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div className="text-slate-600">
+                              {abono.metodo_pago}
+                            </div>
+                            {abono.notas && (
+                              <div className="text-slate-400 italic mt-0.5 truncate">
+                                {abono.notas}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-1.5 text-[10px] text-center font-semibold text-blue-800">
+                          Total abonado: ${boleta.abonos.reduce((sum, a) => sum + Number(a.monto), 0).toLocaleString('es-CO')}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
