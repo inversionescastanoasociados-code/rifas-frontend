@@ -31,14 +31,27 @@ export default function CarritoVentas({
   
   // Estados para abonos parciales
   const [tipoVenta, setTipoVenta] = useState<'COMPLETA' | 'ABONO' | 'RESERVA'>('COMPLETA')
-  const [montoAbono, setMontoAbono] = useState<number>(0)
+  const [abonosPorBoleta, setAbonosPorBoleta] = useState<Record<string, number>>({})
   const [ventaResponse, setVentaResponse] = useState<any>(null)
   const [mostrarDialogoReserva, setMostrarDialogoReserva] = useState(false)
 
   // Calcular totales
   const subtotal = boletas.length * precioBoleta
   const total = subtotal
+  const montoAbono = tipoVenta === 'ABONO' ? Object.values(abonosPorBoleta).reduce((sum, v) => sum + (v || 0), 0) : 0
   const saldoPendiente = tipoVenta === 'ABONO' ? total - montoAbono : 0
+
+  // Helpers para abono por boleta
+  const setAbonoBoleta = (boletaId: string, monto: number) => {
+    setAbonosPorBoleta(prev => ({ ...prev, [boletaId]: Math.max(0, Math.min(monto, precioBoleta)) }))
+  }
+
+  const aplicarPorcentajeATodas = (porcentaje: number) => {
+    const montoIndividual = Math.floor(precioBoleta * porcentaje)
+    const nuevo: Record<string, number> = {}
+    boletas.forEach(b => { nuevo[b.id] = montoIndividual })
+    setAbonosPorBoleta(nuevo)
+  }
 
   // Remover boleta del carrito
   const removerBoleta = async (boleta: BoletaEnCarrito) => {
@@ -66,12 +79,20 @@ export default function CarritoVentas({
     // Validaciones para abonos
     if (tipoVenta === 'ABONO') {
       if (montoAbono <= 0) {
-        setError('El monto de abono debe ser mayor a 0')
+        setError('Debes abonar al menos a una boleta')
         return
       }
       if (montoAbono >= total) {
         setError('Para pago completo, seleccione "Venta Completa"')
         return
+      }
+      // Validar que ningún abono exceda el precio de la boleta
+      for (const boleta of boletas) {
+        const abonoIndividual = abonosPorBoleta[boleta.id] || 0
+        if (abonoIndividual > precioBoleta) {
+          setError(`El abono de boleta #${boleta.numero.toString().padStart(4, '0')} no puede exceder $${precioBoleta.toLocaleString('es-CO')}`)
+          return
+        }
       }
     }
 
@@ -96,7 +117,15 @@ export default function CarritoVentas({
         medio_pago_id: medioPagoId,
         total_venta: total,
         total_pagado: tipoVenta === 'ABONO' ? montoAbono : total,
-        notas: notas || undefined
+        notas: notas || undefined,
+        ...(tipoVenta === 'ABONO' ? {
+          abonos_por_boleta: boletas
+            .filter(b => (abonosPorBoleta[b.id] || 0) > 0)
+            .map(b => ({
+              boleta_id: b.id,
+              monto: abonosPorBoleta[b.id]
+            }))
+        } : {})
       }
 
       const response = await ventasApi.crearVenta(ventaData)
@@ -355,58 +384,113 @@ export default function CarritoVentas({
         </div>
       </div>
 
-      {/* Abono Parcial */}
+      {/* Abono por boleta individual */}
       {tipoVenta === 'ABONO' && (
         <div className="mb-6">
-          <h3 className="text-sm font-bold text-black mb-3">Monto de Abono</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm text-black font-semibold mb-1">
-                Valor a abonar hoy
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">
-                  $
-                </span>
-                <input
-                  type="number"
-                  value={montoAbono}
-                  onChange={(e) => setMontoAbono(Math.max(0, Number(e.target.value)))}
-                  min="1"
-                  max={total - 1}
-                  className="w-full pl-8 pr-3 py-2 border border-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white text-black"
-                  placeholder="0"
-                />
-              </div>
-              {montoAbono > 0 && (
-                <div className="mt-2 text-sm text-slate-600">
-                  Saldo pendiente: <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Sugerencias de abono */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMontoAbono(Math.floor(total * 0.3))}
-                className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-sm hover:bg-slate-200"
-              >
-                30%
-              </button>
-              <button
-                onClick={() => setMontoAbono(Math.floor(total * 0.5))}
-                className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-sm hover:bg-slate-200"
-              >
-                50%
-              </button>
-              <button
-                onClick={() => setMontoAbono(Math.floor(total * 0.7))}
-                className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-sm hover:bg-slate-200"
-              >
-                70%
-              </button>
-            </div>
+          <h3 className="text-sm font-bold text-black mb-3">Abono por Boleta</h3>
+          <p className="text-xs text-slate-500 mb-3">
+            Ingresa cuánto abonar a cada boleta individualmente. Precio por boleta: <strong>${precioBoleta.toLocaleString('es-CO')}</strong>
+          </p>
+
+          {/* Botones rápidos para todas */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="text-xs text-slate-500 self-center mr-1">Aplicar a todas:</span>
+            <button
+              onClick={() => aplicarPorcentajeATodas(0.3)}
+              className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs hover:bg-slate-200 font-medium"
+            >
+              30%
+            </button>
+            <button
+              onClick={() => aplicarPorcentajeATodas(0.5)}
+              className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs hover:bg-slate-200 font-medium"
+            >
+              50%
+            </button>
+            <button
+              onClick={() => aplicarPorcentajeATodas(0.7)}
+              className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs hover:bg-slate-200 font-medium"
+            >
+              70%
+            </button>
+            <button
+              onClick={() => setAbonosPorBoleta({})}
+              className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 font-medium"
+            >
+              Limpiar
+            </button>
           </div>
+
+          {/* Inputs por boleta */}
+          <div className="space-y-3">
+            {boletas.map((boleta) => {
+              const abonoActual = abonosPorBoleta[boleta.id] || 0
+              const saldoBoleta = precioBoleta - abonoActual
+              return (
+                <div
+                  key={boleta.id}
+                  className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg"
+                >
+                  <div className="flex-shrink-0 w-16">
+                    <div className="text-sm font-bold text-slate-800">#{boleta.numero.toString().padStart(4, '0')}</div>
+                    <div className="text-[10px] text-slate-500">${precioBoleta.toLocaleString('es-CO')}</div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        value={abonoActual || ''}
+                        onChange={(e) => setAbonoBoleta(boleta.id, Number(e.target.value))}
+                        min="0"
+                        max={precioBoleta}
+                        placeholder="0"
+                        className="w-full pl-6 pr-2 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right w-24">
+                    {abonoActual > 0 ? (
+                      <div>
+                        <div className="text-[10px] text-slate-500">Saldo</div>
+                        <div className={`text-xs font-semibold ${saldoBoleta > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                          ${saldoBoleta.toLocaleString('es-CO')}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Sin abono</span>
+                    )}
+                  </div>
+                  {/* Botones rápidos individuales */}
+                  <div className="flex-shrink-0 flex gap-1">
+                    {[0.5, 1].map((pct) => (
+                      <button
+                        key={pct}
+                        onClick={() => setAbonoBoleta(boleta.id, Math.floor(precioBoleta * pct))}
+                        className="px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] hover:bg-slate-300"
+                      >
+                        {pct === 1 ? '100%' : `${pct * 100}%`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Resumen de abonos */}
+          {montoAbono > 0 && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex justify-between text-sm">
+                <span className="text-green-800">Total abonado hoy:</span>
+                <span className="font-bold text-green-700">${montoAbono.toLocaleString('es-CO')}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-orange-700">Saldo pendiente total:</span>
+                <span className="font-bold text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

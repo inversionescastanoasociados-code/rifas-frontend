@@ -59,6 +59,10 @@ export interface VentaRequest {
   total_venta: number
   total_pagado?: number
   notas?: string
+  abonos_por_boleta?: Array<{
+    boleta_id: string
+    monto: number
+  }>
 }
 
 export interface VentaResponse {
