@@ -15,14 +15,18 @@ interface VentaPendiente {
 
 interface Props {
   clienteId?: string
+  ventaIdDirecta?: string  // Si se pasa, ir directamente a RegistrarAbono sin listar
 }
 
-export default function ListaVentasPendientes({ clienteId }: Props) {
+export default function ListaVentasPendientes({ clienteId, ventaIdDirecta }: Props) {
   const [ventas, setVentas] = useState<VentaPendiente[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ventaSeleccionada, setVentaSeleccionada] =
     useState<VentaPendiente | null>(null)
+
+  // Si nos pasan ventaIdDirecta, ir directo a gestionar esa venta
+  const [ventaDirecta, setVentaDirecta] = useState<string | null>(ventaIdDirecta || null)
 
   const fetchVentas = async () => {
     if (!clienteId) return
@@ -46,8 +50,27 @@ export default function ListaVentasPendientes({ clienteId }: Props) {
   }
 
   useEffect(() => {
-    fetchVentas()
+    if (!ventaDirecta) {
+      fetchVentas()
+    }
   }, [clienteId])
+
+  // Si hay ventaDirecta, ir directo al componente RegistrarAbono
+  if (ventaDirecta) {
+    return (
+      <RegistrarAbono
+        ventaId={ventaDirecta}
+        onBack={() => {
+          setVentaDirecta(null)
+          fetchVentas()
+        }}
+        onAbonoRegistrado={() => {
+          setVentaDirecta(null)
+          fetchVentas()
+        }}
+      />
+    )
+  }
 
   if (loading) {
     return (
@@ -133,11 +156,11 @@ export default function ListaVentasPendientes({ clienteId }: Props) {
           ventaId={ventaSeleccionada.id.toString()}
           onBack={() => {
             setVentaSeleccionada(null)
-            fetchVentas() // 🔥 refresca correctamente después de volver
+            fetchVentas()
           }}
           onAbonoRegistrado={() => {
             setVentaSeleccionada(null)
-            fetchVentas() // 🔥 refresca lista después de abonar
+            fetchVentas()
           }}
         />
       )}

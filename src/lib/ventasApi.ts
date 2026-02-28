@@ -264,6 +264,12 @@ async liberarBloqueosMultiples(
 }
   // ---------------- BUSCAR VENTA Pagina Gestionar ----------------
 
+  async buscarBoletaParaAbono(numero: number, rifaId?: string) {
+    let url = `/ventas/buscar-boleta-abono?numero=${numero}`
+    if (rifaId) url += `&rifa_id=${rifaId}`
+    return this.request<any>(url)
+  }
+
   async buscarVenta(query: string) {
     return this.request<VentaResponse[]>(
       `/ventas/search?q=${encodeURIComponent(query)}`
