@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 import RegistrarAbono from './RegistrarAbono'
 import { ventasApi } from '@/lib/ventasApi'
 
+interface BoletaInfo {
+  id: string
+  numero: number
+  estado: string
+  rifa_nombre: string
+}
+
 interface VentaPendiente {
   id: number
   monto_total: number
@@ -11,6 +18,7 @@ interface VentaPendiente {
   saldo_pendiente: number
   estado_venta: string
   created_at: string
+  boletas?: BoletaInfo[]
 }
 
 interface Props {
@@ -114,37 +122,65 @@ export default function ListaVentasPendientes({ clienteId, ventaIdDirecta }: Pro
             {ventas.map((venta) => (
               <div
                 key={venta.id}
-                className="border border-slate-200 rounded-lg p-4 flex justify-between items-center"
+                className="border border-slate-200 rounded-lg p-4"
               >
-                <div className="space-y-1">
-                  <p className="font-medium text-slate-900">
-                    Venta #{venta.id}
-                  </p>
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1 flex-1">
+                    {/* Rifa nombre si está disponible */}
+                    {venta.boletas && venta.boletas.length > 0 && venta.boletas[0].rifa_nombre && (
+                      <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">
+                        {venta.boletas[0].rifa_nombre}
+                      </p>
+                    )}
 
-                  <p className="text-sm text-slate-500">
-                    Fecha:{' '}
-                    {new Date(venta.created_at).toLocaleDateString()}
-                  </p>
+                    {/* Boletas */}
+                    {venta.boletas && venta.boletas.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 my-1.5">
+                        {venta.boletas.map((b) => (
+                          <span
+                            key={b.id}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                              b.estado === 'PAGADA' ? 'bg-green-100 text-green-700' :
+                              b.estado === 'ABONADA' ? 'bg-yellow-100 text-yellow-700' :
+                              b.estado === 'RESERVADA' ? 'bg-blue-100 text-blue-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            🎫 #{b.numero.toString().padStart(4, '0')}
+                            <span className="opacity-70">
+                              {b.estado === 'PAGADA' ? '✅' :
+                               b.estado === 'ABONADA' ? '💰' :
+                               b.estado === 'RESERVADA' ? '🔒' : ''}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
-                  <p className="text-sm text-slate-700">
-                    Total: ${venta.monto_total.toLocaleString('es-CO')}
-                  </p>
+                    <p className="text-xs text-slate-400">
+                      {new Date(venta.created_at).toLocaleDateString()}
+                    </p>
 
-                  <p className="text-sm text-green-600">
-                    Pagado: ${venta.total_pagado.toLocaleString('es-CO')}
-                  </p>
+                    <div className="flex gap-4 text-sm mt-1">
+                      <span className="text-slate-700">
+                        Total: <strong>${venta.monto_total.toLocaleString('es-CO')}</strong>
+                      </span>
+                      <span className="text-green-600">
+                        Pagado: ${venta.total_pagado.toLocaleString('es-CO')}
+                      </span>
+                      <span className="text-red-600 font-semibold">
+                        Saldo: ${venta.saldo_pendiente.toLocaleString('es-CO')}
+                      </span>
+                    </div>
+                  </div>
 
-                  <p className="text-sm text-red-600 font-semibold">
-                    Saldo: ${venta.saldo_pendiente.toLocaleString('es-CO')}
-                  </p>
+                  <button
+                    onClick={() => setVentaSeleccionada(venta)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm ml-3 flex-shrink-0"
+                  >
+                    Gestionar
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => setVentaSeleccionada(venta)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Gestionar
-                </button>
               </div>
             ))}
           </div>
