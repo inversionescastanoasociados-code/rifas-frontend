@@ -11,16 +11,12 @@ interface Props {
   onAbonoRegistrado: () => void
 }
 
-type ExitoReciente = { tipo: 'abono' | 'pago_total'; monto: number; boletaNumero?: number } | null
+type ExitoReciente = { tipo: 'abono' | 'pago_total'; monto: number; boletaNumeros?: number[] } | null
 
 type AccionGestionar = null | 'abonar' | 'cancelar'
 
-// Estado de abono por boleta individual
-type AbonarBoletaState = {
-  boletaId: string
-  boletaNumero: number
-  saldoPendiente: number
-} | null
+// Estado de abono multi-boleta: mapa boletaId → monto a abonar
+type BoletasSeleccionadas = Record<string, number>
 
 interface AbonoBoletaHistorial {
   id: string
@@ -79,7 +75,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [confirmarCancelar, setConfirmarCancelar] = useState(false)
   const [pagarTodo, setPagarTodo] = useState(false)
   const [exitoReciente, setExitoReciente] = useState<ExitoReciente>(null)
-  const [abonarBoleta, setAbonarBoleta] = useState<AbonarBoletaState>(null)
+  const [boletasSeleccionadas, setBoletasSeleccionadas] = useState<BoletasSeleccionadas>({})
   const [historialExpandido, setHistorialExpandido] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -119,72 +115,131 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
 
   const registrarAbono = async () => {
     if (!venta) return
-    
-    // Validar monto
-    const montoValidado = Number(monto)
-    if (isNaN(montoValidado) || montoValidado <= 0) {
-      setError('El monto debe ser un número mayor a 0')
-      return
-    }
 
-    // Si estamos abonando a una boleta específica, validar contra el saldo de ESA boleta
-    const saldoMax = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
-    if (montoValidado > saldoMax) {
-      setError(`El monto no puede superar el saldo pendiente${abonarBoleta ? ` de la boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : ''}`)
-      return
-    }
+    // Determinar si es multi-boleta o general
+    const boletasIds = Object.keys(boletasSeleccionadas)
+    const hayBoletasSeleccionadas = boletasIds.length > 0
 
-    // Validar método de pago
-    if (!metodoPago || metodoPago.trim() === '') {
-      setError('Debe seleccionar un método de pago')
-      return
-    }
+    if (hayBoletasSeleccionadas) {
+      // MODO MULTI-BOLETA: validar cada monto individual
+      const boletasAbono: Array<{ boleta_id: string; monto: number }> = []
+      let totalMulti = 0
 
-    setProcesando(true)
-    setError(null)
-    try {
-      const datosAbono: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string } = {
-        monto: montoValidado,
-        metodo_pago: metodoPago,
-        notas: notas.trim() || undefined
+      for (const bId of boletasIds) {
+        const montoB = Number(boletasSeleccionadas[bId])
+        if (isNaN(montoB) || montoB <= 0) continue // ignorar sin monto
+
+        const boletaInfo = venta.boletas?.find(b => b.id === bId)
+        if (!boletaInfo) continue
+
+        const saldoB = boletaInfo.saldo_pendiente_boleta ?? 0
+        if (montoB > saldoB + 0.01) {
+          setError(`El monto de la boleta #${boletaInfo.numero.toString().padStart(4, '0')} ($${montoB.toLocaleString('es-CO')}) excede su saldo ($${saldoB.toLocaleString('es-CO')})`)
+          return
+        }
+
+        boletasAbono.push({ boleta_id: bId, monto: montoB })
+        totalMulti += montoB
       }
 
-      // Si es abono por boleta individual, enviar boleta_id
-      if (abonarBoleta) {
-        datosAbono.boleta_id = abonarBoleta.boletaId
+      if (boletasAbono.length === 0) {
+        setError('Ingresa al menos un monto para abonar')
+        return
       }
 
-      await ventasApi.registrarAbono(ventaId, datosAbono)
-      await cargarDetalle()
-      setMonto(0)
-      setNotas('')
-      setAccion(null)
-      const esPagoTotal = saldoMax - montoValidado <= 0
-      setExitoReciente({
-        tipo: esPagoTotal ? 'pago_total' : 'abono',
-        monto: montoValidado,
-        boletaNumero: abonarBoleta?.boletaNumero
-      })
-      setAbonarBoleta(null)
-    } catch (err: any) {
-      const responseData = err?.response?.data
-      let mensajeError = 'Error registrando abono'
-      
-      if (responseData?.details && Array.isArray(responseData.details)) {
-        const detalles = responseData.details.map((d: any) => 
-          `${d.field}: ${d.message}`
-        ).join(', ')
-        mensajeError = `${responseData.message || 'Error de validación'}: ${detalles}`
-      } else {
-        mensajeError = responseData?.message || 
-                      responseData?.error || 
-                      err?.message || 
-                      'Error registrando abono'
+      if (!metodoPago || metodoPago.trim() === '') {
+        setError('Debe seleccionar un método de pago')
+        return
       }
-      
-      setError(mensajeError)
-    } finally {
-      setProcesando(false)
+
+      setProcesando(true)
+      setError(null)
+      try {
+        await ventasApi.registrarAbono(ventaId, {
+          monto: totalMulti,
+          metodo_pago: metodoPago,
+          notas: notas.trim() || undefined,
+          boletas_abono: boletasAbono
+        })
+        await cargarDetalle()
+        setBoletasSeleccionadas({})
+        setMonto(0)
+        setNotas('')
+        setAccion(null)
+        
+        const numerosAbonados = boletasAbono.map(ba => {
+          const b = venta.boletas?.find(x => x.id === ba.boleta_id)
+          return b?.numero ?? 0
+        })
+
+        // Verificar si se saldó toda la deuda
+        const nuevoSaldo = venta.saldo_pendiente - totalMulti
+        setExitoReciente({
+          tipo: nuevoSaldo <= 0 ? 'pago_total' : 'abono',
+          monto: totalMulti,
+          boletaNumeros: numerosAbonados
+        })
+      } catch (err: any) {
+        const responseData = err?.response?.data
+        let mensajeError = 'Error registrando abono'
+        if (responseData?.details && Array.isArray(responseData.details)) {
+          const detalles = responseData.details.map((d: any) => `${d.field}: ${d.message}`).join(', ')
+          mensajeError = `${responseData.message || 'Error de validación'}: ${detalles}`
+        } else {
+          mensajeError = responseData?.message || responseData?.error || err?.message || 'Error registrando abono'
+        }
+        setError(mensajeError)
+      } finally {
+        setProcesando(false)
+      }
+    } else {
+      // MODO GENERAL (sin boletas seleccionadas)
+      const montoValidado = Number(monto)
+      if (isNaN(montoValidado) || montoValidado <= 0) {
+        setError('El monto debe ser un número mayor a 0')
+        return
+      }
+
+      if (montoValidado > venta.saldo_pendiente) {
+        setError('El monto no puede superar el saldo pendiente')
+        return
+      }
+
+      if (!metodoPago || metodoPago.trim() === '') {
+        setError('Debe seleccionar un método de pago')
+        return
+      }
+
+      setProcesando(true)
+      setError(null)
+      try {
+        await ventasApi.registrarAbono(ventaId, {
+          monto: montoValidado,
+          metodo_pago: metodoPago,
+          notas: notas.trim() || undefined
+        })
+        await cargarDetalle()
+        setMonto(0)
+        setNotas('')
+        setAccion(null)
+        const esPagoTotal = venta.saldo_pendiente - montoValidado <= 0
+        setExitoReciente({
+          tipo: esPagoTotal ? 'pago_total' : 'abono',
+          monto: montoValidado
+        })
+      } catch (err: any) {
+        const responseData = err?.response?.data
+        let mensajeError = 'Error registrando abono'
+        if (responseData?.details && Array.isArray(responseData.details)) {
+          const detalles = responseData.details.map((d: any) => `${d.field}: ${d.message}`).join(', ')
+          mensajeError = `${responseData.message || 'Error de validación'}: ${detalles}`
+        } else {
+          mensajeError = responseData?.message || responseData?.error || err?.message || 'Error registrando abono'
+        }
+        setError(mensajeError)
+      } finally {
+        setProcesando(false)
+      }
     }
   }
 
@@ -293,19 +348,24 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           </div>
           <h2 className="text-xl font-semibold text-slate-900 mb-2">
             {exitoReciente.tipo === 'pago_total'
-              ? (exitoReciente.boletaNumero !== undefined
-                  ? `Boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} pagada`
+              ? (exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
+                  ? (exitoReciente.boletaNumeros.length === 1
+                    ? `Boleta #${exitoReciente.boletaNumeros[0].toString().padStart(4, '0')} pagada`
+                    : 'Boletas pagadas')
                   : 'Deuda saldada')
-              : (exitoReciente.boletaNumero !== undefined
-                  ? `Abono a boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} registrado`
+              : (exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
+                  ? `Abono registrado a ${exitoReciente.boletaNumeros.length} boleta${exitoReciente.boletaNumeros.length > 1 ? 's' : ''}`
                   : 'Abono registrado')}
           </h2>
           <p className="text-slate-600 mb-4">
             {exitoReciente.tipo === 'pago_total'
-              ? (exitoReciente.boletaNumero !== undefined
-                  ? `La boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')} quedó completamente pagada.`
-                  : 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.')
-              : `Se registró un abono de $${exitoReciente.monto.toLocaleString('es-CO')}${exitoReciente.boletaNumero !== undefined ? ` a la boleta #${exitoReciente.boletaNumero.toString().padStart(4, '0')}` : ''} correctamente.`}
+              ? 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.'
+              : (() => {
+                  const nums = exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
+                    ? exitoReciente.boletaNumeros.map(n => `#${n.toString().padStart(4, '0')}`).join(', ')
+                    : null
+                  return `Se registró un abono de $${exitoReciente.monto.toLocaleString('es-CO')}${nums ? ` a las boletas ${nums}` : ''} correctamente.`
+                })()}
           </p>
 
           {/* Resumen financiero */}
@@ -497,47 +557,60 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                   )}
                 </div>
 
-                {/* Botones de acción por boleta */}
+                {/* Selección multi-boleta para abonar */}
                 {typeof boleta.saldo_pendiente_boleta === 'number' && boleta.saldo_pendiente_boleta > 0 && (
-                  <div className="mt-2 flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAbonarBoleta({
-                          boletaId: boleta.id,
-                          boletaNumero: boleta.numero,
-                          saldoPendiente: boleta.saldo_pendiente_boleta!
-                        })
-                        setAccion('abonar')
-                        setMonto(0)
-                        setPagarTodo(false)
-                        setError(null)
-                      }}
-                      className={`w-full px-2 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                        abonarBoleta?.boletaId === boleta.id
-                          ? 'bg-blue-700 text-white ring-2 ring-blue-400'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      💰 Abonar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAbonarBoleta({
-                          boletaId: boleta.id,
-                          boletaNumero: boleta.numero,
-                          saldoPendiente: boleta.saldo_pendiente_boleta!
-                        })
-                        setAccion('abonar')
-                        setMonto(boleta.saldo_pendiente_boleta!)
-                        setPagarTodo(true)
-                        setError(null)
-                      }}
-                      className="w-full px-2 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
-                    >
-                      ✅ Pagar total
-                    </button>
+                  <div className="mt-2 space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={boleta.id in boletasSeleccionadas}
+                        onChange={(e) => {
+                          setBoletasSeleccionadas(prev => {
+                            const next = { ...prev }
+                            if (e.target.checked) {
+                              next[boleta.id] = 0
+                            } else {
+                              delete next[boleta.id]
+                            }
+                            return next
+                          })
+                          if (e.target.checked && accion !== 'abonar') {
+                            setAccion('abonar')
+                            setError(null)
+                          }
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs font-medium text-slate-700">Seleccionar</span>
+                    </label>
+                    {boleta.id in boletasSeleccionadas && (
+                      <div className="space-y-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={boleta.saldo_pendiente_boleta}
+                          value={boletasSeleccionadas[boleta.id] || ''}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0
+                            setBoletasSeleccionadas(prev => ({ ...prev, [boleta.id]: val }))
+                          }}
+                          placeholder="Monto"
+                          className="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500 bg-white text-black"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBoletasSeleccionadas(prev => ({
+                              ...prev,
+                              [boleta.id]: boleta.saldo_pendiente_boleta!
+                            }))
+                          }}
+                          className="w-full px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                        >
+                          ✅ Pagar total (${boleta.saldo_pendiente_boleta.toLocaleString('es-CO')})
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {boleta.estado === 'PAGADA' && (
@@ -690,12 +763,56 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       </div>
 
 
-      {/* Acciones: Cancelar totalidad | Abonar */}
+      {/* Acciones: Seleccionar boletas o Cancelar */}
       {!mostrarFormularioAbono && !mostrarFormularioCancelar && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">¿Qué deseas hacer?</h3>
-          <p className="text-sm text-slate-500 mb-4">Selecciona una boleta arriba para abonar a esa boleta específica, o usa las opciones generales:</p>
+          <p className="text-sm text-slate-500 mb-4">Selecciona las boletas arriba con checkbox y asigna el monto a abonar a cada una, o usa las opciones:</p>
           <div className="flex flex-wrap gap-4">
+            {/* Botón seleccionar todas */}
+            {venta.boletas && venta.boletas.filter(b => (b.saldo_pendiente_boleta ?? 0) > 0).length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const pendientes = venta.boletas?.filter(b => (b.saldo_pendiente_boleta ?? 0) > 0) || []
+                  const todosSeleccionados = pendientes.every(b => b.id in boletasSeleccionadas)
+                  if (todosSeleccionados) {
+                    setBoletasSeleccionadas({})
+                  } else {
+                    const nuevas: BoletasSeleccionadas = {}
+                    for (const b of pendientes) {
+                      nuevas[b.id] = 0
+                    }
+                    setBoletasSeleccionadas(nuevas)
+                  }
+                  setAccion('abonar')
+                  setError(null)
+                }}
+                className="px-6 py-3 border-2 border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 font-medium transition-colors"
+              >
+                {venta.boletas?.filter(b => (b.saldo_pendiente_boleta ?? 0) > 0).every(b => b.id in boletasSeleccionadas)
+                  ? '☑️ Deseleccionar todas'
+                  : '☐ Seleccionar todas las boletas'}
+              </button>
+            )}
+            {/* Pagar todo de todas */}
+            {venta.boletas && venta.boletas.filter(b => (b.saldo_pendiente_boleta ?? 0) > 0).length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const nuevas: BoletasSeleccionadas = {}
+                  for (const b of (venta.boletas || []).filter(x => (x.saldo_pendiente_boleta ?? 0) > 0)) {
+                    nuevas[b.id] = b.saldo_pendiente_boleta!
+                  }
+                  setBoletasSeleccionadas(nuevas)
+                  setAccion('abonar')
+                  setError(null)
+                }}
+                className="px-6 py-3 border-2 border-green-200 text-green-700 rounded-xl hover:bg-green-50 font-medium transition-colors"
+              >
+                ✅ Pagar total de todas
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setAccion('cancelar')}
@@ -710,29 +827,32 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       {/* Formulario: Registrar abono */}
       {mostrarFormularioAbono && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          {/* Header con contexto de boleta */}
-          {abonarBoleta ? (
+          {Object.keys(boletasSeleccionadas).length > 0 ? (
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-900">
-                Abonar a boleta #{abonarBoleta.boletaNumero.toString().padStart(4, '0')}
+                Abonar a {Object.keys(boletasSeleccionadas).length} boleta{Object.keys(boletasSeleccionadas).length > 1 ? 's' : ''}
               </h3>
-              <div className="mt-2 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-                <span className="text-sm text-blue-800">
-                  Saldo pendiente de esta boleta: <strong>${abonarBoleta.saldoPendiente.toLocaleString('es-CO')}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAbonarBoleta(null)
-                    setAccion(null)
-                    setMonto(0)
-                    setPagarTodo(false)
-                    setError(null)
-                  }}
-                  className="ml-auto text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  Cambiar boleta
-                </button>
+              {/* Resumen de boletas seleccionadas */}
+              <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 space-y-1.5">
+                {Object.entries(boletasSeleccionadas).map(([bId, bMonto]) => {
+                  const b = venta.boletas?.find(x => x.id === bId)
+                  if (!b) return null
+                  return (
+                    <div key={bId} className="flex items-center justify-between text-sm">
+                      <span className="text-blue-800 font-medium">
+                        🎫 #{b.numero.toString().padStart(4, '0')}
+                        <span className="text-blue-600 ml-1 text-xs">(saldo: ${(b.saldo_pendiente_boleta || 0).toLocaleString('es-CO')})</span>
+                      </span>
+                      <span className="font-semibold text-blue-900">
+                        {bMonto > 0 ? `$${bMonto.toLocaleString('es-CO')}` : 'Sin monto'}
+                      </span>
+                    </div>
+                  )
+                })}
+                <div className="border-t border-blue-300 pt-1.5 flex justify-between text-sm font-bold text-blue-900">
+                  <span>Total a abonar:</span>
+                  <span>${Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0).toLocaleString('es-CO')}</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -756,40 +876,45 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-black mb-1">
-                Valor a abonar (máx. ${(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente).toLocaleString('es-CO')})
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={1}
-                  max={abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente}
-                  value={monto || ''}
-                  onChange={(e) => setMonto(Number(e.target.value) || 0)}
-                  placeholder="Valor a abonar"
-                  disabled={pagarTodo}
-                  className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500 bg-white text-black"
-                />
+
+            {/* Si NO hay boletas seleccionadas, mostrar input de monto general */}
+            {Object.keys(boletasSeleccionadas).length === 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-black mb-1">
+                  Valor a abonar (máx. ${venta.saldo_pendiente.toLocaleString('es-CO')})
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={1}
+                    max={venta.saldo_pendiente}
+                    value={monto || ''}
+                    onChange={(e) => setMonto(Number(e.target.value) || 0)}
+                    placeholder="Valor a abonar"
+                    disabled={pagarTodo}
+                    className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500 bg-white text-black"
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={pagarTodo}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setPagarTodo(checked)
+                      if (checked) {
+                        setMonto(venta.saldo_pendiente)
+                      } else {
+                        setMonto(0)
+                      }
+                    }}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Pagar saldo total de la venta</span>
+                </label>
               </div>
-              <label className="inline-flex items-center gap-2 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={pagarTodo}
-                  onChange={(e) => {
-                    const checked = e.target.checked
-                    setPagarTodo(checked)
-                    if (checked) {
-                      setMonto(abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente)
-                    } else {
-                      setMonto(0)
-                    }
-                  }}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>{abonarBoleta ? `Pagar saldo total de boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : 'Pagar saldo total de la venta'}</span>
-              </label>
-            </div>
+            )}
+
             <div>
               <label className="block text-sm font-bold text-black mb-1">Notas (opcional)</label>
               <textarea
@@ -803,7 +928,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas(''); setAbonarBoleta(null); setPagarTodo(false) }}
+                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas(''); setBoletasSeleccionadas({}); setPagarTodo(false) }}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
               >
                 Cancelar
@@ -811,13 +936,13 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               <button
                 type="button"
                 onClick={registrarAbono}
-                disabled={procesando || monto <= 0}
+                disabled={procesando || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
                 {procesando
                   ? 'Registrando...'
-                  : abonarBoleta
-                    ? `Registrar abono a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}`
+                  : Object.keys(boletasSeleccionadas).length > 0
+                    ? `Registrar abono a ${Object.keys(boletasSeleccionadas).length} boleta${Object.keys(boletasSeleccionadas).length > 1 ? 's' : ''} ($${Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0).toLocaleString('es-CO')})`
                     : 'Registrar abono'}
               </button>
             </div>

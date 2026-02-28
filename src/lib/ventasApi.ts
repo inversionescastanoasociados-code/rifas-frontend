@@ -291,7 +291,7 @@ async liberarBloqueosMultiples(
 
   async registrarAbono(
     ventaId: string,
-    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string }
+    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string; boletas_abono?: Array<{ boleta_id: string; monto: number }> }
   ) {
     // Validar y limpiar datos antes de enviar
     const montoNum = Number(data.monto)
@@ -315,8 +315,12 @@ async liberarBloqueosMultiples(
       payload.notas = data.notas.trim()
     }
 
-    // Agregar boleta_id si se especifica (abono por boleta individual)
-    if (data.boleta_id) {
+    // Multi-boleta: enviar array de boletas con montos individuales
+    if (data.boletas_abono && data.boletas_abono.length > 0) {
+      payload.boletas_abono = data.boletas_abono
+    }
+    // Abono a boleta individual (modo legacy)
+    else if (data.boleta_id) {
       payload.boleta_id = data.boleta_id
     }
     
