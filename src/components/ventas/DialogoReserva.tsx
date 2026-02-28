@@ -160,9 +160,9 @@ export default function DialogoReserva({
         cliente: {
           nombre: cliente.nombre,
           telefono: cliente.telefono,
-          email: cliente.email || null,
-          identificacion: cliente.identificacion || null,
-          direccion: cliente.direccion || null
+          email: cliente.email || undefined,
+          identificacion: cliente.identificacion || undefined,
+          direccion: cliente.direccion || undefined
         },
         boletas: boletas.map(b => b.id),
         dias_bloqueo: diasBloqueo,
