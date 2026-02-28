@@ -174,6 +174,19 @@ export default function EstadisticasVentasPublicas() {
             </p>
           </div>
 
+          {/* Ventas Sin Revisar */}
+          <div className="bg-purple-50 rounded-lg border border-purple-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-purple-700 uppercase">
+                Sin Revisar
+              </p>
+              <span className="text-lg">🆕</span>
+            </div>
+            <p className="text-2xl font-bold text-purple-700">
+              {estadisticas.ventas_sin_revisar || 0}
+            </p>
+          </div>
+
           {/* Saldo Pendiente */}
           <div className="bg-red-50 rounded-lg border border-red-200 p-4">
             <div className="flex items-center justify-between mb-2">

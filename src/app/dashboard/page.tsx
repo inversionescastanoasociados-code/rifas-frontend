@@ -146,6 +146,29 @@ export default function DashboardPage() {
                   </div>
                 </a>
               )}
+
+              {/* Módulo de Boletas Reservadas - Disponible para SUPER_ADMIN y VENDEDOR */}
+              {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+                <a
+                  href="/boletas-reservadas"
+                  className="bg-gradient-to-r from-amber-50 to-amber-100 p-6 rounded-lg border border-amber-200 hover:shadow-md transition-shadow cursor-pointer group"
+                >
+                  <div className="flex items-center mb-3">
+                    <div className="w-10 h-10 bg-amber-600 rounded-lg flex items-center justify-center text-white group-hover:bg-amber-700 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-lg font-medium text-amber-900 mb-2 ml-3">Boletas Reservadas</h4>
+                  </div>
+                  <p className="text-sm text-amber-700">Administrar y liberar boletas reservadas sin pago</p>
+                  <div className="mt-3 flex items-center text-xs text-amber-600">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                      Nuevo
+                    </span>
+                  </div>
+                </a>
+              )}
               
               <a
                 href="/clientes"

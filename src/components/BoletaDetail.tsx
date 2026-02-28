@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import BoletaTicket from './BoletaTicket'
 import type { BoletaDetail } from '@/types/boleta'
 
@@ -9,6 +10,36 @@ interface BoletaDetailProps {
 }
 
 export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
+  const [downloading, setDownloading] = useState(false)
+
+  const buildFilename = useCallback(() => {
+    const num = boleta.numero.toString().padStart(4, '0')
+    const cedula = boleta.cliente_info?.identificacion
+    return cedula ? `boleta_${num}_CC_${cedula}` : `boleta_${num}`
+  }, [boleta])
+
+  const handleDownloadImage = useCallback(async () => {
+    setDownloading(true)
+    try {
+      const html2canvas = (await import('html2canvas-pro')).default
+      const el = document.querySelector('.boleta-ticket') as HTMLElement
+      if (!el) return
+      const canvas = await html2canvas(el, {
+        scale: 4,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+      })
+      const link = document.createElement('a')
+      link.download = `${buildFilename()}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error al descargar imagen:', err)
+    } finally {
+      setDownloading(false)
+    }
+  }, [buildFilename])
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-CO', {
       day: '2-digit',
@@ -54,15 +85,27 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
       <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-slate-900">Vista de Boleta</h3>
-          <button
-            onClick={onPrint}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Imprimir
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadImage}
+              disabled={downloading}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {downloading ? 'Descargando...' : 'Descargar'}
+            </button>
+            <button
+              onClick={onPrint}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Imprimir
+            </button>
+          </div>
         </div>
         
         <BoletaTicket
@@ -75,6 +118,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
   clienteInfo={boleta.cliente_info}
   deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
   reservadaHasta={boleta.bloqueo_hasta}
+  precio={boleta.boleta_financiero?.precio_boleta}
 />
       </div>
 

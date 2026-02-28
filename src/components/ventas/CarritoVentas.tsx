@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente, VentaRequest } from '@/types/ventas'
+import BoletaTicket from '@/components/BoletaTicket'
 import DialogoReserva from './DialogoReserva'
 
 interface CarritoVentasProps {
@@ -11,6 +13,8 @@ interface CarritoVentasProps {
   cliente: Cliente
   precioBoleta: number
   rifaId: string
+  rifaNombre?: string
+  fechaSorteo?: string | null
   onBoletaRemovida: (boletaId: string) => void
   onVentaCompletada: () => void
 }
@@ -20,6 +24,8 @@ export default function CarritoVentas({
   cliente, 
   precioBoleta, 
   rifaId,
+  rifaNombre,
+  fechaSorteo,
   onBoletaRemovida,
   onVentaCompletada
 }: CarritoVentasProps) {
@@ -142,14 +148,15 @@ export default function CarritoVentas({
     }
   }
 
-  // Liberar todos los bloqueos en caso de error
+  // Liberar todos los bloqueos en caso de cancelación
   const liberarBloqueos = async () => {
-    try {
-      await ventasApi.liberarBloqueosMultiples(
-        boletas.map(b => ({ id: b.id, reserva_token: b.reserva_token }))
-      )
-    } catch (error) {
-      console.error('Error liberando bloqueos:', error)
+    // Intentar liberar cada boleta individualmente (silenciar errores)
+    for (const b of boletas) {
+      try {
+        await ventasApi.desbloquearBoleta(b.id, b.reserva_token)
+      } catch {
+        // Silenciar: la boleta puede ya haberse expirado o liberado
+      }
     }
   }
 
@@ -173,6 +180,77 @@ export default function CarritoVentas({
     return `${minutos}:${segundos.toString().padStart(2, '0')}`
   }
 
+  // Hooks de descarga (deben estar antes de cualquier return condicional)
+  const descargarBoleta = useCallback(async (boletaNumero: number, identificacion: string, elementId: string) => {
+    const el = document.getElementById(elementId)
+    if (!el) return
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 4.03, // 800*4.03 ≈ 3224, 352*4.03 ≈ 1417
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      })
+      const link = document.createElement('a')
+      const cc = (identificacion || 'SIN_CC').replace(/\s+/g, '_')
+      link.download = `boleta_${boletaNumero.toString().padStart(4, '0')}_CC_${cc}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error descargando boleta:', err)
+    }
+  }, [])
+
+  const descargarTodas = useCallback(async () => {
+    const boletasData = ventaResponse?.boletas ?? []
+    const identificacion = cliente.identificacion || 'SIN_CC'
+    for (const b of boletasData) {
+      const elementId = `boleta-print-${b.id}`
+      await descargarBoleta(b.numero, identificacion, elementId)
+      await new Promise(r => setTimeout(r, 500))
+    }
+  }, [ventaResponse, cliente.identificacion, descargarBoleta])
+
+  // Generar link de WhatsApp para notificar al cliente
+  const generarLinkWhatsApp = useCallback(() => {
+    if (!cliente.telefono) return null
+
+    const boletasVenta = ventaResponse?.boletas ?? []
+    const numerosStr = boletasVenta.map((b: any) => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
+    const estadoVenta = tipoVenta === 'ABONO' ? 'ABONADA' : tipoVenta === 'RESERVA' ? 'RESERVADA' : 'PAGADA'
+    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://rifas-frontend.vercel.app'
+    const linkBoletas = cliente.identificacion
+      ? `${baseUrl}/mis-boletas/${cliente.identificacion}`
+      : ''
+
+    let mensaje = `Hola ${cliente.nombre} 👋\n\n`
+    mensaje += `Se registró tu compra en *${rifaNombre || 'la rifa'}*.\n\n`
+    mensaje += `🎫 *Boleta${boletasVenta.length > 1 ? 's' : ''}:* ${numerosStr}\n`
+    mensaje += `📋 *Estado:* ${estadoVenta}\n`
+    mensaje += `💰 *Total:* $${total.toLocaleString('es-CO')}\n`
+
+    if (tipoVenta === 'ABONO' && saldoPendiente > 0) {
+      mensaje += `✅ *Abonado:* $${montoAbono.toLocaleString('es-CO')}\n`
+      mensaje += `⚠️ *Saldo pendiente:* $${saldoPendiente.toLocaleString('es-CO')}\n\n`
+      mensaje += `Recuerda completar el pago antes de la fecha del sorteo. Boleta sin pagar no juega.\n`
+    } else if (tipoVenta === 'COMPLETA') {
+      mensaje += `\n✅ Pago completo. ¡Tu boleta ya está participando!\n`
+    }
+
+    if (linkBoletas) {
+      mensaje += `\n📥 Descarga tus boletas aquí:\n${linkBoletas}\n`
+    }
+
+    mensaje += `\n¡Buena suerte! 🍀`
+
+    // Limpiar número de teléfono (dejar solo dígitos, agregar código Colombia si falta)
+    let tel = cliente.telefono.replace(/[^0-9]/g, '')
+    if (tel.startsWith('3') && tel.length === 10) tel = '57' + tel
+    if (!tel.startsWith('57')) tel = '57' + tel
+
+    return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`
+  }, [cliente, ventaResponse, tipoVenta, rifaNombre, total, montoAbono, saldoPendiente])
+
   if (paso === 'procesando') {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
@@ -191,13 +269,13 @@ export default function CarritoVentas({
   }
 
   if (paso === 'completado') {
-    const esVentaCompleta = tipoVenta === 'COMPLETA' && ventaResponse?.id
+    const boletasVenta = ventaResponse?.boletas ?? []
 
     return (
       <div className="space-y-6">
         {/* Mensaje de éxito */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <div className="text-center py-8">
+          <div className="text-center py-6">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
@@ -207,13 +285,13 @@ export default function CarritoVentas({
               {tipoVenta === 'ABONO' ? '¡Venta con Abono Creada!' : '¡Venta Completada!'}
             </h3>
             <p className="text-slate-600 mb-4">
-              {tipoVenta === 'ABONO' 
+              {tipoVenta === 'ABONO'
                 ? 'La venta con abono se ha procesado exitosamente'
                 : 'La venta se ha procesado exitosamente'
               }
             </p>
-            
-            {/* Mostrar detalles de la venta si hay respuesta */}
+
+            {/* Detalles de la venta */}
             {ventaResponse && (
               <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left max-w-md mx-auto">
                 <h4 className="font-medium text-slate-900 mb-3">Detalles de la Venta</h4>
@@ -236,12 +314,6 @@ export default function CarritoVentas({
                         <span className="text-slate-600">Saldo Pendiente:</span>
                         <span className="font-medium text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Estado:</span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                          PENDIENTE
-                        </span>
-                      </div>
                     </>
                   )}
                   <div className="flex justify-between">
@@ -250,43 +322,107 @@ export default function CarritoVentas({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Boletas:</span>
-                    <span className="font-medium text-slate-900">{boletas.length}</span>
+                    <span className="font-medium text-slate-900">{boletasVenta.length}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Solo para venta completa: mostrar botones Ver/Imprimir y Volver */}
-            {esVentaCompleta ? (
-              <div className="flex justify-center gap-4">
-                <Link
-                  href={`/ventas/${ventaResponse.id}/boletas`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  Ver / Imprimir boletas
-                </Link>
-                <button
-                  onClick={onVentaCompletada}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
-                >
-                  Volver
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onVentaCompletada}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            {/* Botón de WhatsApp */}
+            {generarLinkWhatsApp() && (
+              <a
+                href={generarLinkWhatsApp()!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
               >
-                Nueva Venta
-              </button>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Enviar por WhatsApp
+              </a>
             )}
           </div>
+        </div>
+
+        {/* Sección de Boletas para imprimir/descargar */}
+        {boletasVenta.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-slate-900">🎫 Boletas de la Compra</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={descargarTodas}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar Todas
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {boletasVenta.map((b: any) => (
+                <div key={b.id} className="border border-slate-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-bold text-slate-900">Boleta #{b.numero.toString().padStart(4, '0')}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => descargarBoleta(b.numero, cliente.identificacion || '', `boleta-print-${b.id}`)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Descargar
+                      </button>
+                      <Link
+                        href={`/boletas/${b.id}/print`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-medium"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Imprimir
+                      </Link>
+                    </div>
+                  </div>
+                  {/* Boleta renderizada */}
+                  <div className="overflow-x-auto">
+                    <div id={`boleta-print-${b.id}`}>
+                      <BoletaTicket
+                        qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
+                        barcode={b.barcode || ''}
+                        numero={b.numero}
+                        imagenUrl={b.imagen_url}
+                        rifaNombre={rifaNombre || ''}
+                        estado={tipoVenta === 'ABONO' ? 'ABONADA' : 'CON_PAGO'}
+                        clienteInfo={{
+                          nombre: cliente.nombre,
+                          identificacion: cliente.identificacion
+                        }}
+                        deuda={tipoVenta === 'ABONO' ? saldoPendiente / boletasVenta.length : 0}
+                        precio={precioBoleta}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Botón volver */}
+        <div className="flex justify-center">
+          <button
+            onClick={onVentaCompletada}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Nueva Venta
+          </button>
         </div>
       </div>
     )
@@ -621,6 +757,8 @@ export default function CarritoVentas({
         cliente={cliente}
         precioBoleta={precioBoleta}
         rifaId={rifaId}
+        rifaNombre={rifaNombre}
+        fechaSorteo={fechaSorteo}
         onClose={() => setMostrarDialogoReserva(false)}
         onReservaCompletada={() => {
           setMostrarDialogoReserva(false)

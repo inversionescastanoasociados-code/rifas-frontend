@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import VentasGeneralModal from './VentasGeneralModal';
 
 function KPICard({ title, value, subtitle, icon, color, expanded, onToggle }) {
   const colorMap = {
@@ -42,6 +43,7 @@ function KPICard({ title, value, subtitle, icon, color, expanded, onToggle }) {
 export default function KPISection({ data, fechaInicio, fechaFin }) {
   const { finanzas, resumen_boletas, rifa, boletas_periodo, ventas_periodo, filtro_aplicado } = data;
   const [expandedCard, setExpandedCard] = useState(null);
+  const [showVentasModal, setShowVentasModal] = useState(false);
 
   const precioBoleta = Number(rifa?.precio_boleta) || 0;
   const hayFiltro = !!(fechaInicio && fechaFin);
@@ -137,16 +139,52 @@ export default function KPISection({ data, fechaInicio, fechaFin }) {
           expanded={expandedCard === 'cumplimiento'}
           onToggle={() => toggle('cumplimiento')}
         />
-        <KPICard
-          title="Ventas Realizadas"
-          value={totalVentas.toLocaleString()}
-          subtitle={hayFiltro ? `En el periodo seleccionado` : 'Total acumulado'}
-          icon="🛒"
-          color="amber"
-          expanded={expandedCard === 'ventas'}
-          onToggle={() => toggle('ventas')}
-        />
+        {/* Ventas Realizadas — card custom (div, no button) para evitar nested <button> */}
+        <div
+          className={`text-left w-full rounded-2xl shadow-sm border p-6 flex flex-col gap-3 transition-all duration-200
+            ${expandedCard === 'ventas' ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-300' : 'bg-white border-slate-200 hover:shadow-md hover:border-amber-200'}`}
+        >
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => toggle('ventas')}>
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <span className="text-lg">🛒</span>
+            </div>
+            <svg className={`w-4 h-4 transition-transform ${expandedCard === 'ventas' ? 'rotate-180' : ''} text-slate-400`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          <div className="cursor-pointer" onClick={() => toggle('ventas')}>
+            <h3 className="text-sm font-medium text-slate-500">Ventas Realizadas</h3>
+            <p className="text-2xl font-semibold text-amber-600 mt-1">{totalVentas.toLocaleString()}</p>
+          </div>
+          {expandedCard === 'ventas' && (
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-amber-600 font-medium bg-white/60 rounded-lg px-3 py-2 border border-amber-200">
+                {hayFiltro ? 'En el periodo seleccionado' : 'Total acumulado'}
+              </div>
+              <button
+                onClick={() => setShowVentasModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Ver Ventas
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Modal de Ventas Generales */}
+      <VentasGeneralModal
+        isOpen={showVentasModal}
+        onClose={() => setShowVentasModal(false)}
+        rifaId={rifa?.id}
+        fechaInicio={fechaInicio}
+        fechaFin={fechaFin}
+        rifaNombre={rifa?.nombre}
+      />
 
       {/* Fila 2: Boletas por estado */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

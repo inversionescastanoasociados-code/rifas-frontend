@@ -25,3 +25,26 @@ export const getReporteRifa = async (rifaId, fechaInicio, fechaFin) => {
 
   return response.data;
 };
+
+export const getVentasGeneral = async (rifaId, fechaInicio, fechaFin, page = 1, limit = 50, filters = {}) => {
+  const params = { page, limit };
+
+  if (fechaInicio && fechaFin) {
+    params.fechaInicio = fechaInicio;
+    params.fechaFin = fechaFin;
+  }
+
+  const token = localStorage.getItem('token');
+
+  const response = await axios.get(
+    `${API_BASE_URL}/api/reportes/rifa/${rifaId}/ventas`,
+    {
+      params,
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
+    }
+  );
+
+  return response.data;
+};

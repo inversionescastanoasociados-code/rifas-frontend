@@ -89,19 +89,19 @@ export default function GestionarVentasPublicasPage() {
         />
 
         {/* Tabs de navegación */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <button
             onClick={() => {
               setVistaActual('lista')
               setFiltroEstado('pendientes')
             }}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              vistaActual === 'lista'
+              vistaActual === 'lista' && filtroEstado === 'pendientes'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
             }`}
           >
-            📋 Ventas Pendientes
+            📋 Pendientes / Sin Revisar
           </button>
 
           <button
@@ -198,7 +198,7 @@ export default function GestionarVentasPublicasPage() {
                 💡 Flujo de Confirmación
               </p>
               <p className="text-xs text-blue-800 mt-1">
-                1. Selecciona una venta pendiente • 2. Verifica los datos del cliente y método de pago • 3. Confirma manualmente cada abono cuando identifiques el pago en Nequi/Banco • 4. El sistema actualizará automáticamente el estado
+                1. Llega una venta nueva como <strong>SIN REVISAR</strong> • 2. Contacta al cliente por WhatsApp (botón verde) y pasa a <strong>PENDIENTE</strong> • 3. Cuando el cliente paga parcialmente, pasa a <strong>ABONADA</strong> • 4. Cuando paga todo, pasa a <strong>PAGADA</strong> ✅
               </p>
             </div>
           </div>

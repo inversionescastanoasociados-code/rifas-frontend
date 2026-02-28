@@ -37,7 +37,7 @@ export interface VentaPublicaDetalle {
   monto_total: number
   abono_total: number
   saldo_pendiente: number
-  estado_venta: 'PENDIENTE' | 'ABONADA' | 'PAGADA' | 'CANCELADA'
+  estado_venta: 'SIN_REVISAR' | 'PENDIENTE' | 'ABONADA' | 'PAGADA' | 'CANCELADA'
   medio_pago_id: string
   created_at: string
   updated_at: string
@@ -66,8 +66,10 @@ export interface VentaPublicaListado {
   cliente_nombre: string
   cliente_telefono: string
   cliente_email?: string
+  cliente_identificacion?: string
   rifa_nombre: string
   cantidad_boletas: number
+  numeros_boletas?: number[]
 }
 
 export interface EstadisticasPublicas {
@@ -75,6 +77,7 @@ export interface EstadisticasPublicas {
   ventas_pagadas: number
   ventas_abonadas: number
   ventas_pendientes: number
+  ventas_sin_revisar: number
   total_abonado: number
   total_venta: number
   saldo_pendiente_total: number

@@ -16,6 +16,7 @@ interface BoletaTicketProps {
   } | null
   deuda?: number | string | null
   reservadaHasta?: string | null
+  precio?: number | null
 }
 
 export default function BoletaTicket(props: BoletaTicketProps) {
@@ -29,6 +30,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     clienteInfo,
     deuda,
     reservadaHasta,
+    precio,
   } = props
 
   const [imageError, setImageError] = useState(false)
@@ -78,7 +80,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
   }, [estado, deuda, clienteInfo, reservadaHasta, reservadaHastaFmt])
 
   // --- Interpretación de estados ---
-  // Reservada toma PRECEDENCIA absoluta si estado === 'RESERVADA'
   const esReservada = estadoNorm === 'RESERVADA'
   const esCancelada = estadoNorm === 'ANULADA' || estadoNorm === 'CANCELADA'
 
@@ -88,7 +89,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
   const esAbonada = (estadoNorm === 'ABONADA' || (tieneCliente && typeof deudaNum === 'number' && deudaNum > 0))
 
   const badge = (label: string, className: string) => (
-    <div className={`w-full py-1 rounded-md text-center font-extrabold text-[11px] tracking-wide ${className}`}>
+    <div className={`w-full py-1 text-center font-extrabold text-[11px] tracking-wide ${className}`}>
       {label}
     </div>
   )
@@ -96,7 +97,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
   const baseText = 'text-[10px] text-center space-y-1 text-black'
 
   const renderEstado = () => {
-    // 1) Cancelada (muy alta prioridad)
     if (esCancelada) {
       return (
         <div className={baseText}>
@@ -106,7 +106,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       )
     }
 
-    // 2) RESERVADA (precede a abonada/pagada): con cliente
     if (esReservada && tieneCliente) {
       return (
         <div className={baseText}>
@@ -119,18 +118,15 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       )
     }
 
-    // 3) RESERVADA sin cliente => BLOQUEADA
     if (esReservada && !tieneCliente) {
       return (
         <div className={baseText}>
           {badge('BLOQUEADA', 'bg-amber-200 text-black')}
           <p className="font-semibold">Boleta bloqueada momentáneamente</p>
-          
         </div>
       )
     }
 
-    // 4) PAGADA (cliente + deuda 0 o estado explícito de pago/venta)
     if (esPagada) {
       return (
         <div className={baseText}>
@@ -142,7 +138,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       )
     }
 
-    // 5) ABONADA (cliente + deuda > 0)
     if (esAbonada) {
       return (
         <div className={baseText}>
@@ -155,7 +150,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       )
     }
 
-    // 6) DISPONIBLE (fallback cuando ninguno de los anteriores aplica)
     return (
       <div className={baseText}>
         {badge('DISPONIBLE', 'bg-emerald-300 text-black')}
@@ -163,8 +157,11 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     )
   }
 
+  // Aspect ratio: 3224 / 1417 ≈ 2.275
+  // Screen size: 800 x 352 (same proportions)
+  // Left panel: 179px on screen → 179/800 * 3224 ≈ 721px at print
   return (
-    <div className="flex border-2 border-black rounded-lg overflow-hidden bg-white mx-auto" style={{ width: '800px', height: '352px' }}>
+    <div className="boleta-ticket flex border-2 border-black overflow-hidden bg-white mx-auto" style={{ width: '800px', height: '352px' }}>
       {/* LEFT */}
       <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px' }}>
         <div className="text-[10px] text-center space-y-0.5 text-black font-medium">
@@ -176,17 +173,18 @@ export default function BoletaTicket(props: BoletaTicketProps) {
         {renderEstado()}
 
         <div className="flex justify-center">
-          <img src={qrUrl} className="w-20 h-20 border border-black" />
+          <img src={qrUrl} className="w-20 h-20 border border-black" alt="QR" />
         </div>
 
-        <div className="space-y-1">
-          <img
-            src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcode)}&code=Code128&dpi=96`}
-            className="w-full h-8"
-          />
+        <div className="space-y-0.5">
           <div className="text-center text-lg font-extrabold text-black">
             #{numero.toString().padStart(4, '0')}
           </div>
+          {typeof precio === 'number' && precio > 0 && (
+            <div className="text-center text-[11px] font-bold text-black">
+              ${precio.toLocaleString('es-CO')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -197,6 +195,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
             src={imagen}
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
+            alt={rifaNombre}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-white">

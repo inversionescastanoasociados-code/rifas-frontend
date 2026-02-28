@@ -132,6 +132,56 @@ class VentasPublicasApiService {
   }
 
   /**
+   * Marcar venta como revisada (SIN_REVISAR → PENDIENTE)
+   */
+  async marcarVentaRevisada(
+    ventaId: string
+  ): Promise<ApiResponse<{ venta_id: string }>> {
+    return this.request(
+      `/admin/dashboard/ventas-publicas/${ventaId}/marcar-revisada`,
+      {
+        method: 'POST'
+      }
+    )
+  }
+
+  /**
+   * 🔔 Obtener SOLO ventas SIN_REVISAR (para banner de notificación)
+   */
+  async getVentasSinRevisar(): Promise<
+    ApiResponse<VentaPublicaListado[]>
+  > {
+    return this.request<VentaPublicaListado[]>(
+      `/admin/dashboard/ventas-publicas/sin-revisar`
+    )
+  }
+
+  /**
+   * 🎫 Obtener todas las boletas reservadas (online + punto físico)
+   */
+  async getBoletasReservadas(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>('/admin/dashboard/boletas-reservadas')
+  }
+
+  /**
+   * 🔓 Liberar manualmente una boleta reservada
+   */
+  async liberarBoleta(boletaId: string): Promise<ApiResponse<any>> {
+    return this.request(`/admin/dashboard/boletas-reservadas/${boletaId}/liberar`, {
+      method: 'POST'
+    })
+  }
+
+  /**
+   * 🔓 Liberar TODAS las boletas de una venta
+   */
+  async liberarBoletasDeVenta(ventaId: string): Promise<ApiResponse<any>> {
+    return this.request(`/admin/dashboard/boletas-reservadas/venta/${ventaId}/liberar`, {
+      method: 'POST'
+    })
+  }
+
+  /**
    * Obtener estadísticas generales de ventas públicas
    */
   async getEstadisticasPublicas(): Promise<

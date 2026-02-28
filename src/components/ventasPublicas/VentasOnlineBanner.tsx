@@ -24,7 +24,7 @@ export default function VentasOnlineBanner({ onVerPendientes }: VentasOnlineBann
 
   const fetchPendientes = useCallback(async () => {
     try {
-      const response = await ventasPublicasApi.getVentasPublicasPendientes()
+      const response = await ventasPublicasApi.getVentasSinRevisar()
       if (response.success && response.data) {
         const newCount = response.data.length
         
@@ -118,8 +118,8 @@ export default function VentasOnlineBanner({ onVerPendientes }: VentasOnlineBann
           <div>
             <h3 className="text-base font-semibold text-orange-900">
               {count === 1 
-                ? '🔔 1 Venta Online Pendiente' 
-                : `🔔 ${count} Ventas Online Pendientes`
+                ? '🔔 1 Nueva Venta Online por Revisar' 
+                : `🔔 ${count} Nuevas Ventas Online por Revisar`
               }
             </h3>
             <p className="text-xs text-orange-700 mt-0.5">

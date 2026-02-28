@@ -434,6 +434,8 @@ export default function VentasPage() {
                   cliente={cliente}
                   precioBoleta={typeof rifaSeleccionada.precio_boleta === 'number' ? rifaSeleccionada.precio_boleta : parseFloat(rifaSeleccionada.precio_boleta || '0')}
                   rifaId={rifaSeleccionada.id}
+                  rifaNombre={rifaSeleccionada.nombre}
+                  fechaSorteo={rifaSeleccionada.fecha_sorteo}
                   onBoletaRemovida={handleBoletaRemovida}
                   onVentaCompletada={handleVentaCompletada}
                 />

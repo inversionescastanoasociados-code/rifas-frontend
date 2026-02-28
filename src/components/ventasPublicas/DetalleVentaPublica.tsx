@@ -41,6 +41,7 @@ export default function DetalleVentaPublica({
   const [notasAbono, setNotasAbono] = useState('')
   const [pagarTodo, setPagarTodo] = useState(false)
   const [procesandoAbono, setProcesandoAbono] = useState(false)
+  const [marcandoRevisada, setMarcandoRevisada] = useState(false)
 
   // Estado para abono por boleta individual
   const [abonarBoleta, setAbonarBoleta] = useState<{
@@ -69,6 +70,8 @@ export default function DetalleVentaPublica({
         return 'bg-yellow-100 text-yellow-800'
       case 'PENDIENTE':
         return 'bg-blue-100 text-blue-800'
+      case 'SIN_REVISAR':
+        return 'bg-purple-100 text-purple-800'
       case 'CANCELADA':
         return 'bg-red-100 text-red-800'
       default:
@@ -323,6 +326,64 @@ export default function DetalleVentaPublica({
     }
   }
 
+  /**
+   * Genera un label legible para el estado
+   */
+  const getEstadoLabel = (estado: string) => {
+    switch (estado) {
+      case 'SIN_REVISAR':
+        return '🆕 SIN REVISAR'
+      default:
+        return estado
+    }
+  }
+
+  /**
+   * Genera el link de WhatsApp con mensaje pre-rellenado
+   */
+  const generarWhatsAppLink = () => {
+    const telefono = venta.cliente_telefono?.replace(/\D/g, '')
+    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+    
+    const numeros = venta.boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
+    
+    let mensaje = ''
+
+    if (venta.estado_venta === 'SIN_REVISAR') {
+      mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*. Recuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+    } else if (venta.estado_venta === 'ABONADA') {
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes un saldo pendiente de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Total: ${formatoMoneda(venta.monto_total)}, Abonado: ${formatoMoneda(venta.abono_total)}. ¡Gracias!`
+    } else if (venta.estado_venta === 'PENDIENTE') {
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes pendiente el pago de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Recuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+    }
+
+    return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`
+  }
+
+  /**
+   * Maneja clic en WhatsApp: si es SIN_REVISAR, marca como revisada y abre WhatsApp
+   */
+  const handleWhatsAppClick = async () => {
+    const whatsappUrl = generarWhatsAppLink()
+    
+    if (venta.estado_venta === 'SIN_REVISAR') {
+      try {
+        setMarcandoRevisada(true)
+        await ventasPublicasApi.marcarVentaRevisada(venta.id)
+        window.open(whatsappUrl, '_blank')
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      } catch (err: any) {
+        window.open(whatsappUrl, '_blank')
+      } finally {
+        setMarcandoRevisada(false)
+      }
+    } else {
+      window.open(whatsappUrl, '_blank')
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Encabezado */}
@@ -361,6 +422,38 @@ export default function DetalleVentaPublica({
       {exito && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-green-700 text-sm font-medium">{exito}</p>
+        </div>
+      )}
+
+      {/* Banner SIN REVISAR */}
+      {venta.estado_venta === 'SIN_REVISAR' && (
+        <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-5">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 bg-purple-100 rounded-full p-3">
+              <span className="text-2xl">🆕</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-purple-900">Venta Sin Revisar</h3>
+              <p className="text-sm text-purple-700 mt-1">
+                Esta venta acaba de llegar desde la web pública. Contacta al cliente por WhatsApp para confirmar 
+                el pago y la venta pasará a estado <strong>PENDIENTE</strong>.
+              </p>
+              <button
+                onClick={handleWhatsAppClick}
+                disabled={marcandoRevisada}
+                className="mt-3 flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md disabled:opacity-50"
+              >
+                {marcandoRevisada ? (
+                  <span className="inline-block animate-spin">⏳</span>
+                ) : (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                )}
+                Contactar por WhatsApp y marcar como revisada
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -552,12 +645,36 @@ export default function DetalleVentaPublica({
             </p>
           </div>
         </div>
-        <div className="mt-4 pt-3 border-t border-blue-200">
+        <div className="mt-4 pt-3 border-t border-blue-200 flex items-center justify-between flex-wrap gap-3">
           <span
             className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getEstadoBadgeColor(venta.estado_venta)}`}
           >
-            Estado: {venta.estado_venta}
+            Estado: {getEstadoLabel(venta.estado_venta)}
           </span>
+          
+          {/* Botón WhatsApp */}
+          {(venta.estado_venta === 'SIN_REVISAR' || venta.estado_venta === 'PENDIENTE' || venta.estado_venta === 'ABONADA') && venta.cliente_telefono && (
+            <button
+              onClick={handleWhatsAppClick}
+              disabled={marcandoRevisada}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                venta.estado_venta === 'SIN_REVISAR'
+                  ? 'bg-green-500 text-white hover:bg-green-600 animate-pulse'
+                  : 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100'
+              } disabled:opacity-50`}
+            >
+              {marcandoRevisada ? (
+                <span className="inline-block animate-spin">⏳</span>
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              )}
+              {venta.estado_venta === 'SIN_REVISAR'
+                ? 'Contactar por WhatsApp'
+                : 'Enviar recordatorio WhatsApp'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -654,7 +771,7 @@ export default function DetalleVentaPublica({
       {/* ═══════════════════════════════════════════════════════ */}
       {/* REGISTRAR ABONO / PAGO — Sección principal de acción  */}
       {/* ═══════════════════════════════════════════════════════ */}
-      {venta.estado_venta !== 'CANCELADA' && venta.estado_venta !== 'PAGADA' && venta.saldo_pendiente > 0 && (
+      {venta.estado_venta !== 'CANCELADA' && venta.estado_venta !== 'PAGADA' && venta.estado_venta !== 'SIN_REVISAR' && venta.saldo_pendiente > 0 && (
         <div className="bg-white rounded-lg border-2 border-emerald-200 p-6">
           {!mostrarFormAbono ? (
             <div className="space-y-4">

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente } from '@/types/ventas'
+import BoletaTicket from '@/components/BoletaTicket'
 
 interface DialogoReservaProps {
   isOpen: boolean
@@ -10,8 +12,17 @@ interface DialogoReservaProps {
   cliente: Cliente
   precioBoleta: number
   rifaId: string
+  rifaNombre?: string
+  fechaSorteo?: string | null
   onClose: () => void
   onReservaCompletada: () => void
+}
+
+function formatDateForInput(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 export default function DialogoReserva({
@@ -20,20 +31,103 @@ export default function DialogoReserva({
   cliente,
   precioBoleta,
   rifaId,
+  rifaNombre,
+  fechaSorteo,
   onClose,
   onReservaCompletada
 }: DialogoReservaProps) {
-  const [diasBloqueo, setDiasBloqueo] = useState<number>(5)
+  // Calcular fecha máxima (fecha del sorteo o 30 días por defecto)
+  const fechaMaxima = fechaSorteo
+    ? new Date(fechaSorteo)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
+  // Fecha mínima: mañana
+  const manana = new Date()
+  manana.setDate(manana.getDate() + 1)
+  manana.setHours(0, 0, 0, 0)
+
+  // Valor inicial: fecha del sorteo si existe, sino 5 días
+  const fechaInicialDefault = fechaSorteo
+    ? formatDateForInput(fechaMaxima)
+    : formatDateForInput(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000))
+
+  const [fechaBloqueo, setFechaBloqueo] = useState<string>(fechaInicialDefault)
   const [notas, setNotas] = useState<string>('')
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paso, setPaso] = useState<'confirmacion' | 'procesando' | 'completado' | 'error'>('confirmacion')
   const [reservaResponse, setReservaResponse] = useState<any>(null)
 
+  const subtotal = boletas.length * precioBoleta
+
+  // Hooks de descarga (deben estar antes de cualquier return condicional)
+  const descargarBoletaReserva = useCallback(async (boletaNumero: number, identificacion: string, elementId: string) => {
+    const el = document.getElementById(elementId)
+    if (!el) return
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 4.03,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      })
+      const link = document.createElement('a')
+      const cc = (identificacion || 'SIN_CC').replace(/\s+/g, '_')
+      link.download = `boleta_${boletaNumero.toString().padStart(4, '0')}_CC_${cc}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error descargando boleta:', err)
+    }
+  }, [])
+
+  const descargarTodasReserva = useCallback(async () => {
+    const boletasRes = reservaResponse?.boletas_reservadas ?? []
+    for (const b of boletasRes) {
+      await descargarBoletaReserva(b.numero, cliente.identificacion || '', `reserva-boleta-${b.id}`)
+      await new Promise(r => setTimeout(r, 500))
+    }
+  }, [reservaResponse, cliente.identificacion, descargarBoletaReserva])
+
+  // Generar link de WhatsApp para notificar al cliente de la reserva
+  const generarLinkWhatsAppReserva = useCallback(() => {
+    if (!cliente.telefono || !reservaResponse) return null
+
+    const boletasRes = reservaResponse?.boletas_reservadas ?? []
+    const numerosStr = boletasRes.map((b: any) => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
+    const fechaLimite = new Date(reservaResponse.bloqueo_hasta).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://rifas-frontend.vercel.app'
+    const linkBoletas = cliente.identificacion
+      ? `${baseUrl}/mis-boletas/${cliente.identificacion}`
+      : ''
+
+    let mensaje = `Hola ${cliente.nombre} 👋\n\n`
+    mensaje += `Se registró una *RESERVA* en *${rifaNombre || 'la rifa'}*.\n\n`
+    mensaje += `🎫 *Boleta${boletasRes.length > 1 ? 's' : ''}:* ${numerosStr}\n`
+    mensaje += `📋 *Estado:* RESERVADA\n`
+    mensaje += `💰 *Valor total:* $${subtotal.toLocaleString('es-CO')}\n`
+    mensaje += `📅 *Reserva válida hasta:* ${fechaLimite}\n\n`
+    mensaje += `⚠️ Recuerda realizar el pago antes de la fecha límite. Boleta sin pagar no juega.\n`
+
+    if (linkBoletas) {
+      mensaje += `\n📥 Descarga tus boletas aquí:\n${linkBoletas}\n`
+    }
+
+    mensaje += `\n¡Buena suerte! 🍀`
+
+    let tel = cliente.telefono.replace(/[^0-9]/g, '')
+    if (tel.startsWith('3') && tel.length === 10) tel = '57' + tel
+    if (!tel.startsWith('57')) tel = '57' + tel
+
+    return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`
+  }, [cliente, reservaResponse, rifaNombre, subtotal])
+
   if (!isOpen) return null
 
-  const subtotal = boletas.length * precioBoleta
-  const fechaExpiracion = new Date(Date.now() + diasBloqueo * 24 * 60 * 60 * 1000)
+  const fechaExpiracion = new Date(fechaBloqueo + 'T23:59:59')
+  const ahora = new Date()
+  const diffMs = fechaExpiracion.getTime() - ahora.getTime()
+  const diasBloqueo = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
 
   const procesarReserva = async () => {
     if (!cliente.nombre || !cliente.telefono) {
@@ -46,8 +140,13 @@ export default function DialogoReserva({
       return
     }
 
-    if (diasBloqueo < 1 || diasBloqueo > 30) {
-      setError('Los días de bloqueo deben ser entre 1 y 30')
+    if (diasBloqueo < 1) {
+      setError('La fecha de bloqueo debe ser al menos mañana')
+      return
+    }
+
+    if (fechaSorteo && new Date(fechaBloqueo) > new Date(fechaSorteo)) {
+      setError('La fecha no puede ser posterior al día del sorteo')
       return
     }
 
@@ -61,9 +160,9 @@ export default function DialogoReserva({
         cliente: {
           nombre: cliente.nombre,
           telefono: cliente.telefono,
-          email: cliente.email,
-          identificacion: cliente.identificacion,
-          direccion: cliente.direccion
+          email: cliente.email || null,
+          identificacion: cliente.identificacion || null,
+          direccion: cliente.direccion || null
         },
         boletas: boletas.map(b => b.id),
         dias_bloqueo: diasBloqueo,
@@ -94,7 +193,7 @@ export default function DialogoReserva({
 
     setError(null)
     setPaso('confirmacion')
-    setDiasBloqueo(5)
+    setFechaBloqueo(fechaInicialDefault)
     setNotas('')
     onClose()
   }
@@ -122,10 +221,12 @@ export default function DialogoReserva({
 
   // Estado completado
   if (paso === 'completado') {
+    const boletasRes = reservaResponse?.boletas_reservadas ?? []
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-          <div className="text-center py-8">
+        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+          <div className="text-center py-4">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
@@ -143,27 +244,13 @@ export default function DialogoReserva({
                 <h4 className="font-medium text-slate-900 mb-3">Detalles de la Reserva</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">ID Reserva:</span>
-                    <span className="font-mono text-slate-900">{reservaResponse.reserva_id?.slice(0, 8)}...</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-slate-600">Boletas:</span>
                     <span className="font-medium text-slate-900">{reservaResponse.cantidad_boletas}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Días Bloqueo:</span>
-                    <span className="font-medium text-slate-900">{diasBloqueo}</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-slate-600">Bloqueo Hasta:</span>
                     <span className="font-medium text-slate-900">
-                      {new Date(reservaResponse.bloqueo_hasta).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Estado:</span>
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                      PENDIENTE
+                      {new Date(reservaResponse.bloqueo_hasta).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -173,14 +260,85 @@ export default function DialogoReserva({
                 </div>
               </div>
             )}
-
-            <button
-              onClick={handleClose}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Aceptar
-            </button>
           </div>
+
+          {/* Boletas para descargar/imprimir */}
+          {boletasRes.length > 0 && (
+            <div className="border-t border-slate-200 pt-4 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-slate-900">🎫 Boletas Reservadas</h4>
+                <button
+                  onClick={descargarTodasReserva}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar Todas
+                </button>
+              </div>
+              <div className="space-y-4">
+                {boletasRes.map((b: any) => (
+                  <div key={b.id} className="border border-slate-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-slate-900 text-sm">Boleta #{b.numero.toString().padStart(4, '0')}</span>
+                      <button
+                        onClick={() => descargarBoletaReserva(b.numero, cliente.identificacion || '', `reserva-boleta-${b.id}`)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Descargar
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <div id={`reserva-boleta-${b.id}`}>
+                        <BoletaTicket
+                          qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
+                          barcode=""
+                          numero={b.numero}
+                          imagenUrl={b.imagen_url}
+                          rifaNombre={rifaNombre || ''}
+                          estado="RESERVADA"
+                          clienteInfo={{
+                            nombre: cliente.nombre,
+                            identificacion: cliente.identificacion
+                          }}
+                          reservadaHasta={reservaResponse.bloqueo_hasta}
+                          precio={precioBoleta}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Botón de WhatsApp */}
+          {generarLinkWhatsAppReserva() && (
+            <div className="flex justify-center mt-4">
+              <a
+                href={generarLinkWhatsAppReserva()!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Enviar por WhatsApp
+              </a>
+            </div>
+          )}
+
+          <button
+            onClick={handleClose}
+            className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Aceptar
+          </button>
         </div>
       </div>
     )
@@ -264,53 +422,47 @@ export default function DialogoReserva({
             </div>
           </div>
 
-          {/* Configuración de bloqueo */}
+          {/* Configuración de bloqueo con calendario */}
           <div>
             <label className="block text-sm font-bold text-black mb-3">
-              Días de Bloqueo
+              📅 Fecha Límite de Reserva
             </label>
             <div className="space-y-3">
-              <div>
-                <input
-                  type="range"
-                  min="1"
-                  max="30"
-                  value={diasBloqueo}
-                  onChange={(e) => setDiasBloqueo(Number(e.target.value))}
-                  disabled={procesando}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <div className="mt-2 text-center">
-                  <span className="text-2xl font-bold text-blue-600">{diasBloqueo}</span>
-                  <span className="text-slate-600 ml-2">días</span>
+              <input
+                type="date"
+                value={fechaBloqueo}
+                min={formatDateForInput(manana)}
+                max={formatDateForInput(fechaMaxima)}
+                onChange={(e) => setFechaBloqueo(e.target.value)}
+                disabled={procesando}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black text-base cursor-pointer"
+              />
+
+              {/* Info de fecha seleccionada */}
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-blue-600 font-medium">Reserva válida hasta:</p>
+                    <p className="text-sm font-semibold text-blue-900">
+                      {fechaExpiracion.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-blue-600">{diasBloqueo}</p>
+                    <p className="text-xs text-blue-600">días</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Botones rápidos */}
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 3, 5, 7].map((dias) => (
-                  <button
-                    key={dias}
-                    onClick={() => setDiasBloqueo(dias)}
-                    disabled={procesando}
-                    className={`py-2 px-3 rounded text-sm font-medium transition-colors ${
-                      diasBloqueo === dias
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {dias}d
-                  </button>
-                ))}
-              </div>
-
-              {/* Fecha de expiración */}
-              <div className="bg-slate-50 p-3 rounded-lg">
-                <p className="text-xs text-slate-600">Bloqueo hasta:</p>
-                <p className="text-sm font-medium text-slate-900">
-                  {fechaExpiracion.toLocaleDateString()} {fechaExpiracion.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
+              {/* Indicador de fecha del sorteo */}
+              {fechaSorteo && (
+                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span>🎰</span>
+                  <span>
+                    Fecha del sorteo: {new Date(fechaSorteo).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -343,8 +495,8 @@ export default function DialogoReserva({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
             <p className="font-medium mb-2">⏱️ Aclaraciones Importantes:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>Las boletas estarán bloqueadas por {diasBloqueo} días</li>
-              <li>Pasado este tiempo, se liberarán automáticamente</li>
+              <li>Las boletas estarán reservadas hasta el {fechaExpiracion.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</li>
+              <li>Pasada esa fecha, se liberarán automáticamente</li>
               <li>Puedes convertirla a venta en cualquier momento</li>
               <li>O cancelarla si cambias de opinión</li>
             </ul>

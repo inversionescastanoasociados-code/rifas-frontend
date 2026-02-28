@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { boletaApi } from '@/lib/boletaApi'
 import BoletaTicket from '@/components/BoletaTicket'
@@ -12,6 +12,39 @@ export default function BoletaPrintPage() {
   const [boleta, setBoleta] = useState<BoletaDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
+
+  // Helper to build filename: boleta_0001_CC_123456 or boleta_0001
+  const buildFilename = useCallback((b: BoletaDetail) => {
+    const num = b.numero.toString().padStart(4, '0')
+    const cedula = b.cliente_info?.identificacion
+    return cedula ? `boleta_${num}_CC_${cedula}` : `boleta_${num}`
+  }, [])
+
+  const handleDownloadImage = useCallback(async () => {
+    if (!boleta) return
+    setDownloading(true)
+    try {
+      const html2canvas = (await import('html2canvas-pro')).default
+      const el = document.querySelector('.print-boleta-container .boleta-ticket') as HTMLElement
+      if (!el) return
+      const canvas = await html2canvas(el, {
+        scale: 4,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+      })
+      const link = document.createElement('a')
+      link.download = `${buildFilename(boleta)}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error al descargar imagen:', err)
+    } finally {
+      setDownloading(false)
+    }
+  }, [boleta, buildFilename])
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     
@@ -43,9 +76,18 @@ export default function BoletaPrintPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
+  const handlePrint = useCallback(() => {
+    if (boleta) {
+      // Set document.title so the PDF filename matches
+      const originalTitle = document.title
+      document.title = buildFilename(boleta)
+      window.print()
+      // Restore original title after print dialog
+      setTimeout(() => { document.title = originalTitle }, 1000)
+    } else {
+      window.print()
+    }
+  }, [boleta, buildFilename])
 
   useEffect(() => {
     if (boleta) {
@@ -95,6 +137,16 @@ export default function BoletaPrintPage() {
           Imprimir Boleta
         </button>
         <button
+          onClick={handleDownloadImage}
+          disabled={downloading}
+          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          {downloading ? 'Descargando...' : 'Descargar Imagen'}
+        </button>
+        <button
           onClick={() => window.close()}
           className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
         >
@@ -103,7 +155,7 @@ export default function BoletaPrintPage() {
       </div>
 
       {/* Mismo componente BoletaTicket que la vista de detalle — diseño idéntico */}
-      <div className="flex justify-center">
+      <div className="flex justify-center print-boleta-container">
         <BoletaTicket
           qrUrl={boleta.qr_url}
           barcode={boleta.barcode}
@@ -112,6 +164,9 @@ export default function BoletaPrintPage() {
           rifaNombre={boleta.rifa_nombre}
           estado={boleta.estado}
           clienteInfo={boleta.cliente_info}
+          deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
+          reservadaHasta={boleta.bloqueo_hasta}
+          precio={boleta.boleta_financiero?.precio_boleta}
         />
       </div>
 
@@ -136,6 +191,22 @@ export default function BoletaPrintPage() {
             <span className="text-slate-600">QR URL:</span>
             <p className="text-slate-900 break-all">{boleta.qr_url}</p>
           </div>
+          {boleta.boleta_financiero && (
+            <>
+              <div>
+                <span className="text-slate-600">Precio Boleta:</span>
+                <p className="font-medium text-slate-900">
+                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(boleta.boleta_financiero.precio_boleta)}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-600">Saldo Pendiente:</span>
+                <p className="font-medium text-orange-600">
+                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(boleta.boleta_financiero.saldo_pendiente)}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {boleta.cliente_info && (
@@ -158,7 +229,7 @@ export default function BoletaPrintPage() {
       <style jsx global>{`
         @media print {
           @page {
-            size: auto;
+            size: 3224px 1417px;
             margin: 0;
           }
           
@@ -172,49 +243,32 @@ export default function BoletaPrintPage() {
             min-height: auto !important;
             padding: 0 !important;
             margin: 0 !important;
-          }
-          
-          .border-2 {
-            border-width: 2pt !important;
-          }
-          
-          img {
-            max-width: 100% !important;
-            max-height: 100% !important;
-            object-fit: contain !important;
-            page-break-inside: avoid;
-          }
-          
-          .w-2\\/3 {
-            width: 66.666667% !important;
-          }
-          
-          .w-1\\/3 {
-            width: 33.333333% !important;
-          }
-          
-          .whitespace-nowrap {
-            white-space: nowrap !important;
+            background: white !important;
           }
           
           .no-print {
             display: none !important;
           }
-          
-          .space-y-2 > * + * {
-            margin-top: 0.5rem !important;
+
+          /* Center and scale the 800x352 component up to 3224x1417 for print */
+          .print-boleta-container {
+            width: 3224px !important;
+            height: 1417px !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            overflow: hidden !important;
+          }
+
+          .print-boleta-container .boleta-ticket {
+            transform: scale(4.03) !important;
+            transform-origin: center center !important;
+            width: 800px !important;
+            height: 352px !important;
           }
           
-          .w-28 {
-            width: 7rem !important;
-          }
-          
-          .h-28 {
-            height: 7rem !important;
-          }
-          
-          .h-12 {
-            height: 3rem !important;
+          img {
+            page-break-inside: avoid;
           }
         }
       `}</style>
