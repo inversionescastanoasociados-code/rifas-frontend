@@ -54,8 +54,15 @@ class VentasApiService {
     }
 
     if (!response.ok) {
-      const serverMessage =
+      // Show detailed validation errors if available
+      let serverMessage =
         data?.message || data?.error || data?.errors || response.statusText
+      if (data?.details && Array.isArray(data.details)) {
+        const fieldErrors = data.details.map((d: any) => `${d.field}: ${d.message}`).join('; ')
+        serverMessage = `${serverMessage} (${fieldErrors})`
+        console.error('[VentasAPI] Validation details:', data.details)
+      }
+      console.error('[VentasAPI] Request failed:', { endpoint, status: response.status, data })
       const error = new Error(
         `API Error ${response.status}: ${serverMessage}`
       ) as any

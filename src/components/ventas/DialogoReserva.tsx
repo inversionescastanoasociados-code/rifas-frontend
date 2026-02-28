@@ -155,7 +155,7 @@ export default function DialogoReserva({
     setPaso('procesando')
 
     try {
-      const respuesta = await ventasApi.crearReserva({
+      const reservaPayload = {
         rifa_id: rifaId,
         cliente: {
           nombre: cliente.nombre,
@@ -167,7 +167,9 @@ export default function DialogoReserva({
         boletas: boletas.map(b => b.id),
         dias_bloqueo: diasBloqueo,
         notas: notas || undefined
-      })
+      }
+      console.log('[DialogoReserva] Payload enviado:', JSON.stringify(reservaPayload, null, 2))
+      const respuesta = await ventasApi.crearReserva(reservaPayload)
 
       setReservaResponse(respuesta.data)
       setPaso('completado')
