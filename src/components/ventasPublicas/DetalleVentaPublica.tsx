@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { ventasApi } from '@/lib/ventasApi'
 import ReciboAbono, { ReciboAbonoData } from '@/components/ventas/ReciboAbono'
+import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -1047,15 +1048,14 @@ export default function DetalleVentaPublica({
                         <div className="relative flex-1">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">$</span>
                           <input
-                            type="number"
-                            min={0}
-                            max={saldo}
-                            value={abonoActual || ''}
+                            type="text"
+                            inputMode="numeric"
+                            value={formatearInputPesos(abonoActual)}
                             onChange={(e) => {
-                              const val = Number(e.target.value) || 0
+                              const val = parsearInputPesos(e.target.value)
                               setAbonoBoleta(boleta.boleta_id, Math.min(val, saldo))
                             }}
-                            placeholder="0"
+                            placeholder="$ 0"
                             className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 text-sm font-medium"
                           />
                         </div>
@@ -1227,12 +1227,15 @@ export default function DetalleVentaPublica({
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
                     <input
-                      type="number"
-                      min={1}
-                      max={abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente}
-                      value={montoAbono || ''}
-                      onChange={(e) => setMontoAbono(Number(e.target.value) || 0)}
-                      placeholder="0"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatearInputPesos(montoAbono)}
+                      onChange={(e) => {
+                        const val = parsearInputPesos(e.target.value)
+                        const max = abonarBoleta ? abonarBoleta.saldoPendiente : venta.saldo_pendiente
+                        setMontoAbono(Math.min(val, max))
+                      }}
+                      placeholder="$ 0"
                       disabled={pagarTodo}
                       className="w-full pl-8 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:text-slate-500 bg-white text-slate-900 text-lg font-medium"
                     />

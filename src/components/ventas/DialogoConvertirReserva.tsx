@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ventasApi } from '@/lib/ventasApi'
 import { ReservaResponse } from '@/types/ventas'
+import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 
 interface DialogoConvertirReservaProps {
   isOpen: boolean
@@ -294,11 +295,13 @@ export default function DialogoConvertirReserva({
                     $
                   </span>
                   <input
-                    type="number"
-                    value={montoAbono}
-                    onChange={(e) => setMontoAbono(Math.max(0, Number(e.target.value)))}
-                    min="1"
-                    max={totalVenta - 1}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatearInputPesos(montoAbono)}
+                    onChange={(e) => {
+                      const val = parsearInputPesos(e.target.value)
+                      setMontoAbono(Math.min(Math.max(0, val), totalVenta - 1))
+                    }}
                     disabled={procesando}
                     className="w-full pl-8 pr-3 py-2 border border-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white text-black"
                     placeholder="0"

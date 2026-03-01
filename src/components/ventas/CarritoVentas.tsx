@@ -8,6 +8,7 @@ import { BoletaEnCarrito, Cliente, VentaRequest } from '@/types/ventas'
 import BoletaTicket from '@/components/BoletaTicket'
 import DialogoReserva from './DialogoReserva'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
+import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 
 const MEDIOS_PAGO_MAP: Record<string, string> = {
   'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7': 'Efectivo',
@@ -590,11 +591,13 @@ export default function CarritoVentas({
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm">$</span>
                       <input
-                        type="number"
-                        value={abonoActual || ''}
-                        onChange={(e) => setAbonoBoleta(boleta.id, Number(e.target.value))}
-                        min="0"
-                        max={precioBoleta}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatearInputPesos(abonoActual)}
+                        onChange={(e) => {
+                          const val = parsearInputPesos(e.target.value)
+                          setAbonoBoleta(boleta.id, Math.min(val, precioBoleta))
+                        }}
                         placeholder="0"
                         className="w-full pl-6 pr-2 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                       />
