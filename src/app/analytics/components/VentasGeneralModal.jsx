@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { getVentasGeneral } from '../services/analytics.service';
 
 // ─── Helpers ───────────────────────────────────────────
@@ -52,6 +52,104 @@ const tipoTransColors = {
 
 // ─── Detalle expandido de una venta ────────────────────
 function VentaDetalleExpandido({ venta }) {
+  // ─── Generar recibo imprimible ───
+  const handleImprimirRecibo = () => {
+    const tipoLabel = {
+      PAGO_TOTAL: 'Pago Total',
+      ABONO: 'Abono Parcial',
+      RESERVA: 'Reserva',
+      SIN_PAGO: 'Sin Pago',
+    };
+    const boletas = (venta.numeros_boletas || []).map((num) => `#${String(num).padStart(4, '0')}`).join(', ');
+    const fecha = fmtDate(venta.created_at);
+    const win = window.open('', '_blank', 'width=420,height=700');
+    if (!win) return;
+    win.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Recibo - Venta</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fff; color: #111; padding: 24px; max-width: 380px; margin: 0 auto; }
+        .header { text-align: center; border-bottom: 2px dashed #ccc; padding-bottom: 16px; margin-bottom: 16px; }
+        .header h1 { font-size: 20px; font-weight: 800; }
+        .header p { font-size: 12px; color: #666; margin-top: 4px; }
+        .section { margin-bottom: 14px; }
+        .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 6px; }
+        .row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+        .row .label { color: #555; }
+        .row .value { font-weight: 600; }
+        .total-row { border-top: 2px solid #111; padding-top: 8px; margin-top: 8px; font-size: 16px; font-weight: 800; }
+        .boletas { font-size: 12px; color: #333; word-break: break-all; }
+        .footer { text-align: center; margin-top: 20px; padding-top: 16px; border-top: 2px dashed #ccc; font-size: 11px; color: #888; }
+        .estado { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+        .estado-PAGADA { background: #dcfce7; color: #166534; }
+        .estado-ABONADA { background: #ede9fe; color: #5b21b6; }
+        .estado-PENDIENTE { background: #fef3c7; color: #92400e; }
+        .estado-default { background: #f1f5f9; color: #475569; }
+        @media print { body { padding: 8px; } }
+      </style></head><body>
+      <div class="header">
+        <h1>🧾 Comprobante de Venta</h1>
+        <p>${fecha}</p>
+      </div>
+      <div class="section">
+        <div class="section-title">Información del Cliente</div>
+        <div class="row"><span class="label">Nombre</span><span class="value">${venta.cliente_nombre || '—'}</span></div>
+        <div class="row"><span class="label">Teléfono</span><span class="value">${venta.cliente_telefono || '—'}</span></div>
+        ${venta.cliente_identificacion ? `<div class="row"><span class="label">Cédula</span><span class="value">${venta.cliente_identificacion}</span></div>` : ''}
+        ${venta.cliente_email ? `<div class="row"><span class="label">Email</span><span class="value">${venta.cliente_email}</span></div>` : ''}
+      </div>
+      <div class="section">
+        <div class="section-title">Detalle de la Venta</div>
+        <div class="row"><span class="label">Tipo</span><span class="value">${tipoLabel[venta.tipo_transaccion] || venta.tipo_transaccion}</span></div>
+        <div class="row"><span class="label">Origen</span><span class="value">${venta.origen_venta === 'ONLINE' ? '🌐 Online' : '🏪 Punto Físico'}</span></div>
+        <div class="row"><span class="label">Cantidad Boletas</span><span class="value">${venta.cantidad_boletas}</span></div>
+        <div class="row"><span class="label">Precio por Boleta</span><span class="value">${fmt(venta.precio_boleta)}</span></div>
+        <div class="row"><span class="label">Monto Total</span><span class="value">${fmt(venta.monto_total)}</span></div>
+        <div class="row"><span class="label">Total Pagado</span><span class="value" style="color:#16a34a">${fmt(venta.total_pagado_real)}</span></div>
+        ${venta.saldo_pendiente > 0 ? `<div class="row"><span class="label">Saldo Pendiente</span><span class="value" style="color:#dc2626">${fmt(venta.saldo_pendiente)}</span></div>` : ''}
+        <div class="row"><span class="label">Estado</span><span class="estado estado-${venta.estado_venta || 'default'}">${venta.estado_venta}</span></div>
+        ${venta.vendedor_nombre ? `<div class="row"><span class="label">Vendedor</span><span class="value">${venta.vendedor_nombre}</span></div>` : ''}
+      </div>
+      <div class="section">
+        <div class="section-title">Boletas</div>
+        <div class="boletas">${boletas || 'N/A'}</div>
+      </div>
+      ${venta.notas_admin ? `<div class="section"><div class="section-title">Notas</div><p style="font-size:12px;color:#555">${venta.notas_admin}</p></div>` : ''}
+      <div class="footer">
+        <p>Gracias por su compra 🎉</p>
+        <p style="margin-top:4px">Este documento es un comprobante válido</p>
+      </div>
+      </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  };
+
+  // ─── Generar link de WhatsApp con resumen ───
+  const generarWhatsAppLink = () => {
+    const tel = venta.cliente_telefono?.replace(/\D/g, '') || '';
+    if (!tel || tel.length < 7) return null;
+    const telCompleto = tel.startsWith('57') ? tel : `57${tel}`;
+    const boletas = (venta.numeros_boletas || []).map((n) => `#${String(n).padStart(4, '0')}`).join(', ');
+    const tipoLabel = { PAGO_TOTAL: 'Pago Total', ABONO: 'Abono Parcial', RESERVA: 'Reserva', SIN_PAGO: 'Sin Pago' };
+
+    let msg = `🧾 *Comprobante de Venta*\n\n`;
+    msg += `Hola *${venta.cliente_nombre}*, aquí tiene el detalle de su venta:\n\n`;
+    msg += `📋 *Tipo:* ${tipoLabel[venta.tipo_transaccion] || venta.tipo_transaccion}\n`;
+    msg += `🎟️ *Boletas:* ${boletas}\n`;
+    msg += `💵 *Monto Total:* ${fmt(venta.monto_total)}\n`;
+    msg += `✅ *Total Pagado:* ${fmt(venta.total_pagado_real)}\n`;
+    if (venta.saldo_pendiente > 0) {
+      msg += `🔴 *Saldo Pendiente:* ${fmt(venta.saldo_pendiente)}\n`;
+    }
+    msg += `\n¡Gracias por su compra! 🎉`;
+
+    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`;
+  };
+
+  const whatsappLink = generarWhatsAppLink();
+
   return (
     <tr>
       <td colSpan={8} className="px-0 py-0">
@@ -153,6 +251,32 @@ function VentaDetalleExpandido({ venta }) {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ─── Botones: Imprimir Recibo + WhatsApp ─── */}
+          <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-200">
+            <button
+              onClick={handleImprimirRecibo}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-lg shadow transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              🧾 Imprimir Recibo
+            </button>
+            {whatsappLink && (
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow transition-colors"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                📩 Enviar por WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </td>

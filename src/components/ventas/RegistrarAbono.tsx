@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ventasApi } from '@/lib/ventasApi'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
+import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
 
 interface Props {
   ventaId: string
@@ -75,6 +76,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [confirmarCancelar, setConfirmarCancelar] = useState(false)
   const [pagarTodo, setPagarTodo] = useState(false)
   const [exitoReciente, setExitoReciente] = useState<ExitoReciente>(null)
+  const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
   const [boletasSeleccionadas, setBoletasSeleccionadas] = useState<BoletasSeleccionadas>({})
   const [historialExpandido, setHistorialExpandido] = useState<Record<string, boolean>>({})
 
@@ -174,10 +176,43 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
 
         // Verificar si se saldó toda la deuda
         const nuevoSaldo = venta.saldo_pendiente - totalMulti
+        const nuevoPagado = venta.total_pagado + totalMulti
         setExitoReciente({
           tipo: nuevoSaldo <= 0 ? 'pago_total' : 'abono',
           monto: totalMulti,
           boletaNumeros: numerosAbonados
+        })
+        // Obtener label del medio de pago
+        const mpLabel = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
+        // Mapa de abono por boleta para calcular estado post-abono
+        const abonoMap: Record<string, number> = {}
+        for (const ba of boletasAbono) { abonoMap[ba.boleta_id] = ba.monto }
+        setReciboData({
+          tipo: nuevoSaldo <= 0 ? 'pago_total' : 'abono',
+          montoRegistrado: totalMulti,
+          totalVenta: venta.monto_total,
+          totalPagado: nuevoPagado,
+          saldoPendiente: nuevoSaldo > 0 ? nuevoSaldo : 0,
+          clienteNombre: venta.nombre,
+          clienteTelefono: venta.telefono,
+          clienteEmail: venta.email,
+          metodoPago: mpLabel,
+          notas: notas.trim() || undefined,
+          ventaId: venta.id,
+          boletas: (venta.boletas || []).map(b => {
+            const abonoEsta = abonoMap[b.id] || 0
+            const nuevoTotalPagado = (b.total_pagado_boleta || 0) + abonoEsta
+            const precio = b.precio_boleta || 0
+            const nuevoSaldoBoleta = precio - nuevoTotalPagado
+            const nuevoEstado = nuevoTotalPagado >= precio ? 'PAGADA' : nuevoTotalPagado > 0 ? 'ABONADA' : b.estado
+            return {
+              numero: b.numero,
+              estado: nuevoEstado,
+              precioBoleta: precio,
+              totalPagado: nuevoTotalPagado,
+              saldoPendiente: nuevoSaldoBoleta > 0 ? nuevoSaldoBoleta : 0
+            }
+          })
         })
       } catch (err: any) {
         const responseData = err?.response?.data
@@ -223,9 +258,48 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         setNotas('')
         setAccion(null)
         const esPagoTotal = venta.saldo_pendiente - montoValidado <= 0
+        const nuevoPagadoGen = venta.total_pagado + montoValidado
+        const nuevoSaldoGen = venta.saldo_pendiente - montoValidado
         setExitoReciente({
           tipo: esPagoTotal ? 'pago_total' : 'abono',
           monto: montoValidado
+        })
+        const mpLabelGen = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
+        // Para abono general, distribuir monto proporcionalmente entre boletas con saldo
+        let montoRestanteGen = montoValidado
+        const boletasPostAbono = (venta.boletas || []).map(b => {
+          const precio = b.precio_boleta || 0
+          const pagadoPrev = b.total_pagado_boleta || 0
+          const saldoB = b.saldo_pendiente_boleta ?? (precio - pagadoPrev)
+          let abonoEstaB = 0
+          if (montoRestanteGen > 0 && saldoB > 0) {
+            abonoEstaB = Math.min(montoRestanteGen, saldoB)
+            montoRestanteGen -= abonoEstaB
+          }
+          const nuevoTotalPagB = pagadoPrev + abonoEstaB
+          const nuevoSaldoB = precio - nuevoTotalPagB
+          const nuevoEstB = nuevoTotalPagB >= precio ? 'PAGADA' : nuevoTotalPagB > 0 ? 'ABONADA' : b.estado
+          return {
+            numero: b.numero,
+            estado: nuevoEstB,
+            precioBoleta: precio,
+            totalPagado: nuevoTotalPagB,
+            saldoPendiente: nuevoSaldoB > 0 ? nuevoSaldoB : 0
+          }
+        })
+        setReciboData({
+          tipo: esPagoTotal ? 'pago_total' : 'abono',
+          montoRegistrado: montoValidado,
+          totalVenta: venta.monto_total,
+          totalPagado: nuevoPagadoGen,
+          saldoPendiente: nuevoSaldoGen > 0 ? nuevoSaldoGen : 0,
+          clienteNombre: venta.nombre,
+          clienteTelefono: venta.telefono,
+          clienteEmail: venta.email,
+          metodoPago: mpLabelGen,
+          notas: notas.trim() || undefined,
+          ventaId: venta.id,
+          boletas: boletasPostAbono
         })
       } catch (err: any) {
         const responseData = err?.response?.data
@@ -335,128 +409,12 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
     return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`
   }
 
-  if (exitoReciente) {
-    const whatsappLink = generarWhatsAppAbonoLink()
-    
+  if (exitoReciente && reciboData) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <div className="text-center max-w-md mx-auto">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-full mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
-            {exitoReciente.tipo === 'pago_total'
-              ? (exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
-                  ? (exitoReciente.boletaNumeros.length === 1
-                    ? `Boleta #${exitoReciente.boletaNumeros[0].toString().padStart(4, '0')} pagada`
-                    : 'Boletas pagadas')
-                  : 'Deuda saldada')
-              : (exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
-                  ? `Abono registrado a ${exitoReciente.boletaNumeros.length} boleta${exitoReciente.boletaNumeros.length > 1 ? 's' : ''}`
-                  : 'Abono registrado')}
-          </h2>
-          <p className="text-slate-600 mb-4">
-            {exitoReciente.tipo === 'pago_total'
-              ? 'La venta quedó pagada en su totalidad. Ya puedes entregar las boletas al cliente.'
-              : (() => {
-                  const nums = exitoReciente.boletaNumeros && exitoReciente.boletaNumeros.length > 0
-                    ? exitoReciente.boletaNumeros.map(n => `#${n.toString().padStart(4, '0')}`).join(', ')
-                    : null
-                  return `Se registró un abono de $${exitoReciente.monto.toLocaleString('es-CO')}${nums ? ` a las boletas ${nums}` : ''} correctamente.`
-                })()}
-          </p>
-
-          {/* Resumen financiero */}
-          <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left text-sm space-y-2">
-            <div className="flex justify-between">
-              <span className="text-slate-600">Monto registrado:</span>
-              <span className="font-medium text-green-700">${exitoReciente.monto.toLocaleString('es-CO')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">Total pagado:</span>
-              <span className="font-medium text-slate-900">${venta.total_pagado.toLocaleString('es-CO')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">Saldo pendiente:</span>
-              <span className={`font-semibold ${venta.saldo_pendiente <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {venta.saldo_pendiente <= 0
-                  ? '✅ $0 — Saldado'
-                  : `$${venta.saldo_pendiente.toLocaleString('es-CO')}`}
-              </span>
-            </div>
-          </div>
-
-          {/* Estado de boletas */}
-          {venta.boletas && venta.boletas.length > 0 && (
-            <div className="bg-slate-50 rounded-lg p-4 mb-6 text-left text-sm">
-              <p className="font-medium text-slate-700 mb-2">Estado de boletas:</p>
-              <div className="space-y-1">
-                {venta.boletas.map((b) => (
-                  <div key={b.id} className="flex justify-between items-center">
-                    <span className="text-slate-600">#{b.numero.toString().padStart(4, '0')}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      b.estado === 'PAGADA' ? 'bg-green-100 text-green-700' :
-                      b.estado === 'ABONADA' ? 'bg-yellow-100 text-yellow-700' :
-                      b.estado === 'RESERVADA' ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-600'
-                    }`}>
-                      {b.estado === 'PAGADA' ? '✅ Pagada' :
-                       b.estado === 'ABONADA' ? `💰 $${(b.total_pagado_boleta || 0).toLocaleString('es-CO')}/${(b.precio_boleta || 0).toLocaleString('es-CO')}` :
-                       b.estado === 'RESERVADA' ? '🔒 Reservada' :
-                       b.estado}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Botones de acción */}
-          <div className="flex flex-col gap-3">
-            {/* WhatsApp */}
-            {whatsappLink && (
-              <a
-                href={whatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-                Notificar por WhatsApp
-              </a>
-            )}
-            
-            {/* Ver/Imprimir boletas */}
-            {exitoReciente.tipo === 'pago_total' && venta.boletas && venta.boletas.length > 0 && (
-              <Link
-                href={`/ventas/${ventaId}/boletas`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Ver / Imprimir boletas
-              </Link>
-            )}
-            
-            {/* Volver */}
-            <button
-              type="button"
-              onClick={cerrarExitoYVolver}
-              className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
-            >
-              Volver a la lista
-            </button>
-          </div>
-        </div>
-      </div>
+      <ReciboAbono
+        data={reciboData}
+        onClose={cerrarExitoYVolver}
+      />
     )
   }
 

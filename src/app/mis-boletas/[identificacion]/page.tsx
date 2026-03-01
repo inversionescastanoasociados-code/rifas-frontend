@@ -46,7 +46,7 @@ interface ApiResponse {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://rifas-backend-production.up.railway.app/api'
-const PUBLIC_API_KEY = process.env.NEXT_PUBLIC_PUBLIC_API_KEY || 'pk_rifa_2025_public_access'
+const PUBLIC_API_KEY = process.env.NEXT_PUBLIC_PUBLIC_API_KEY || 'pk_4f9a8c7e2d1b6a9f3c0d5e7f8a2b4c6d'
 
 export default function MisBoletasPage() {
   const params = useParams()

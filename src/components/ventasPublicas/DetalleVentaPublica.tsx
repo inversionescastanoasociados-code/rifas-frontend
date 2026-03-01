@@ -4,6 +4,7 @@ import { VentaPublicaDetalle, AbonoPublico } from '@/types/ventasPublicas'
 import { useState } from 'react'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { ventasApi } from '@/lib/ventasApi'
+import ReciboAbono, { ReciboAbonoData } from '@/components/ventas/ReciboAbono'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -42,6 +43,8 @@ export default function DetalleVentaPublica({
   const [pagarTodo, setPagarTodo] = useState(false)
   const [procesandoAbono, setProcesandoAbono] = useState(false)
   const [marcandoRevisada, setMarcandoRevisada] = useState(false)
+  const [exitoAbonoMonto, setExitoAbonoMonto] = useState<number | null>(null)
+  const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
 
   // Estado para abono por boleta individual
   const [abonarBoleta, setAbonarBoleta] = useState<{
@@ -202,6 +205,57 @@ export default function DetalleVentaPublica({
               : '✅ ¡Pago total registrado! La venta queda PAGADA. Las boletas se han entregado al cliente.')
           : `✅ Abono de ${formatoMoneda(montoValidado)}${abonarBoleta ? ` a boleta #${abonarBoleta.boletaNumero.toString().padStart(4, '0')}` : ''} registrado exitosamente.`
       )
+      setExitoAbonoMonto(montoValidado)
+
+      // Generar datos para recibo
+      const mpLabel = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
+      const nuevoPagadoRecibo = venta.abono_total + montoValidado
+      const nuevoSaldoRecibo = venta.monto_total - nuevoPagadoRecibo
+      // Calcular estado post-abono de cada boleta
+      const boletaAbonada = abonarBoleta?.boletaId || null
+      let montoRestSingle = montoValidado
+      const boletasPostAbonoSingle = venta.boletas.map(b => {
+        const precio = b.precio_boleta || 0
+        const pagadoPrev = b.total_pagado_boleta || 0
+        const saldoB = b.saldo_pendiente_boleta ?? (precio - pagadoPrev)
+        let abonoEsta = 0
+        if (boletaAbonada) {
+          // Abono a boleta específica
+          if (b.boleta_id === boletaAbonada) abonoEsta = montoValidado
+        } else {
+          // Abono general: distribuir
+          if (montoRestSingle > 0 && saldoB > 0) {
+            abonoEsta = Math.min(montoRestSingle, saldoB)
+            montoRestSingle -= abonoEsta
+          }
+        }
+        const nuevoTotalPag = pagadoPrev + abonoEsta
+        const nuevoSaldoB = precio - nuevoTotalPag
+        const nuevoEst = nuevoTotalPag >= precio ? 'PAGADA' : nuevoTotalPag > 0 ? 'ABONADA' : b.estado
+        return {
+          numero: b.numero,
+          estado: nuevoEst,
+          precioBoleta: precio,
+          totalPagado: nuevoTotalPag,
+          saldoPendiente: nuevoSaldoB > 0 ? nuevoSaldoB : 0
+        }
+      })
+      setReciboData({
+        tipo: esPagoTotal ? 'pago_total' : 'abono',
+        montoRegistrado: montoValidado,
+        totalVenta: venta.monto_total,
+        totalPagado: nuevoPagadoRecibo,
+        saldoPendiente: nuevoSaldoRecibo > 0 ? nuevoSaldoRecibo : 0,
+        clienteNombre: venta.cliente_nombre,
+        clienteTelefono: venta.cliente_telefono,
+        clienteEmail: venta.cliente_email,
+        clienteIdentificacion: venta.cliente_identificacion,
+        rifaNombre: venta.rifa_nombre,
+        metodoPago: mpLabel,
+        notas: notasAbono.trim() || undefined,
+        ventaId: venta.id,
+        boletas: boletasPostAbonoSingle
+      })
 
       setMostrarFormAbono(false)
       setMontoAbono(0)
@@ -212,11 +266,6 @@ export default function DetalleVentaPublica({
       if (onAbonoConfirmado) {
         onAbonoConfirmado(venta.id)
       }
-
-      // Recargar la página después de 2s para reflejar cambios
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Error registrando abono'
       setError(msg)
@@ -302,6 +351,44 @@ export default function DetalleVentaPublica({
       setExito(
         `✅ Se registraron ${abonosARegistrar.length} abono(s) por un total de ${formatoMoneda(totalAbonoMulti)} exitosamente.`
       )
+      setExitoAbonoMonto(totalAbonoMulti)
+
+      // Generar datos para recibo
+      const mpLabelMulti = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
+      const nuevoPagadoMulti = venta.abono_total + totalAbonoMulti
+      const nuevoSaldoMulti = venta.monto_total - nuevoPagadoMulti
+      // Calcular estado post-abono de cada boleta usando el mapa de abonos
+      const boletasPostAbonoMulti = venta.boletas.map(b => {
+        const precio = b.precio_boleta || 0
+        const pagadoPrev = b.total_pagado_boleta || 0
+        const abonoEsta = abonosPorBoleta[b.boleta_id] || 0
+        const nuevoTotalPag = pagadoPrev + abonoEsta
+        const nuevoSaldoB = precio - nuevoTotalPag
+        const nuevoEst = nuevoTotalPag >= precio ? 'PAGADA' : nuevoTotalPag > 0 ? 'ABONADA' : b.estado
+        return {
+          numero: b.numero,
+          estado: nuevoEst,
+          precioBoleta: precio,
+          totalPagado: nuevoTotalPag,
+          saldoPendiente: nuevoSaldoB > 0 ? nuevoSaldoB : 0
+        }
+      })
+      setReciboData({
+        tipo: nuevoSaldoMulti <= 0 ? 'pago_total' : 'abono',
+        montoRegistrado: totalAbonoMulti,
+        totalVenta: venta.monto_total,
+        totalPagado: nuevoPagadoMulti,
+        saldoPendiente: nuevoSaldoMulti > 0 ? nuevoSaldoMulti : 0,
+        clienteNombre: venta.cliente_nombre,
+        clienteTelefono: venta.cliente_telefono,
+        clienteEmail: venta.cliente_email,
+        clienteIdentificacion: venta.cliente_identificacion,
+        rifaNombre: venta.rifa_nombre,
+        metodoPago: mpLabelMulti,
+        notas: notasAbono.trim() || undefined,
+        ventaId: venta.id,
+        boletas: boletasPostAbonoMulti
+      })
 
       setMostrarFormAbono(false)
       setModoMultiBoleta(false)
@@ -314,10 +401,6 @@ export default function DetalleVentaPublica({
       if (onAbonoConfirmado) {
         onAbonoConfirmado(venta.id)
       }
-
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Error registrando abonos'
       setError(msg)
@@ -336,6 +419,54 @@ export default function DetalleVentaPublica({
       default:
         return estado
     }
+  }
+
+  /**
+   * Genera link de WhatsApp con confirmación de abono y estado de cuenta
+   */
+  const generarWhatsAppAbonoLink = (montoAbonado: number) => {
+    const telefono = venta.cliente_telefono?.replace(/\D/g, '')
+    if (!telefono || telefono.length < 7) return null
+    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+
+    const nombre = venta.cliente_nombre || 'Cliente'
+    const numeros = venta.boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
+
+    // Calcular estado post-abono (los datos de la venta aún no se refrescaron, calcular manualmente)
+    const nuevoPagado = venta.abono_total + montoAbonado
+    const nuevoSaldo = venta.monto_total - nuevoPagado
+    const cuentaSaldada = nuevoSaldo <= 0
+
+    // Info por boleta
+    const boletasDetalle = venta.boletas.map(b => {
+      const pagado = (b.total_pagado_boleta || 0)
+      const precio = b.precio_boleta || 0
+      const estado = pagado >= precio ? '✅ Pagada'
+        : pagado > 0 ? `💰 Abonada ($${pagado.toLocaleString('es-CO')} de $${precio.toLocaleString('es-CO')})`
+        : '🔒 Pendiente'
+      return `  #${b.numero.toString().padStart(4, '0')}: ${estado}`
+    }).join('\n')
+
+    let mensaje = ''
+    if (cuentaSaldada) {
+      mensaje = `Hola ${nombre}, te confirmamos que tu pago de *${formatoMoneda(montoAbonado)}* fue registrado exitosamente. 🎉\n\n`
+      mensaje += `*Estado de tu cuenta - ${venta.rifa_nombre}:*\n`
+      mensaje += `💵 Total: ${formatoMoneda(venta.monto_total)}\n`
+      mensaje += `✅ Pagado: ${formatoMoneda(nuevoPagado)}\n`
+      mensaje += `🎉 *¡Cuenta saldada!*\n`
+      if (boletasDetalle) mensaje += `\n*Tus boletas:*\n${boletasDetalle}\n`
+      mensaje += `\n¡Mucha suerte! 🍀`
+    } else {
+      mensaje = `Hola ${nombre}, te confirmamos que tu abono de *${formatoMoneda(montoAbonado)}* fue registrado exitosamente. ✅\n\n`
+      mensaje += `*Estado de tu cuenta - ${venta.rifa_nombre}:*\n`
+      mensaje += `💵 Total: ${formatoMoneda(venta.monto_total)}\n`
+      mensaje += `✅ Pagado: ${formatoMoneda(nuevoPagado)}\n`
+      mensaje += `⏳ Saldo pendiente: *${formatoMoneda(nuevoSaldo)}*\n`
+      if (boletasDetalle) mensaje += `\n*Tus boletas:*\n${boletasDetalle}\n`
+      mensaje += `\n¡Gracias por tu pago! 🙏`
+    }
+
+    return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`
   }
 
   /**
@@ -412,6 +543,17 @@ export default function DetalleVentaPublica({
         </h2>
       </div>
 
+      {/* Modal de Recibo/Factura */}
+      {reciboData && (
+        <ReciboAbono
+          data={reciboData}
+          onClose={() => {
+            setReciboData(null)
+            window.location.reload()
+          }}
+        />
+      )}
+
       {/* Mensajes */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -419,9 +561,18 @@ export default function DetalleVentaPublica({
         </div>
       )}
 
-      {exito && (
+      {exito && !reciboData && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-green-700 text-sm font-medium">{exito}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium"
+            >
+              🔄 Recargar datos
+            </button>
+          </div>
         </div>
       )}
 
