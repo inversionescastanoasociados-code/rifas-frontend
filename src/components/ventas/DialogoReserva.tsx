@@ -99,16 +99,19 @@ export default function DialogoReserva({
     const fechaLimite = new Date(reservaResponse.bloqueo_hasta).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
     const linkBoletas = 'https://elgrancamion.com/boletas'
 
+    const mediosDePago = `\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+
     let mensaje = `Hola ${cliente.nombre} 👋\n\n`
     mensaje += `Se registró una *RESERVA* en *${rifaNombre || 'la rifa'}*.\n\n`
     mensaje += `🎫 *Boleta${boletasRes.length > 1 ? 's' : ''}:* ${numerosStr}\n`
     mensaje += `📋 *Estado:* RESERVADA\n`
     mensaje += `💰 *Valor total:* $${subtotal.toLocaleString('es-CO')}\n`
     mensaje += `📅 *Reserva válida hasta:* ${fechaLimite}\n\n`
-    mensaje += `⚠️ Recuerda realizar el pago antes de la fecha límite. Boleta sin pagar no juega.\n`
+    mensaje += `⚠️ Recuerda realizar el pago antes de la fecha límite. Boleta sin pagar no juega.`
+    mensaje += mediosDePago
 
     if (linkBoletas) {
-      mensaje += `\n📥 Descarga tus boletas aquí:\n${linkBoletas}\n`
+      mensaje += `\n\n📥 Descarga tus boletas aquí:\n${linkBoletas}\n`
     }
 
     mensaje += `\n¡Buena suerte! 🍀`
