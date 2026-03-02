@@ -85,6 +85,8 @@ async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<
 
     msg += `\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
 
+    msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
+
     msg += `\n\nPor favor, acérquese a completar su pago para asegurar su participación. ¡Gracias! 🙏`
 
     return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
@@ -94,6 +96,7 @@ async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<
     let msg = `🔔 *Recordatorio de pago pendiente*\n\nHola *${nombre}*, le recordamos que tiene boletas pendientes por pagar.\n\n`
     if (deuda > 0) msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
     msg += `\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+    msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
     msg += `\n\nPor favor, acérquese a completar su pago. ¡Gracias! 🙏`
     return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
   }

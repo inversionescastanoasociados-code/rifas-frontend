@@ -166,7 +166,9 @@ export default function ClienteDetalle({ clienteId, onBack }: ClienteDetalleProp
     })
 
     msg += `💰 *Total pendiente por pagar: ${formatCurrency(deudaTotal)}*\n\n`
-    msg += `Por favor, acérquese a realizar su pago lo antes posible para asegurar su participación. ¡Gracias! 🙏`
+    msg += `*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+    msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
+    msg += `\n\nPor favor, acérquese a realizar su pago lo antes posible para asegurar su participación. ¡Gracias! 🙏`
 
     return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
   }

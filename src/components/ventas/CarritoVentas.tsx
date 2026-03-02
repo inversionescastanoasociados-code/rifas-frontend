@@ -46,17 +46,19 @@ export default function CarritoVentas({
   const [paso, setPaso] = useState<'resumen' | 'procesando' | 'completado' | 'error'>('resumen')
   
   // Estados para abonos parciales
-  const [tipoVenta, setTipoVenta] = useState<'COMPLETA' | 'ABONO' | 'RESERVA'>('COMPLETA')
+  const [tipoVenta, setTipoVenta] = useState<'COMPLETA' | 'ABONO' | 'RESERVA' | null>(null)
   const [abonosPorBoleta, setAbonosPorBoleta] = useState<Record<string, number>>({})
   const [ventaResponse, setVentaResponse] = useState<any>(null)
   const [mostrarDialogoReserva, setMostrarDialogoReserva] = useState(false)
   const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
 
   // Calcular totales
   const subtotal = boletas.length * precioBoleta
   const total = subtotal
   const montoAbono = tipoVenta === 'ABONO' ? Object.values(abonosPorBoleta).reduce((sum, v) => sum + (v || 0), 0) : 0
   const saldoPendiente = tipoVenta === 'ABONO' ? total - montoAbono : 0
+  const tipoVentaSeleccionado = tipoVenta !== null
 
   // Helpers para abono por boleta
   const setAbonoBoleta = (boletaId: string, monto: number) => {
@@ -497,36 +499,36 @@ export default function CarritoVentas({
             disabled={procesando}
             className={`p-4 border-2 rounded-lg transition-all ${
               tipoVenta === 'COMPLETA'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ? 'border-green-500 bg-green-50 text-green-700 ring-2 ring-green-300'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-green-300 hover:bg-green-50/50'
             }`}
           >
-            <div className="font-medium text-sm">Venta Completa</div>
-            <div className="text-xs text-slate-600 mt-1">Pago total</div>
+            <div className="font-medium text-sm">✅ Venta Completa</div>
+            <div className={`text-xs mt-1 ${tipoVenta === 'COMPLETA' ? 'text-green-600' : 'text-slate-500'}`}>Pago total</div>
           </button>
           <button
             onClick={() => setTipoVenta('ABONO')}
             disabled={procesando}
             className={`p-4 border-2 rounded-lg transition-all ${
               tipoVenta === 'ABONO'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ? 'border-yellow-500 bg-yellow-50 text-yellow-700 ring-2 ring-yellow-300'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-yellow-300 hover:bg-yellow-50/50'
             }`}
           >
-            <div className="font-medium text-sm">Con Abono</div>
-            <div className="text-xs text-slate-600 mt-1">Pago parcial</div>
+            <div className="font-medium text-sm">💰 Con Abono</div>
+            <div className={`text-xs mt-1 ${tipoVenta === 'ABONO' ? 'text-yellow-600' : 'text-slate-500'}`}>Pago parcial</div>
           </button>
           <button
             onClick={() => setTipoVenta('RESERVA')}
             disabled={procesando}
             className={`p-4 border-2 rounded-lg transition-all ${
               tipoVenta === 'RESERVA'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ? 'border-red-500 bg-red-50 text-red-700 ring-2 ring-red-300'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50/50'
             }`}
           >
             <div className="font-medium text-sm">📌 Reservar</div>
-            <div className="text-xs text-slate-600 mt-1">Bloquear boletas</div>
+            <div className={`text-xs mt-1 ${tipoVenta === 'RESERVA' ? 'text-red-600' : 'text-slate-500'}`}>Bloquear boletas</div>
           </button>
         </div>
       </div>
@@ -727,6 +729,13 @@ export default function CarritoVentas({
         </div>
       </div>
 
+      {/* Aviso si no se ha seleccionado tipo */}
+      {!tipoVentaSeleccionado && boletas.length > 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg text-center">
+          <p className="text-amber-800 text-sm font-medium">⚠️ Selecciona un tipo de operación para continuar</p>
+        </div>
+      )}
+
       {/* Botones de acción */}
       <div className="flex space-x-3">
         {boletas.length > 0 && (
@@ -743,25 +752,105 @@ export default function CarritoVentas({
           <button
             onClick={() => setMostrarDialogoReserva(true)}
             disabled={procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
           >
             {procesando ? 'Procesando...' : `📌 Crear Reserva`}
           </button>
         ) : (
           <button
-            onClick={procesarVenta}
-            disabled={procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || (tipoVenta === 'ABONO' && montoAbono <= 0)}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+            onClick={() => setMostrarConfirmacion(true)}
+            disabled={!tipoVentaSeleccionado || procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || (tipoVenta === 'ABONO' && montoAbono <= 0)}
+            className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors ${
+              tipoVenta === 'COMPLETA' 
+                ? 'bg-green-600 hover:bg-green-700' 
+                : tipoVenta === 'ABONO'
+                  ? 'bg-yellow-600 hover:bg-yellow-700'
+                  : 'bg-slate-400'
+            }`}
           >
             {procesando 
               ? 'Procesando...' 
-              : tipoVenta === 'ABONO' 
-                ? `Crear Abono ($${montoAbono.toLocaleString('es-CO')})`
-                : `Completar Venta ($${total.toLocaleString('es-CO')})`
+              : !tipoVentaSeleccionado
+                ? 'Selecciona tipo de operación'
+                : tipoVenta === 'ABONO' 
+                  ? `Crear Abono ($${montoAbono.toLocaleString('es-CO')})`
+                  : `Completar Venta ($${total.toLocaleString('es-CO')})`
             }
           </button>
         )}
       </div>
+
+      {/* Modal de confirmación */}
+      {mostrarConfirmacion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className={`text-center mb-4 p-3 rounded-lg ${tipoVenta === 'COMPLETA' ? 'bg-green-50' : 'bg-yellow-50'}`}>
+              <h3 className={`text-lg font-bold ${tipoVenta === 'COMPLETA' ? 'text-green-800' : 'text-yellow-800'}`}>
+                {tipoVenta === 'COMPLETA' ? '✅ Confirmar Pago Total' : '💰 Confirmar Abono'}
+              </h3>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Cliente:</span>
+                <span className="font-medium text-slate-900">{cliente.nombre}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Rifa:</span>
+                <span className="font-medium text-slate-900">{rifaNombre || 'Sin nombre'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Boletas ({boletas.length}):</span>
+                <span className="font-medium text-slate-900">
+                  {boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')}
+                </span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Total venta:</span>
+                  <span className="font-bold text-slate-900">${total.toLocaleString('es-CO')}</span>
+                </div>
+                {tipoVenta === 'ABONO' && (
+                  <>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-slate-600">Abono hoy:</span>
+                      <span className="font-bold text-green-700">${montoAbono.toLocaleString('es-CO')}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-slate-600">Saldo pendiente:</span>
+                      <span className="font-bold text-orange-600">${saldoPendiente.toLocaleString('es-CO')}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Método de pago:</span>
+                <span className="font-medium text-slate-900">{MEDIOS_PAGO_MAP[medioPagoId] || 'Efectivo'}</span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setMostrarConfirmacion(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setMostrarConfirmacion(false); procesarVenta() }}
+                disabled={procesando}
+                className={`flex-1 px-4 py-2 text-white rounded-lg font-medium disabled:opacity-50 ${
+                  tipoVenta === 'COMPLETA' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-yellow-600 hover:bg-yellow-700'
+                }`}
+              >
+                {procesando ? 'Procesando...' : '✅ Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Diálogo de reserva */}
       <DialogoReserva

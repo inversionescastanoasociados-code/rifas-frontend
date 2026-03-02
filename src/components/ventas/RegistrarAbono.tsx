@@ -81,6 +81,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
   const [boletasSeleccionadas, setBoletasSeleccionadas] = useState<BoletasSeleccionadas>({})
   const [historialExpandido, setHistorialExpandido] = useState<Record<string, boolean>>({})
+  const [mostrarConfirmacionAbono, setMostrarConfirmacionAbono] = useState(false)
 
   useEffect(() => {
     cargarDetalle()
@@ -395,12 +396,14 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         mensaje += `\n*Tus boletas:*\n${boletasInfo}\n`
       }
       mensaje += `\n¡Mucha suerte! 🍀`
+      mensaje += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
     } else {
       mensaje = `Hola ${nombre}, te confirmamos que tu abono de *$${(exitoReciente?.monto || 0).toLocaleString('es-CO')}* fue registrado exitosamente. ✅\n\n`
       if (boletasInfo) {
         mensaje += `*Tus boletas:*\n${boletasInfo}\n\n`
       }
       mensaje += `¡Gracias por tu pago! 🙏`
+      mensaje += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
     }
 
     return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`
@@ -891,7 +894,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               </button>
               <button
                 type="button"
-                onClick={registrarAbono}
+                onClick={() => setMostrarConfirmacionAbono(true)}
                 disabled={procesando || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
@@ -902,6 +905,83 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                     : 'Registrar abono'}
               </button>
             </div>
+
+            {/* Modal de confirmación de abono */}
+            {mostrarConfirmacionAbono && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                  <div className="text-center mb-4 p-3 rounded-lg bg-blue-50">
+                    <h3 className="text-lg font-bold text-blue-800">
+                      {(() => {
+                        const boletasIds = Object.keys(boletasSeleccionadas)
+                        const totalAbono = boletasIds.length > 0 
+                          ? Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0)
+                          : Number(monto)
+                        const nuevoSaldo = (venta?.saldo_pendiente || 0) - totalAbono
+                        return nuevoSaldo <= 0 ? '✅ Confirmar Pago Total' : '💰 Confirmar Abono'
+                      })()}
+                    </h3>
+                  </div>
+                  
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Cliente:</span>
+                      <span className="font-medium text-slate-900">{venta?.nombre}</span>
+                    </div>
+                    {Object.keys(boletasSeleccionadas).length > 0 && (
+                      <div>
+                        <span className="text-slate-600">Boletas a abonar:</span>
+                        <div className="mt-1 space-y-1">
+                          {Object.entries(boletasSeleccionadas).filter(([, m]) => m > 0).map(([bId, m]) => {
+                            const b = venta?.boletas?.find(x => x.id === bId)
+                            return b ? (
+                              <div key={bId} className="flex justify-between text-xs bg-slate-50 p-1.5 rounded">
+                                <span>#{b.numero.toString().padStart(4, '0')}</span>
+                                <span className="font-medium">${m.toLocaleString('es-CO')}</span>
+                              </div>
+                            ) : null
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Monto a registrar:</span>
+                        <span className="font-bold text-green-700">
+                          ${(Object.keys(boletasSeleccionadas).length > 0 
+                            ? Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) 
+                            : Number(monto)).toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-slate-600">Saldo total venta:</span>
+                        <span className="font-medium text-slate-900">${(venta?.saldo_pendiente || 0).toLocaleString('es-CO')}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Método de pago:</span>
+                      <span className="font-medium text-slate-900">{MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setMostrarConfirmacionAbono(false)}
+                      className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => { setMostrarConfirmacionAbono(false); registrarAbono() }}
+                      disabled={procesando}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                    >
+                      {procesando ? 'Procesando...' : '✅ Confirmar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

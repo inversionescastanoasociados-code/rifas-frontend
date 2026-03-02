@@ -89,7 +89,7 @@ function generarWhatsAppLink(data: ReciboAbonoData): string | null {
     })
     .join('\n')
 
-  const redesSociales = `\n\n📲 *Visítanos en nuestras redes sociales:*\n📘 Facebook: https://www.facebook.com/share/176zWG3VLA/?mibextid=wwXIfr\n📸 Instagram: https://www.instagram.com/proyectoelgrancamion?igsh=bTZmdDZraXU1ODZq\n🎵 TikTok: https://www.tiktok.com/@elgrancamion.oficial?_r=1&_t=ZS-94LHsPFrtbR`
+  const linkBoletas = `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
 
   let msg = ''
   if (cuentaSaldada) {
@@ -100,7 +100,7 @@ function generarWhatsAppLink(data: ReciboAbonoData): string | null {
     msg += `🎉 *¡Cuenta saldada!*\n`
     if (boletasDetalle) msg += `\n*Tus boletas:*\n${boletasDetalle}\n`
     msg += `\n¡Mucha suerte! 🍀`
-    msg += redesSociales
+    msg += linkBoletas
   } else {
     msg = `Hola ${nombre}, te confirmamos que tu abono de *${formatoMoneda(data.montoRegistrado)}* fue registrado exitosamente. ✅\n\n`
     msg += `*Estado de tu cuenta${data.rifaNombre ? ` - ${data.rifaNombre}` : ''}:*\n`
@@ -109,7 +109,7 @@ function generarWhatsAppLink(data: ReciboAbonoData): string | null {
     msg += `⏳ Saldo pendiente: *${formatoMoneda(data.saldoPendiente)}*\n`
     if (boletasDetalle) msg += `\n*Tus boletas:*\n${boletasDetalle}\n`
     msg += `\n¡Gracias por tu pago! 🙏`
-    msg += redesSociales
+    msg += linkBoletas
   }
 
   return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`

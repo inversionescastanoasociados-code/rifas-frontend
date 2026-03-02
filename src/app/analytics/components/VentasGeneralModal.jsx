@@ -144,6 +144,7 @@ function VentaDetalleExpandido({ venta }) {
       msg += `🔴 *Saldo Pendiente:* ${fmt(venta.saldo_pendiente)}\n`;
     }
     msg += `\n¡Gracias por su compra! 🎉`;
+    msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`;
 
     return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`;
   };
@@ -152,7 +153,7 @@ function VentaDetalleExpandido({ venta }) {
 
   return (
     <tr>
-      <td colSpan={8} className="px-0 py-0">
+      <td colSpan={9} className="px-0 py-0">
         <div className="bg-slate-50 border-t border-b border-slate-200 px-6 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Info del comprador */}
@@ -506,6 +507,7 @@ export default function VentasGeneralModal({
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagado</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Método Pago</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -560,6 +562,11 @@ export default function VentasGeneralModal({
                         <td className="px-4 py-3 text-center">
                           <span className={`text-xs font-medium px-2 py-1 rounded-full ${tipoTransColors[venta.tipo_transaccion] || 'text-slate-500 bg-slate-50'}`}>
                             {tipoTransLabel[venta.tipo_transaccion] || venta.tipo_transaccion}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-xs font-medium text-slate-700">
+                            {venta.metodo_pago || (venta.tipo_transaccion === 'RESERVA' ? '—' : 'Sin registro')}
                           </span>
                         </td>
                       </tr>
