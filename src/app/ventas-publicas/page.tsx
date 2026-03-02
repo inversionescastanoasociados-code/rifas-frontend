@@ -85,7 +85,8 @@ export default function GestionarVentasPublicasPage() {
           onVerPendientes={() => {
             setVistaActual('lista')
             setFiltroEstado('pendientes')
-          }} 
+          }}
+          onSelectVenta={handleSelectVenta}
         />
 
         {/* Tabs de navegación */}

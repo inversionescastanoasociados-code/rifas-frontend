@@ -6,6 +6,7 @@ import { VentaPublicaListado } from '@/types/ventasPublicas'
 
 interface VentasOnlineBannerProps {
   onVerPendientes?: () => void
+  onSelectVenta?: (ventaId: string) => void
 }
 
 /**
@@ -13,7 +14,7 @@ interface VentasOnlineBannerProps {
  * Se refresca automáticamente cada 30 segundos.
  * Muestra notificación cuando llega una nueva venta.
  */
-export default function VentasOnlineBanner({ onVerPendientes }: VentasOnlineBannerProps) {
+export default function VentasOnlineBanner({ onVerPendientes, onSelectVenta }: VentasOnlineBannerProps) {
   const [pendientes, setPendientes] = useState<VentaPublicaListado[]>([])
   const [count, setCount] = useState(0)
   const [prevCount, setPrevCount] = useState(0)
@@ -156,8 +157,8 @@ export default function VentasOnlineBanner({ onVerPendientes }: VentasOnlineBann
             {pendientes.slice(0, 5).map((venta) => (
               <div 
                 key={venta.id}
-                onClick={() => onVerPendientes && onVerPendientes()}
-                className="flex items-center justify-between bg-white rounded-lg p-3 border border-orange-100 hover:border-orange-300 cursor-pointer transition-colors"
+                onClick={() => onSelectVenta ? onSelectVenta(venta.id) : onVerPendientes && onVerPendientes()}
+                className="flex items-center justify-between bg-white rounded-lg p-3 border border-orange-100 hover:border-orange-300 cursor-pointer transition-colors group"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
@@ -172,13 +173,18 @@ export default function VentasOnlineBanner({ onVerPendientes }: VentasOnlineBann
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {formatoMoneda(Number(venta.monto_total))}
-                  </p>
-                  <p className="text-xs text-orange-600 font-medium">
-                    {timeAgo(venta.created_at)}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {formatoMoneda(Number(venta.monto_total))}
+                    </p>
+                    <p className="text-xs text-orange-600 font-medium">
+                      {timeAgo(venta.created_at)}
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             ))}
