@@ -123,15 +123,17 @@ export default function ListaVentasPublicas({
       ? venta.numeros_boletas.map(n => `#${String(n).padStart(4, '0')}`).join(', ')
       : `${venta.cantidad_boletas} boleta(s)`
     
+    const mediosDePago = `\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+
     let mensaje = ''
 
     if (venta.estado_venta === 'SIN_REVISAR') {
-      mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*. Recuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*.${mediosDePago}\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias! 🙏`
     } else if (venta.estado_venta === 'ABONADA') {
       const saldo = venta.monto_total - venta.abono_total
-      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes un saldo pendiente de *${formatoMoneda(saldo)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Total: ${formatoMoneda(venta.monto_total)}, Abonado: ${formatoMoneda(venta.abono_total)}. ¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes un saldo pendiente de *${formatoMoneda(saldo)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Total: ${formatoMoneda(venta.monto_total)}, Abonado: ${formatoMoneda(venta.abono_total)}.${mediosDePago}\n\n¡Gracias! 🙏`
     } else if (venta.estado_venta === 'PENDIENTE') {
-      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes pendiente el pago de *${formatoMoneda(venta.monto_total)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Recuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes pendiente el pago de *${formatoMoneda(venta.monto_total)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*).${mediosDePago}\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias! 🙏`
     }
 
     return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`

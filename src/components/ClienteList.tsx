@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Cliente } from '@/types/cliente'
+import { clienteApi } from '@/lib/clienteApi'
+import { RifaConBoletas } from '@/types/cliente'
 
 interface ClienteListProps {
   clientes: Cliente[]
@@ -31,32 +33,67 @@ const formatCurrency = (value: number) => {
 }
 
 // ─── WhatsApp recordatorio desde la lista ─────────────────────────
-function generarWhatsAppRecordatorioLista(cliente: Cliente): string | null {
+function tieneBoletasPendientes(cliente: Cliente): boolean {
+  return ((cliente.boletas_reservadas || 0) > 0 || (cliente.boletas_abonadas || 0) > 0)
+}
+
+function getEstadoEmoji(estado: string): string {
+  switch (estado) {
+    case 'RESERVADA': return '📌'
+    case 'ABONADA': return '💳'
+    case 'PAGADA': return '✅'
+    default: return '🔹'
+  }
+}
+
+async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<string | null> {
   const tel = cliente.telefono?.replace(/\D/g, '') || ''
   if (!tel || tel.length < 7) return null
   const telCompleto = tel.startsWith('57') ? tel : `57${tel}`
 
   const nombre = cliente.nombre || 'Cliente'
-  const reservadas = cliente.boletas_reservadas || 0
-  const abonadas = cliente.boletas_abonadas || 0
-  const deuda = cliente.deuda_total || 0
 
-  let msg = `🔔 *Recordatorio de pago pendiente*\n\nHola *${nombre}*, le recordamos que tiene boletas pendientes por pagar:\n\n`
+  try {
+    const response = await clienteApi.getClienteDetalle(cliente.id)
+    const { rifas, resumen } = response.data
 
-  if (reservadas > 0) {
-    msg += `📌 *${reservadas} boleta${reservadas > 1 ? 's' : ''} reservada${reservadas > 1 ? 's' : ''}* — pendientes de pago\n`
+    let msg = `🔔 *Recordatorio de pago pendiente*\n\nHola *${nombre}*, le recordamos que tiene boletas pendientes por pagar:\n\n`
+
+    // Detalle por rifa
+    rifas.forEach((rifa: RifaConBoletas) => {
+      const boletasPendientes = rifa.boletas.filter(b => b.estado === 'RESERVADA' || b.estado === 'ABONADA')
+      if (boletasPendientes.length === 0) return
+
+      msg += `🎟️ *${rifa.rifa_nombre}*\n`
+      boletasPendientes.forEach(b => {
+        const num = `#${String(b.numero).padStart(4, '0')}`
+        if (b.estado === 'RESERVADA') {
+          msg += `  ${getEstadoEmoji(b.estado)} Boleta *${num}* — Reservada (pendiente: ${formatCurrency(Number(b.saldo))})
+`
+        } else {
+          msg += `  ${getEstadoEmoji(b.estado)} Boleta *${num}* — Abonada: ${formatCurrency(Number(b.abono))} de ${formatCurrency(Number(b.precio_unitario))} (falta: ${formatCurrency(Number(b.saldo))})
+`
+        }
+      })
+      msg += `\n`
+    })
+
+    const deuda = Number(resumen.total_deuda) || 0
+    if (deuda > 0) {
+      msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
+    }
+
+    msg += `\nPor favor, acérquese a completar su pago para asegurar su participación. ¡Gracias! 🙏`
+
+    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
+  } catch {
+    // Fallback al mensaje simple si falla la API
+    const deuda = cliente.deuda_total || 0
+    let msg = `🔔 *Recordatorio de pago pendiente*\n\nHola *${nombre}*, le recordamos que tiene boletas pendientes por pagar.\n\n`
+    if (deuda > 0) msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
+    msg += `\nPor favor, acérquese a completar su pago. ¡Gracias! 🙏`
+    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
   }
-  if (abonadas > 0) {
-    msg += `💳 *${abonadas} boleta${abonadas > 1 ? 's' : ''} con abono parcial* — falta completar el pago\n`
-  }
-
-  if (deuda > 0) {
-    msg += `\n💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
-  }
-
-  msg += `\nPor favor, acérquese a completar su pago para asegurar su participación. ¡Gracias! 🙏`
-
-  return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
 }
 
 export default function ClienteList({
@@ -72,6 +109,17 @@ export default function ClienteList({
   loading,
 }: ClienteListProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [cargandoRecordatorio, setCargandoRecordatorio] = useState<string | null>(null)
+
+  const handleEnviarRecordatorio = async (cliente: Cliente) => {
+    setCargandoRecordatorio(cliente.id)
+    try {
+      const url = await generarWhatsAppRecordatorioConDetalle(cliente)
+      if (url) window.open(url, '_blank')
+    } finally {
+      setCargandoRecordatorio(null)
+    }
+  }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,19 +292,24 @@ export default function ClienteList({
                           >
                             🗑️
                           </button>
-                          {((cliente.boletas_reservadas || 0) > 0 || (cliente.boletas_abonadas || 0) > 0) && generarWhatsAppRecordatorioLista(cliente) && (
-                            <a
-                              href={generarWhatsAppRecordatorioLista(cliente)!}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500 transition-colors inline-flex items-center gap-1"
+                          {tieneBoletasPendientes(cliente) && (
+                            <button
+                              onClick={() => handleEnviarRecordatorio(cliente)}
+                              disabled={cargandoRecordatorio === cliente.id}
+                              className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
                               title="Enviar recordatorio por WhatsApp"
                             >
-                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                              </svg>
-                              📩
-                            </a>
+                              {cargandoRecordatorio === cliente.id ? (
+                                <span className="animate-spin">⏳</span>
+                              ) : (
+                                <>
+                                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                  </svg>
+                                  📩
+                                </>
+                              )}
+                            </button>
                           )}
                         </div>
                       </td>
@@ -331,15 +384,14 @@ export default function ClienteList({
                     >
                       🗑️ Eliminar
                     </button>
-                    {((cliente.boletas_reservadas || 0) > 0 || (cliente.boletas_abonadas || 0) > 0) && generarWhatsAppRecordatorioLista(cliente) && (
-                      <a
-                        href={generarWhatsAppRecordatorioLista(cliente)!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-600 text-xs font-bold hover:underline inline-flex items-center gap-1"
+                    {tieneBoletasPendientes(cliente) && (
+                      <button
+                        onClick={() => handleEnviarRecordatorio(cliente)}
+                        disabled={cargandoRecordatorio === cliente.id}
+                        className="text-green-600 text-xs font-bold hover:underline inline-flex items-center gap-1 disabled:opacity-50"
                       >
-                        📩 Recordar
-                      </a>
+                        {cargandoRecordatorio === cliente.id ? '⏳ Cargando...' : '📩 Recordar'}
+                      </button>
                     )}
                   </div>
                 </div>

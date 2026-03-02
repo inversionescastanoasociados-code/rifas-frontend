@@ -176,8 +176,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         })
 
         // Verificar si se saldó toda la deuda
-        const nuevoSaldo = venta.saldo_pendiente - totalMulti
-        const nuevoPagado = venta.total_pagado + totalMulti
+        const nuevoSaldo = Number(venta.saldo_pendiente || 0) - totalMulti
+        const nuevoPagado = Number(venta.total_pagado || 0) + totalMulti
         setExitoReciente({
           tipo: nuevoSaldo <= 0 ? 'pago_total' : 'abono',
           monto: totalMulti,
@@ -259,8 +259,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         setNotas('')
         setAccion(null)
         const esPagoTotal = venta.saldo_pendiente - montoValidado <= 0
-        const nuevoPagadoGen = venta.total_pagado + montoValidado
-        const nuevoSaldoGen = venta.saldo_pendiente - montoValidado
+        const nuevoPagadoGen = Number(venta.total_pagado || 0) + montoValidado
+        const nuevoSaldoGen = Number(venta.saldo_pendiente || 0) - montoValidado
         setExitoReciente({
           tipo: esPagoTotal ? 'pago_total' : 'abono',
           monto: montoValidado

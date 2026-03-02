@@ -210,8 +210,8 @@ export default function DetalleVentaPublica({
 
       // Generar datos para recibo
       const mpLabel = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
-      const nuevoPagadoRecibo = venta.abono_total + montoValidado
-      const nuevoSaldoRecibo = venta.monto_total - nuevoPagadoRecibo
+      const nuevoPagadoRecibo = Number(venta.abono_total || 0) + montoValidado
+      const nuevoSaldoRecibo = Number(venta.monto_total || 0) - nuevoPagadoRecibo
       // Calcular estado post-abono de cada boleta
       const boletaAbonada = abonarBoleta?.boletaId || null
       let montoRestSingle = montoValidado
@@ -244,7 +244,7 @@ export default function DetalleVentaPublica({
       setReciboData({
         tipo: esPagoTotal ? 'pago_total' : 'abono',
         montoRegistrado: montoValidado,
-        totalVenta: venta.monto_total,
+        totalVenta: Number(venta.monto_total || 0),
         totalPagado: nuevoPagadoRecibo,
         saldoPendiente: nuevoSaldoRecibo > 0 ? nuevoSaldoRecibo : 0,
         clienteNombre: venta.cliente_nombre,
@@ -356,8 +356,8 @@ export default function DetalleVentaPublica({
 
       // Generar datos para recibo
       const mpLabelMulti = MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago
-      const nuevoPagadoMulti = venta.abono_total + totalAbonoMulti
-      const nuevoSaldoMulti = venta.monto_total - nuevoPagadoMulti
+      const nuevoPagadoMulti = Number(venta.abono_total || 0) + totalAbonoMulti
+      const nuevoSaldoMulti = Number(venta.monto_total || 0) - nuevoPagadoMulti
       // Calcular estado post-abono de cada boleta usando el mapa de abonos
       const boletasPostAbonoMulti = venta.boletas.map(b => {
         const precio = b.precio_boleta || 0
@@ -377,7 +377,7 @@ export default function DetalleVentaPublica({
       setReciboData({
         tipo: nuevoSaldoMulti <= 0 ? 'pago_total' : 'abono',
         montoRegistrado: totalAbonoMulti,
-        totalVenta: venta.monto_total,
+        totalVenta: Number(venta.monto_total || 0),
         totalPagado: nuevoPagadoMulti,
         saldoPendiente: nuevoSaldoMulti > 0 ? nuevoSaldoMulti : 0,
         clienteNombre: venta.cliente_nombre,
