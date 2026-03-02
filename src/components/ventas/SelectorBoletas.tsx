@@ -184,9 +184,16 @@ if (interval) {
   }
 
   // Filtrar boletas por búsqueda
-  const boletasFiltradas = (boletasDisponibles || []).filter(boleta =>
-    boleta.numero.toString().includes(busqueda)
-  )
+  const boletasFiltradas = (boletasDisponibles || []).filter(boleta => {
+    if (!busqueda) return true
+    const termino = busqueda.replace(/^#/, '').trim()
+    if (!termino) return true
+    // Comparar contra el número sin ceros y con ceros (padded a 4 dígitos)
+    const numStr = boleta.numero.toString()
+    const numPadded = numStr.padStart(4, '0')
+    const terminoLimpio = termino.replace(/^0+/, '') || '0' // quitar ceros iniciales del término
+    return numStr.includes(terminoLimpio) || numPadded.includes(termino)
+  })
 
   // Paginación
   const totalPaginas = Math.ceil(boletasFiltradas.length / boletasPorPagina)
