@@ -97,10 +97,7 @@ export default function DialogoReserva({
     const boletasRes = reservaResponse?.boletas_reservadas ?? []
     const numerosStr = boletasRes.map((b: any) => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
     const fechaLimite = new Date(reservaResponse.bloqueo_hasta).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
-    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://rifas-frontend.vercel.app'
-    const linkBoletas = cliente.identificacion
-      ? `${baseUrl}/mis-boletas/${cliente.identificacion}`
-      : ''
+    const linkBoletas = 'https://elgrancamion.com/boletas'
 
     let mensaje = `Hola ${cliente.nombre} 👋\n\n`
     mensaje += `Se registró una *RESERVA* en *${rifaNombre || 'la rifa'}*.\n\n`

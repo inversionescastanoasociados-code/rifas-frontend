@@ -260,10 +260,7 @@ export default function CarritoVentas({
     const boletasVenta = ventaResponse?.boletas ?? []
     const numerosStr = boletasVenta.map((b: any) => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
     const estadoVenta = tipoVenta === 'ABONO' ? 'ABONADA' : tipoVenta === 'RESERVA' ? 'RESERVADA' : 'PAGADA'
-    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://rifas-frontend.vercel.app'
-    const linkBoletas = cliente.identificacion
-      ? `${baseUrl}/mis-boletas/${cliente.identificacion}`
-      : ''
+    const linkBoletas = 'https://elgrancamion.com/boletas'
 
     let mensaje = `Hola ${cliente.nombre} 👋\n\n`
     mensaje += `Se registró tu compra en *${rifaNombre || 'la rifa'}*.\n\n`
