@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Boleta } from '@/types/boleta'
+import type { Rifa } from '@/types/rifa'
+import { getStorageImageUrl } from '@/lib/storageImageUrl'
 
 interface BoletaListProps {
   boletas: Boleta[]
   loading: boolean
+  rifaInfo?: Rifa | null
 }
 
-export default function BoletaList({ boletas, loading }: BoletaListProps) {
+export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [filtroEstado, setFiltroEstado] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
   const router = useRouter()
 
   // Determina label y clases del estado según la boleta
@@ -92,6 +98,226 @@ export default function BoletaList({ boletas, loading }: BoletaListProps) {
   }
 
   const formatBoletaNumber = (numero: number) => numero.toString().padStart(4, '0')
+
+  // --- Selección ---
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredBoletas.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredBoletas.map(b => b.id)))
+    }
+  }, [filteredBoletas, selectedIds.size])
+
+  const allFilteredSelected = filteredBoletas.length > 0 && selectedIds.size === filteredBoletas.length
+
+  // --- Helpers para descarga ---
+  const imageToDataUrl = async (src: string): Promise<string | null> => {
+    // Método 1: fetch + blob (más confiable que Image + crossOrigin)
+    try {
+      console.log('[Descarga] Cargando imagen via fetch:', src)
+      const resp = await fetch(src, { mode: 'cors' })
+      if (resp.ok) {
+        const blob = await resp.blob()
+        return await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+      }
+    } catch (e) {
+      console.warn('[Descarga] fetch falló, intentando con Image:', e)
+    }
+
+    // Método 2: Image + canvas (fallback)
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas')
+          c.width = img.naturalWidth
+          c.height = img.naturalHeight
+          const ctx = c.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(img, 0, 0)
+            resolve(c.toDataURL('image/jpeg', 0.92))
+          } else resolve(null)
+        } catch { resolve(null) }
+      }
+      img.onerror = () => { console.warn('[Descarga] Image.onerror'); resolve(null) }
+      img.src = src
+      setTimeout(() => { console.warn('[Descarga] Image timeout'); resolve(null) }, 15000)
+    })
+  }
+
+  // --- Descarga masiva ---
+  const handleBulkDownload = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setDownloading(true)
+    const boletasToDownload = boletas.filter(b => selectedIds.has(b.id))
+    setDownloadProgress({ current: 0, total: boletasToDownload.length })
+
+    try {
+      const html2canvas = (await import('html2canvas-pro')).default
+
+      // 1) Resolver la URL de imagen (desde boleta o rifa)
+      const imagenRifaFallback = getStorageImageUrl(rifaInfo?.imagen_url ?? null) ?? rifaInfo?.imagen_url ?? null
+      const primeraBoletaImg = boletasToDownload[0]?.imagen_url
+      const imagenSrc = getStorageImageUrl(primeraBoletaImg ?? null) ?? primeraBoletaImg ?? imagenRifaFallback
+
+      console.log('[Descarga] rifaInfo.imagen_url:', rifaInfo?.imagen_url)
+      console.log('[Descarga] primera boleta imagen_url:', primeraBoletaImg)
+      console.log('[Descarga] imagenSrc resuelta:', imagenSrc)
+
+      // 2) Convertir imagen a data URL (base64) UNA SOLA VEZ — elimina CORS y red
+      let imagenDataUrl: string | null = null
+      if (imagenSrc) {
+        imagenDataUrl = await imageToDataUrl(imagenSrc)
+        console.log('[Descarga] imagenDataUrl:', imagenDataUrl ? `OK (${imagenDataUrl.substring(0, 50)}...)` : 'FALLÓ - null')
+      } else {
+        console.warn('[Descarga] No hay URL de imagen para las boletas')
+      }
+
+      // 3) Crear contenedor reutilizable fuera del viewport
+      const container = document.createElement('div')
+      container.style.cssText = 'position:fixed;top:-2000px;left:0;width:900px;pointer-events:none;'
+      document.body.appendChild(container)
+
+      for (let i = 0; i < boletasToDownload.length; i++) {
+        const boleta = boletasToDownload[i]
+        setDownloadProgress({ current: i + 1, total: boletasToDownload.length })
+
+        const estadoNorm = (boleta.estado ?? '').toString().trim().toUpperCase()
+        const tieneCliente = Boolean(boleta.cliente_info && (boleta.cliente_info.nombre || boleta.cliente_info.identificacion))
+        const precioNum = rifaInfo?.precio_boleta ? Number(rifaInfo.precio_boleta) : null
+
+        let diasCaducidad: number | null = null
+        if (boleta.bloqueo_hasta) {
+          try {
+            const hasta = new Date(boleta.bloqueo_hasta)
+            const diffMs = hasta.getTime() - Date.now()
+            diasCaducidad = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
+          } catch { /* ignore */ }
+        }
+
+        const reservadaHastaFmt = boleta.bloqueo_hasta ? (() => {
+          try {
+            const dt = new Date(boleta.bloqueo_hasta)
+            if (isNaN(dt.getTime())) return boleta.bloqueo_hasta
+            return dt.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          } catch { return boleta.bloqueo_hasta }
+        })() : null
+
+        const esReservada = estadoNorm === 'RESERVADA'
+        const esCancelada = estadoNorm === 'ANULADA' || estadoNorm === 'CANCELADA'
+        const esPagada = ['CON_PAGO', 'PAGADA', 'PAGADO', 'VENDIDA'].includes(estadoNorm) && tieneCliente
+        const esAbonada = estadoNorm === 'ABONADA'
+
+        let estadoHTML = ''
+        if (esCancelada) {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#dc2626;color:white;">BOLETA CANCELADA</div><p style="font-weight:700;text-align:center;font-size:10px;">Esta boleta no tiene validez</p>`
+        } else if (esReservada && tieneCliente) {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#2563eb;color:white;">RESERVADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p><p style="font-weight:700;text-align:center;font-size:10px;">Reservada hasta: ${reservadaHastaFmt ?? '—'}</p>`
+        } else if (esReservada && !tieneCliente) {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fde68a;color:black;">BLOQUEADA</div><p style="font-weight:600;text-align:center;font-size:10px;">Boleta bloqueada momentáneamente</p>`
+        } else if (esPagada) {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#15803d;color:white;">PAGADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
+        } else if (esAbonada) {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fb923c;color:black;">ABONADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
+        } else {
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#6ee7b7;color:black;">DISPONIBLE</div>`
+        }
+
+        const caducidadText = diasCaducidad !== null
+          ? `- ${diasCaducidad} días de caducidad`
+          : '- Válida hasta el día del sorteo'
+
+        const qrSrc = boleta.qr_url || ''
+        const numPad = boleta.numero.toString().padStart(4, '0')
+
+        // Usar la imagen data URL pre-cargada (sin CORS, instantáneo)
+        const rightContent = imagenDataUrl
+          ? `<img src="${imagenDataUrl}" style="width:100%;height:100%;object-fit:cover;" />`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:white;"><div style="text-align:center;color:black;"><p style="font-size:20px;font-weight:700;">${rifaInfo?.nombre || 'Rifa'}</p><p>Boleta #${numPad}</p></div></div>`
+
+        container.innerHTML = `
+          <div class="boleta-ticket" style="display:flex;border:2px solid black;overflow:hidden;background:white;width:800px;height:352px;">
+            <div style="flex-shrink:0;padding:8px;display:flex;flex-direction:column;justify-content:space-between;border-right:2px solid black;width:179px;">
+              <div style="font-size:10px;text-align:center;color:black;font-weight:500;">
+                <p>- Boleta sin pagar no juega</p>
+                <p>${caducidadText}</p>
+                <p>- Juega hasta quedar en poder del público</p>
+              </div>
+              <div style="font-size:10px;text-align:center;color:black;">
+                ${estadoHTML}
+              </div>
+              <div style="display:flex;justify-content:center;">
+                <img src="${qrSrc}" style="width:80px;height:80px;border:1px solid black;" alt="QR" />
+              </div>
+              <div>
+                <div style="text-align:center;font-size:18px;font-weight:800;color:black;">#${numPad}</div>
+                ${precioNum ? `<div style="text-align:center;font-size:11px;font-weight:700;color:black;">$${precioNum.toLocaleString('es-CO')}</div>` : ''}
+              </div>
+            </div>
+            <div style="flex-shrink:0;height:100%;width:621px;">
+              ${rightContent}
+            </div>
+          </div>
+        `
+
+        // Esperar mínimo a que QR cargue (imagen de rifa ya es data URL, instantánea)
+        const qrImg = container.querySelector('img[alt="QR"]') as HTMLImageElement | null
+        if (qrImg && !qrImg.complete) {
+          await new Promise<void>(resolve => {
+            qrImg.onload = () => resolve()
+            qrImg.onerror = () => resolve()
+            setTimeout(resolve, 3000)
+          })
+        }
+
+        const ticketEl = container.querySelector('.boleta-ticket') as HTMLElement
+        if (ticketEl) {
+          const canvas = await html2canvas(ticketEl, {
+            scale: 4,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+          })
+
+          const num = boleta.numero.toString().padStart(4, '0')
+          const cc = boleta.cliente_info?.identificacion
+            ? boleta.cliente_info.identificacion.replace(/\s+/g, '_')
+            : 'SIN_CC'
+
+          const link = document.createElement('a')
+          link.download = `boleta_${num}_CC_${cc}.png`
+          link.href = canvas.toDataURL('image/png')
+          link.click()
+        }
+
+        // Espera corta entre descargas (solo para no saturar el navegador)
+        if (i < boletasToDownload.length - 1) {
+          await new Promise(r => setTimeout(r, 300))
+        }
+      }
+
+      container.remove()
+    } catch (err) {
+      console.error('Error en descarga masiva:', err)
+    } finally {
+      setDownloading(false)
+      setDownloadProgress({ current: 0, total: 0 })
+    }
+  }, [selectedIds, boletas, rifaInfo])
 
   if (loading) {
     return (
@@ -255,12 +481,57 @@ export default function BoletaList({ boletas, loading }: BoletaListProps) {
         )}
       </div>
 
+      {/* Barra de acciones de selección */}
+      {selectedIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-blue-800">
+              {selectedIds.size} boleta{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Deseleccionar todo
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDownload}
+            disabled={downloading}
+            className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            {downloading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                Descargando {downloadProgress.current}/{downloadProgress.total}...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Descargar ({selectedIds.size})
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Tabla de Boletas */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50/80 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    title="Seleccionar todas"
+                  />
+                </th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Número</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
@@ -274,7 +545,7 @@ export default function BoletaList({ boletas, loading }: BoletaListProps) {
             <tbody className="divide-y divide-slate-100">
               {paginatedBoletas.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <p className="text-base">{searchTerm ? 'No hay resultados para tu búsqueda.' : 'Aún no hay boletas en esta rifa.'}</p>
@@ -286,6 +557,14 @@ export default function BoletaList({ boletas, loading }: BoletaListProps) {
                   const estado = getEstadoInfo(boleta)
                   return (
                     <tr key={boleta.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(boleta.id)}
+                          onChange={() => toggleSelect(boleta.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-lg font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded inline-block">
                           {formatBoletaNumber(boleta.numero)}
@@ -360,6 +639,7 @@ export default function BoletaList({ boletas, loading }: BoletaListProps) {
           </div>
         </div>
       )}
+
     </div>
   )
 }

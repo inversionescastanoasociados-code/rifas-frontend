@@ -22,6 +22,8 @@ export interface Boleta {
   vendedor_info: VendedorInfo | null
   tiene_cliente: boolean
   tipo_estado: 'DISPONIBLE' | 'RESERVADA' | 'CON_PAGO' | 'TRANSFERIDA' | 'ANULADA'
+  bloqueo_hasta?: string | null
+  imagen_url?: string | null
 }
 
 export interface AbonoHistorial {
