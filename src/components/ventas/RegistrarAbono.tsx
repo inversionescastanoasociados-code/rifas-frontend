@@ -396,18 +396,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
       }
       mensaje += `\n¡Mucha suerte! 🍀`
     } else {
-      const mediosDePago = `\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
-
       mensaje = `Hola ${nombre}, te confirmamos que tu abono de *$${(exitoReciente?.monto || 0).toLocaleString('es-CO')}* fue registrado exitosamente. ✅\n\n`
-      mensaje += `*Estado de tu cuenta:*\n`
-      mensaje += `💵 Total: $${venta.monto_total.toLocaleString('es-CO')}\n`
-      mensaje += `✅ Pagado: $${venta.total_pagado.toLocaleString('es-CO')}\n`
-      mensaje += `⏳ Saldo pendiente: *$${venta.saldo_pendiente.toLocaleString('es-CO')}*\n`
       if (boletasInfo) {
-        mensaje += `\n*Tus boletas:*\n${boletasInfo}\n`
+        mensaje += `*Tus boletas:*\n${boletasInfo}\n\n`
       }
-      mensaje += mediosDePago
-      mensaje += `\n\n¡Gracias por tu pago! 🙏`
+      mensaje += `¡Gracias por tu pago! 🙏`
     }
 
     return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`
