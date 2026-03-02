@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente } from '@/types/ventas'
+import { normalizarTelefono } from '@/utils/telefono'
 import BoletaTicket from '@/components/BoletaTicket'
 
 interface DialogoReservaProps {
@@ -115,9 +116,7 @@ export default function DialogoReserva({
 
     mensaje += `\n¡Buena suerte! 🍀`
 
-    let tel = cliente.telefono.replace(/[^0-9]/g, '')
-    if (tel.startsWith('3') && tel.length === 10) tel = '57' + tel
-    if (!tel.startsWith('57')) tel = '57' + tel
+    const tel = normalizarTelefono(cliente.telefono)
 
     return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`
   }, [cliente, reservaResponse, rifaNombre, subtotal])

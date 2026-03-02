@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { getVentasGeneral } from '../services/analytics.service';
+import { normalizarTelefono } from '@/utils/telefono';
 
 // ─── Helpers ───────────────────────────────────────────
 const fmt = (n) => `$${Number(n).toLocaleString('es-CO')}`;
@@ -128,9 +129,8 @@ function VentaDetalleExpandido({ venta }) {
 
   // ─── Generar link de WhatsApp con resumen ───
   const generarWhatsAppLink = () => {
-    const tel = venta.cliente_telefono?.replace(/\D/g, '') || '';
-    if (!tel || tel.length < 7) return null;
-    const telCompleto = tel.startsWith('57') ? tel : `57${tel}`;
+    const telCompleto = normalizarTelefono(venta.cliente_telefono);
+    if (!telCompleto || telCompleto.length < 7) return null;
     const boletas = (venta.numeros_boletas || []).map((n) => `#${String(n).padStart(4, '0')}`).join(', ');
     const tipoLabel = { PAGO_TOTAL: 'Pago Total', ABONO: 'Abono Parcial', RESERVA: 'Reserva', SIN_PAGO: 'Sin Pago' };
 

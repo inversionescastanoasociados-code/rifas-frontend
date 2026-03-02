@@ -6,6 +6,7 @@ import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { ventasApi } from '@/lib/ventasApi'
 import ReciboAbono, { ReciboAbonoData } from '@/components/ventas/ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
+import { normalizarTelefono } from '@/utils/telefono'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -426,9 +427,8 @@ export default function DetalleVentaPublica({
    * Genera link de WhatsApp con confirmación de abono y estado de cuenta
    */
   const generarWhatsAppAbonoLink = (montoAbonado: number) => {
-    const telefono = venta.cliente_telefono?.replace(/\D/g, '')
-    if (!telefono || telefono.length < 7) return null
-    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+    const telefonoCompleto = normalizarTelefono(venta.cliente_telefono)
+    if (!telefonoCompleto || telefonoCompleto.length < 7) return null
 
     const nombre = venta.cliente_nombre || 'Cliente'
     const numeros = venta.boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
@@ -474,8 +474,7 @@ export default function DetalleVentaPublica({
    * Genera el link de WhatsApp con mensaje pre-rellenado
    */
   const generarWhatsAppLink = () => {
-    const telefono = venta.cliente_telefono?.replace(/\D/g, '')
-    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+    const telefonoCompleto = normalizarTelefono(venta.cliente_telefono)
     
     const numeros = venta.boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
     

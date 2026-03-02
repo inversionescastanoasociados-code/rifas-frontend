@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { clienteApi } from '@/lib/clienteApi'
+import { normalizarTelefono } from '@/utils/telefono'
 import {
   Cliente,
   ClienteDetalleResumen,
@@ -134,8 +135,7 @@ export default function ClienteDetalle({ clienteId, onBack }: ClienteDetalleProp
     rifasFiltradas: RifaConBoletas[],
     estado: FilterEstado
   ): string => {
-    const tel = cli.telefono?.replace(/\D/g, '') || ''
-    const telCompleto = tel.startsWith('57') ? tel : `57${tel}`
+    const telCompleto = normalizarTelefono(cli.telefono)
 
     const nombre = cli.nombre || 'Cliente'
     const esReservada = estado === 'RESERVADA'

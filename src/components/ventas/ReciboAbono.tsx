@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { normalizarTelefono } from '@/utils/telefono'
 
 // ─── Datos que necesita el recibo ───────────────────────────────────
 export interface ReciboAbonoData {
@@ -68,9 +69,8 @@ const WHATSAPP_SVG = (
 
 // ─── Generador de link WhatsApp ─────────────────────────────────────
 function generarWhatsAppLink(data: ReciboAbonoData): string | null {
-  const tel = data.clienteTelefono?.replace(/\D/g, '')
-  if (!tel || tel.length < 7) return null
-  const telCompleto = tel.startsWith('57') ? tel : `57${tel}`
+  const telCompleto = normalizarTelefono(data.clienteTelefono)
+  if (!telCompleto || telCompleto.length < 7) return null
 
   const nombre = data.clienteNombre || 'Cliente'
   const cuentaSaldada = data.saldoPendiente <= 0

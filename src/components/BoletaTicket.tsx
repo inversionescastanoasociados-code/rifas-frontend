@@ -64,6 +64,20 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     }
   }
 
+  // Calcular días de caducidad dinámicamente
+  const diasCaducidad = (() => {
+    if (!reservadaHasta) return null
+    try {
+      const hasta = new Date(reservadaHasta)
+      const ahora = new Date()
+      const diffMs = hasta.getTime() - ahora.getTime()
+      const dias = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
+      return dias
+    } catch {
+      return null
+    }
+  })()
+
   const reservadaHastaFmt = formatDateDisplay(reservadaHasta ?? null)
 
   useEffect(() => {
@@ -166,7 +180,11 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px' }}>
         <div className="text-[10px] text-center space-y-0.5 text-black font-medium">
           <p>- Boleta sin pagar no juega</p>
-          <p>- 128 días de caducidad</p>
+          {diasCaducidad !== null ? (
+            <p>- {diasCaducidad} días de caducidad</p>
+          ) : (
+            <p>- Válida hasta el día del sorteo</p>
+          )}
           <p>- Juega hasta quedar en poder del público</p>
         </div>
 

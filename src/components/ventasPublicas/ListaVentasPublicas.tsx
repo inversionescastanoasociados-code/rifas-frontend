@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { VentaPublicaListado } from '@/types/ventasPublicas'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
+import { normalizarTelefono } from '@/utils/telefono'
 
 interface ListaVentasPublicasProps {
   onSelectVenta: (ventaId: string) => void
@@ -114,9 +115,7 @@ export default function ListaVentasPublicas({
    * Genera el link de WhatsApp según el estado de la venta
    */
   const generarWhatsAppLink = (venta: VentaPublicaListado) => {
-    const telefono = venta.cliente_telefono?.replace(/\D/g, '')
-    // Agregar código de país Colombia si no lo tiene
-    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+    const telefonoCompleto = normalizarTelefono(venta.cliente_telefono)
     
     // Formatear números de boletas
     const numeros = venta.numeros_boletas && venta.numeros_boletas.length > 0

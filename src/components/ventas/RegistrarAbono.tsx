@@ -6,6 +6,7 @@ import { ventasApi } from '@/lib/ventasApi'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
+import { normalizarTelefono } from '@/utils/telefono'
 
 interface Props {
   ventaId: string
@@ -368,9 +369,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const generarWhatsAppAbonoLink = () => {
     if (!venta || !venta.telefono) return null
     
-    const telefono = venta.telefono.replace(/\D/g, '')
-    if (!telefono || telefono.length < 7) return null
-    const telefonoCompleto = telefono.startsWith('57') ? telefono : `57${telefono}`
+    const telefonoCompleto = normalizarTelefono(venta.telefono)
+    if (!telefonoCompleto || telefonoCompleto.length < 7) return null
 
     const nombre = venta.nombre || 'Cliente'
     const boletasInfo = venta.boletas && venta.boletas.length > 0

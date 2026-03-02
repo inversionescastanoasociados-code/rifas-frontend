@@ -9,6 +9,7 @@ import BoletaTicket from '@/components/BoletaTicket'
 import DialogoReserva from './DialogoReserva'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
+import { normalizarTelefono } from '@/utils/telefono'
 
 const MEDIOS_PAGO_MAP: Record<string, string> = {
   'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7': 'Efectivo',
@@ -284,10 +285,7 @@ export default function CarritoVentas({
 
     mensaje += `\n¡Buena suerte! 🍀`
 
-    // Limpiar número de teléfono (dejar solo dígitos, agregar código Colombia si falta)
-    let tel = cliente.telefono.replace(/[^0-9]/g, '')
-    if (tel.startsWith('3') && tel.length === 10) tel = '57' + tel
-    if (!tel.startsWith('57')) tel = '57' + tel
+    const tel = normalizarTelefono(cliente.telefono)
 
     return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`
   }, [cliente, ventaResponse, tipoVenta, rifaNombre, total, montoAbono, saldoPendiente])

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Cliente } from '@/types/cliente'
 import { clienteApi } from '@/lib/clienteApi'
 import { RifaConBoletas } from '@/types/cliente'
+import { normalizarTelefono } from '@/utils/telefono'
 
 interface ClienteListProps {
   clientes: Cliente[]
@@ -47,9 +48,8 @@ function getEstadoEmoji(estado: string): string {
 }
 
 async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<string | null> {
-  const tel = cliente.telefono?.replace(/\D/g, '') || ''
-  if (!tel || tel.length < 7) return null
-  const telCompleto = tel.startsWith('57') ? tel : `57${tel}`
+  const telCompleto = normalizarTelefono(cliente.telefono)
+  if (!telCompleto || telCompleto.length < 7) return null
 
   const nombre = cliente.nombre || 'Cliente'
 
