@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Boleta } from '@/types/boleta'
 import type { Rifa } from '@/types/rifa'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
+import { boletaApi } from '@/lib/boletaApi'
 
 interface BoletaListProps {
   boletas: Boleta[]
@@ -20,6 +21,10 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
+  const [editingNotaId, setEditingNotaId] = useState<string | null>(null)
+  const [notaTemp, setNotaTemp] = useState('')
+  const [savingNota, setSavingNota] = useState(false)
+  const [notasLocales, setNotasLocales] = useState<Record<string, string | null>>({})
   const router = useRouter()
 
   // Determina label y clases del estado según la boleta
@@ -263,6 +268,7 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
               <div style="display:flex;justify-content:center;">
                 <img src="${qrSrc}" style="width:80px;height:80px;border:1px solid black;" alt="QR" />
               </div>
+              ${(() => { const n = getNotaBoleta(boleta); return n ? `<div style="text-align:center;font-size:8px;font-style:italic;color:#475569;padding:0 4px;max-height:24px;overflow:hidden;line-height:1.2;">${n}</div>` : ''; })()}
               <div>
                 <div style="text-align:center;font-size:18px;font-weight:800;color:black;">#${numPad}</div>
                 ${precioNum ? `<div style="text-align:center;font-size:11px;font-weight:700;color:black;">$${precioNum.toLocaleString('es-CO')}</div>` : ''}
@@ -318,6 +324,37 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
       setDownloadProgress({ current: 0, total: 0 })
     }
   }, [selectedIds, boletas, rifaInfo])
+
+  // --- Nota ---
+  const getNotaBoleta = (boleta: Boleta): string | null => {
+    if (boleta.id in notasLocales) return notasLocales[boleta.id]
+    return boleta.nota ?? null
+  }
+
+  const handleEditNota = (boleta: Boleta) => {
+    setEditingNotaId(boleta.id)
+    setNotaTemp(getNotaBoleta(boleta) || '')
+  }
+
+  const handleSaveNota = async (boletaId: string) => {
+    setSavingNota(true)
+    try {
+      const notaValue = notaTemp.trim() || null
+      await boletaApi.updateBoletaNota(boletaId, notaValue)
+      setNotasLocales(prev => ({ ...prev, [boletaId]: notaValue }))
+      setEditingNotaId(null)
+    } catch (err) {
+      console.error('Error guardando nota:', err)
+      alert('Error al guardar la nota')
+    } finally {
+      setSavingNota(false)
+    }
+  }
+
+  const handleCancelNota = () => {
+    setEditingNotaId(null)
+    setNotaTemp('')
+  }
 
   if (loading) {
     return (
@@ -538,6 +575,7 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Contacto</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">ID / Cédula</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendedor</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nota</th>
                 {/* <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">QR</th> */}
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
               </tr>
@@ -545,7 +583,7 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
             <tbody className="divide-y divide-slate-100">
               {paginatedBoletas.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
+                  <td colSpan={10} className="px-6 py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <p className="text-base">{searchTerm ? 'No hay resultados para tu búsqueda.' : 'Aún no hay boletas en esta rifa.'}</p>
@@ -586,6 +624,56 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-slate-600">{boleta.vendedor_info?.nombre || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingNotaId === boleta.id ? (
+                          <div className="flex flex-col gap-1">
+                            <textarea
+                              value={notaTemp}
+                              onChange={(e) => setNotaTemp(e.target.value)}
+                              maxLength={500}
+                              rows={2}
+                              className="w-full text-xs border border-blue-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                              placeholder="Escribe una nota..."
+                              autoFocus
+                            />
+                            <div className="flex gap-1 justify-end">
+                              <button
+                                onClick={() => handleSaveNota(boleta.id)}
+                                disabled={savingNota}
+                                className="text-xs bg-green-500 text-white px-2 py-0.5 rounded hover:bg-green-600 disabled:opacity-50 transition-colors"
+                              >
+                                {savingNota ? '...' : '✓'}
+                              </button>
+                              <button
+                                onClick={handleCancelNota}
+                                disabled={savingNota}
+                                className="text-xs bg-slate-300 text-slate-700 px-2 py-0.5 rounded hover:bg-slate-400 disabled:opacity-50 transition-colors"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-1 group/nota">
+                            {getNotaBoleta(boleta) ? (
+                              <span className="text-xs text-slate-600 italic max-w-[150px] truncate" title={getNotaBoleta(boleta) || ''}>
+                                {getNotaBoleta(boleta)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-300 italic">—</span>
+                            )}
+                            <button
+                              onClick={() => handleEditNota(boleta)}
+                              className="text-slate-400 hover:text-blue-500 transition-colors p-0.5 opacity-0 group-hover/nota:opacity-100"
+                              title="Editar nota"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </td>
                       {/* <td className="px-6 py-4 whitespace-nowrap text-center">
                         {boleta.qr_url ? (

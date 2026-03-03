@@ -17,6 +17,7 @@ interface BoletaData {
   precio_boleta: number
   total_pagado: number
   saldo_pendiente: number
+  nota?: string | null
 }
 
 interface RifaGroup {
@@ -248,6 +249,7 @@ export default function MisBoletasPage() {
                           deuda={boleta.saldo_pendiente > 0 ? boleta.saldo_pendiente : null}
                           reservadaHasta={boleta.bloqueo_hasta}
                           precio={boleta.precio_boleta}
+                          nota={boleta.nota}
                         />
                       </div>
                     </div>

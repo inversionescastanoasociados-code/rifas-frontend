@@ -167,6 +167,7 @@ export default function BoletaPrintPage() {
           deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
           reservadaHasta={boleta.bloqueo_hasta}
           precio={boleta.boleta_financiero?.precio_boleta}
+          nota={boleta.nota}
         />
       </div>
 

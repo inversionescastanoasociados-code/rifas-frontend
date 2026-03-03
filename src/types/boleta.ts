@@ -24,6 +24,7 @@ export interface Boleta {
   tipo_estado: 'DISPONIBLE' | 'RESERVADA' | 'CON_PAGO' | 'TRANSFERIDA' | 'ANULADA'
   bloqueo_hasta?: string | null
   imagen_url?: string | null
+  nota?: string | null
 }
 
 export interface AbonoHistorial {
@@ -56,6 +57,7 @@ export interface BoletaDetail {
   imagen_url: string | null
   qr_base_url: string | null
   diseño_template: string | null
+  nota?: string | null
   cliente_info?: ClienteInfo | null
   vendedor_info?: VendedorInfo | null
   venta_info?: {

@@ -17,6 +17,7 @@ interface BoletaTicketProps {
   deuda?: number | string | null
   reservadaHasta?: string | null
   precio?: number | null
+  nota?: string | null
 }
 
 export default function BoletaTicket(props: BoletaTicketProps) {
@@ -31,6 +32,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     deuda,
     reservadaHasta,
     precio,
+    nota,
   } = props
 
   const [imageError, setImageError] = useState(false)
@@ -193,6 +195,12 @@ export default function BoletaTicket(props: BoletaTicketProps) {
         <div className="flex justify-center">
           <img src={qrUrl} className="w-20 h-20 border border-black" alt="QR" />
         </div>
+
+        {nota && (
+          <div className="text-center text-[8px] italic text-slate-600 px-1 leading-tight" style={{ maxHeight: '24px', overflow: 'hidden' }}>
+            {nota}
+          </div>
+        )}
 
         <div className="space-y-0.5">
           <div className="text-center text-lg font-extrabold text-black">

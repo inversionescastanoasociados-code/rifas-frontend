@@ -17,6 +17,7 @@ interface BoletaInfo {
   saldo_pendiente_boleta?: number
   qr_url?: string
   imagen_url?: string
+  nota?: string | null
 }
 
 export default function VentasBoletasPage() {
@@ -195,6 +196,7 @@ export default function VentasBoletasPage() {
                       }}
                       deuda={boleta.saldo_pendiente_boleta}
                       precio={boleta.precio_boleta}
+                      nota={boleta.nota}
                     />
                   </div>
                 </div>

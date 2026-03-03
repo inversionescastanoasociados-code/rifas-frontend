@@ -61,6 +61,15 @@ class BoletaApiService {
     })
     return this.handleResponse<BoletaGenerateResponse>(response)
   }
+
+  async updateBoletaNota(boletaId: string, nota: string | null): Promise<{ success: boolean; data: { id: string; numero: number; nota: string | null } }> {
+    const response = await fetch(`${API_BASE_URL}/api/boletas/${boletaId}/nota`, {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ nota })
+    })
+    return this.handleResponse(response)
+  }
 }
 
 export const boletaApi = new BoletaApiService()
