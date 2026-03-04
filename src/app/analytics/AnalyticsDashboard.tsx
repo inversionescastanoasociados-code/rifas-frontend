@@ -31,8 +31,11 @@ export default function AnalyticsDashboard({ rifas }: Props) {
     rifas.length ? rifas[0].id : null
   );
 
-  // Por defecto mostrar datos de HOY (si no hay ventas hoy, todo sale en cero)
-  const hoy = new Date().toISOString().split("T")[0]; // "2026-02-24"
+  // Usar hora local (Colombia UTC-5) en vez de UTC para evitar fecha adelantada
+  const hoy = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [fechaFin, setFechaFin] = useState(hoy);
   const [data, setData] = useState<any>(null);

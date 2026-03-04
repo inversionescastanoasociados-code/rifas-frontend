@@ -10,7 +10,9 @@ export default function FiltersBar({
   setFechaInicio,
   setFechaFin,
 }) {
-  const hoy = new Date().toISOString().split('T')[0];
+  // Fecha local (evita adelanto de fecha por UTC en horario nocturno Colombia)
+  const toLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const hoy = toLocalDate(new Date());
 
   // Detectar qué preset está activo
   const isPresetTodo = !fechaInicio && !fechaFin;
@@ -19,7 +21,7 @@ export default function FiltersBar({
   const getDaysAgoDate = (days) => {
     const d = new Date();
     d.setDate(d.getDate() - days);
-    return d.toISOString().split('T')[0];
+    return toLocalDate(d);
   };
 
   const isPreset7 = fechaInicio === getDaysAgoDate(7) && fechaFin === hoy;
@@ -36,8 +38,8 @@ export default function FiltersBar({
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - days);
-    setFechaFin(end.toISOString().split('T')[0]);
-    setFechaInicio(start.toISOString().split('T')[0]);
+    setFechaFin(toLocalDate(end));
+    setFechaInicio(toLocalDate(start));
   };
 
   return (
