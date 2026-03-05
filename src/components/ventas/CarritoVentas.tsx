@@ -6,6 +6,7 @@ import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente, VentaRequest } from '@/types/ventas'
 import BoletaTicket from '@/components/BoletaTicket'
+import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 import DialogoReserva from './DialogoReserva'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
@@ -226,7 +227,8 @@ export default function CarritoVentas({
 
   // Hooks de descarga (deben estar antes de cualquier return condicional)
   const descargarBoleta = useCallback(async (boletaNumero: number, identificacion: string, elementId: string) => {
-    const el = document.getElementById(elementId)
+    const wrapper = document.getElementById(elementId)
+    const el = wrapper?.querySelector('.boleta-ticket') as HTMLElement ?? wrapper
     if (!el) return
     try {
       const canvas = await html2canvas(el, {
@@ -365,8 +367,7 @@ export default function CarritoVentas({
                     </div>
                   </div>
                   {/* Boleta renderizada */}
-                  <div className="overflow-x-auto">
-                    <div id={`boleta-print-${b.id}`}>
+                  <ResponsiveBoletaWrapper id={`boleta-print-${b.id}`}>
                       <BoletaTicket
                         qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
                         barcode={b.barcode || ''}
@@ -381,8 +382,7 @@ export default function CarritoVentas({
                         deuda={tipoVenta === 'ABONO' ? saldoPendiente / boletasVenta.length : 0}
                         precio={precioBoleta}
                       />
-                    </div>
-                  </div>
+                  </ResponsiveBoletaWrapper>
                 </div>
               ))}
             </div>

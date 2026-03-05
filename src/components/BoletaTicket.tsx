@@ -173,11 +173,13 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     )
   }
 
-  // Aspect ratio: 3224 / 1417 ≈ 2.275
-  // Screen size: 800 x 352 (same proportions)
-  // Left panel: 179px on screen → 179/800 * 3224 ≈ 721px at print
+  // Dimensiones fijas 800×352 — necesario para que html2canvas capture completo.
+  // El wrapper padre (ResponsiveBoletaWrapper) se encarga de escalar visualmente.
   return (
-    <div className="boleta-ticket flex border-2 border-black overflow-hidden bg-white mx-auto" style={{ width: '800px', height: '352px' }}>
+    <div
+      className="boleta-ticket flex border-2 border-black overflow-hidden bg-white"
+      style={{ width: '800px', height: '352px', minWidth: '800px' }}
+    >
       {/* LEFT */}
       <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px' }}>
         <div className="text-[10px] text-center space-y-0.5 text-black font-medium">

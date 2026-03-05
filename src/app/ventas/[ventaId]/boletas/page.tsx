@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
 import BoletaTicket from '@/components/BoletaTicket'
+import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 
 interface BoletaInfo {
   id: string
@@ -61,7 +62,8 @@ export default function VentasBoletasPage() {
   }
 
   const descargarBoleta = useCallback(async (boletaNumero: number, elementId: string) => {
-    const el = document.getElementById(elementId)
+    const wrapper = document.getElementById(elementId)
+    const el = wrapper?.querySelector('.boleta-ticket') as HTMLElement ?? wrapper
     if (!el) return
     try {
       const canvas = await html2canvas(el, {
@@ -181,8 +183,7 @@ export default function VentasBoletasPage() {
                     </Link>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <div id={`venta-boleta-${boleta.id}`}>
+                <ResponsiveBoletaWrapper id={`venta-boleta-${boleta.id}`}>
                     <BoletaTicket
                       qrUrl={boleta.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${boleta.id}`}
                       barcode=""
@@ -198,8 +199,7 @@ export default function VentasBoletasPage() {
                       precio={boleta.precio_boleta}
                       nota={boleta.nota}
                     />
-                  </div>
-                </div>
+                </ResponsiveBoletaWrapper>
               </div>
             ))}
           </div>

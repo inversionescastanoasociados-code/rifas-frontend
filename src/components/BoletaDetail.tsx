@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import BoletaTicket from './BoletaTicket'
+import ResponsiveBoletaWrapper from './ResponsiveBoletaWrapper'
 import type { BoletaDetail } from '@/types/boleta'
 
 interface BoletaDetailProps {
@@ -108,19 +109,21 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
           </div>
         </div>
         
-        <BoletaTicket
-  qrUrl={boleta.qr_url}
-  barcode={boleta.barcode}
-  numero={boleta.numero}
-  imagenUrl={(boleta as any).imagen_url ?? (boleta as any).imagenUrl}
-  rifaNombre={boleta.rifa_nombre}
-  estado={boleta.estado}
-  clienteInfo={boleta.cliente_info}
-  deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
-  reservadaHasta={boleta.bloqueo_hasta}
-  precio={boleta.boleta_financiero?.precio_boleta}
-  nota={boleta.nota}
-/>
+        <ResponsiveBoletaWrapper>
+          <BoletaTicket
+            qrUrl={boleta.qr_url}
+            barcode={boleta.barcode}
+            numero={boleta.numero}
+            imagenUrl={(boleta as any).imagen_url ?? (boleta as any).imagenUrl}
+            rifaNombre={boleta.rifa_nombre}
+            estado={boleta.estado}
+            clienteInfo={boleta.cliente_info}
+            deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
+            reservadaHasta={boleta.bloqueo_hasta}
+            precio={boleta.boleta_financiero?.precio_boleta}
+            nota={boleta.nota}
+          />
+        </ResponsiveBoletaWrapper>
       </div>
 
       {/* Detailed Information */}

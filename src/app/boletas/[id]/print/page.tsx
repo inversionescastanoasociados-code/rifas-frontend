@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { boletaApi } from '@/lib/boletaApi'
 import BoletaTicket from '@/components/BoletaTicket'
+import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 import type { BoletaDetail } from '@/types/boleta'
 
 export default function BoletaPrintPage() {
@@ -156,19 +157,21 @@ export default function BoletaPrintPage() {
 
       {/* Mismo componente BoletaTicket que la vista de detalle — diseño idéntico */}
       <div className="flex justify-center print-boleta-container">
-        <BoletaTicket
-          qrUrl={boleta.qr_url}
-          barcode={boleta.barcode}
-          numero={boleta.numero}
-          imagenUrl={boleta.imagen_url}
-          rifaNombre={boleta.rifa_nombre}
-          estado={boleta.estado}
-          clienteInfo={boleta.cliente_info}
-          deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
-          reservadaHasta={boleta.bloqueo_hasta}
-          precio={boleta.boleta_financiero?.precio_boleta}
-          nota={boleta.nota}
-        />
+        <ResponsiveBoletaWrapper>
+          <BoletaTicket
+            qrUrl={boleta.qr_url}
+            barcode={boleta.barcode}
+            numero={boleta.numero}
+            imagenUrl={boleta.imagen_url}
+            rifaNombre={boleta.rifa_nombre}
+            estado={boleta.estado}
+            clienteInfo={boleta.cliente_info}
+            deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
+            reservadaHasta={boleta.bloqueo_hasta}
+            precio={boleta.boleta_financiero?.precio_boleta}
+            nota={boleta.nota}
+          />
+        </ResponsiveBoletaWrapper>
       </div>
 
       {/* Additional Information - Hidden when printing */}

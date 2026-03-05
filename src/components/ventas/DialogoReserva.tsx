@@ -6,6 +6,7 @@ import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente } from '@/types/ventas'
 import { normalizarTelefono } from '@/utils/telefono'
 import BoletaTicket from '@/components/BoletaTicket'
+import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 
 interface DialogoReservaProps {
   isOpen: boolean
@@ -63,7 +64,8 @@ export default function DialogoReserva({
 
   // Hooks de descarga (deben estar antes de cualquier return condicional)
   const descargarBoletaReserva = useCallback(async (boletaNumero: number, identificacion: string, elementId: string) => {
-    const el = document.getElementById(elementId)
+    const wrapper = document.getElementById(elementId)
+    const el = wrapper?.querySelector('.boleta-ticket') as HTMLElement ?? wrapper
     if (!el) return
     try {
       const canvas = await html2canvas(el, {
@@ -294,8 +296,7 @@ export default function DialogoReserva({
                         Descargar
                       </button>
                     </div>
-                    <div className="overflow-x-auto">
-                      <div id={`reserva-boleta-${b.id}`}>
+                    <ResponsiveBoletaWrapper id={`reserva-boleta-${b.id}`}>
                         <BoletaTicket
                           qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
                           barcode=""
@@ -310,8 +311,7 @@ export default function DialogoReserva({
                           reservadaHasta={reservaResponse.bloqueo_hasta}
                           precio={precioBoleta}
                         />
-                      </div>
-                    </div>
+                    </ResponsiveBoletaWrapper>
                   </div>
                 ))}
               </div>

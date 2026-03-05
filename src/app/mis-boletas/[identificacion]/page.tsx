@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import BoletaTicket from '@/components/BoletaTicket'
+import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 
 interface BoletaData {
   id: string
@@ -98,7 +99,8 @@ export default function MisBoletasPage() {
     setDownloadingId(boleta.id)
     try {
       const html2canvas = (await import('html2canvas-pro')).default
-      const el = document.getElementById(`boleta-${boleta.id}`) as HTMLElement
+      const wrapper = document.getElementById(`boleta-${boleta.id}`) as HTMLElement
+      const el = wrapper?.querySelector('.boleta-ticket') as HTMLElement ?? wrapper
       if (!el) return
 
       const canvas = await html2canvas(el, {
@@ -233,8 +235,7 @@ export default function MisBoletasPage() {
                 {rifa.boletas.map((boleta) => (
                   <div key={boleta.id} className="relative">
                     {/* BoletaTicket */}
-                    <div className="overflow-x-auto">
-                      <div id={`boleta-${boleta.id}`}>
+                    <ResponsiveBoletaWrapper id={`boleta-${boleta.id}`}>
                         <BoletaTicket
                           qrUrl={boleta.qr_url}
                           barcode={boleta.barcode}
@@ -251,8 +252,7 @@ export default function MisBoletasPage() {
                           precio={boleta.precio_boleta}
                           nota={boleta.nota}
                         />
-                      </div>
-                    </div>
+                    </ResponsiveBoletaWrapper>
 
                     {/* Info + Download Button */}
                     <div className="flex items-center justify-between mt-3 px-2">
