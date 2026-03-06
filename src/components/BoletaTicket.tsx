@@ -110,7 +110,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     </div>
   )
 
-  const baseText = 'text-[10px] text-center space-y-1 text-black'
+  const baseText = 'text-[9px] text-center space-y-1 text-black leading-snug'
 
   const renderEstado = () => {
     if (esCancelada) {
@@ -129,7 +129,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
           <p className="font-semibold">A nombre de:</p>
           <p>{clienteInfo?.nombre ?? '—'}</p>
           <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
-          <p className="font-bold">Reservada hasta: {reservadaHastaFmt ?? '—'}</p>
+          <p className="font-bold" style={{ wordSpacing: '1px' }}>Reservada hasta: {reservadaHastaFmt ?? '—'}</p>
         </div>
       )
     }
@@ -181,8 +181,8 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       style={{ width: '800px', height: '352px', minWidth: '800px' }}
     >
       {/* LEFT */}
-      <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px' }}>
-        <div className="text-[10px] text-center space-y-0.5 text-black font-medium">
+      <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px', wordSpacing: '2px', whiteSpace: 'normal', wordBreak: 'normal', overflowWrap: 'break-word' }}>
+        <div className="text-[9px] text-center space-y-0.5 text-black font-medium leading-tight" style={{ wordSpacing: '1px' }}>
           <p>- Boleta sin pagar no juega</p>
           {diasCaducidad !== null ? (
             <p>- {diasCaducidad} días de caducidad</p>
