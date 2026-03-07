@@ -285,6 +285,162 @@ function VentaDetalleExpandido({ venta }) {
   );
 }
 
+// ─── Detalle expandido de un ABONO/RECAUDO ─────────────
+function AbonoDetalleExpandido({ abono }) {
+  const generarWhatsAppLink = () => {
+    const telCompleto = normalizarTelefono(abono.cliente_telefono);
+    if (!telCompleto || telCompleto.length < 7) return null;
+    const boletas = (abono.numeros_boletas || []).map((n) => `#${String(n).padStart(4, '0')}`).join(', ');
+    let msg = `🧾 *Comprobante de Abono*\n\n`;
+    msg += `Hola *${abono.cliente_nombre}*, confirmamos tu abono:\n\n`;
+    msg += `💵 *Monto abonado:* ${fmt(abono.monto)}\n`;
+    msg += `🎟️ *Boletas:* ${boletas}\n`;
+    msg += `💰 *Total de la venta:* ${fmt(abono.monto_total)}\n`;
+    msg += `✅ *Total pagado:* ${fmt(abono.abono_total)}\n`;
+    if (abono.saldo_pendiente > 0) {
+      msg += `🔴 *Saldo pendiente:* ${fmt(abono.saldo_pendiente)}\n`;
+    }
+    msg += `\n¡Gracias! 🎉`;
+    msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`;
+    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`;
+  };
+  const whatsappLink = generarWhatsAppLink();
+  const ecVenta = estadoColors[abono.estado_venta] || estadoColors.EXPIRADA;
+
+  return (
+    <tr>
+      <td colSpan={9} className="px-0 py-0">
+        <div className="bg-teal-50/50 border-t border-b border-teal-200 px-6 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Info del cliente */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="text-base">👤</span> Cliente
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Nombre</span>
+                  <span className="text-sm font-medium text-slate-900">{abono.cliente_nombre}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Teléfono</span>
+                  <span className="text-sm font-medium text-slate-900">{abono.cliente_telefono || '—'}</span>
+                </div>
+                {abono.cliente_identificacion && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-500">Cédula</span>
+                    <span className="text-sm font-medium text-slate-900">{abono.cliente_identificacion}</span>
+                  </div>
+                )}
+                {abono.cliente_email && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-500">Email</span>
+                    <span className="text-sm font-medium text-slate-900 truncate ml-2">{abono.cliente_email}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Detalle del abono */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="text-base">💰</span> Detalle del Abono
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Monto Abonado</span>
+                  <span className="text-sm font-bold text-teal-600">{fmt(abono.monto)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Medio de Pago</span>
+                  <span className="text-sm font-medium text-slate-900">{abono.medio_pago}</span>
+                </div>
+                {abono.referencia && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-500">Referencia</span>
+                    <span className="text-sm font-mono text-slate-900">{abono.referencia}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Fecha Abono</span>
+                  <span className="text-sm font-medium text-teal-700">{fmtDate(abono.fecha_abono)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Fecha Venta Original</span>
+                  <span className="text-sm font-medium text-slate-600">{fmtDate(abono.fecha_venta)}</span>
+                </div>
+                {abono.abono_notas && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-500">Notas</span>
+                    <span className="text-sm text-slate-700">{abono.abono_notas}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Info de la venta */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="text-base">🛒</span> Venta Asociada
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Monto Total Venta</span>
+                  <span className="text-sm font-bold text-slate-900">{fmt(abono.monto_total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Total Pagado</span>
+                  <span className="text-sm font-bold text-emerald-600">{fmt(abono.abono_total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500">Saldo Pendiente</span>
+                  <span className={`text-sm font-bold ${abono.saldo_pendiente > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                    {fmt(abono.saldo_pendiente)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-500">Estado Venta</span>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${ecVenta.bg} ${ecVenta.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ecVenta.dot}`} />
+                    {estadoLabel[abono.estado_venta] || abono.estado_venta}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-400">Boletas ({abono.cantidad_boletas}):</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {abono.numeros_boletas && abono.numeros_boletas.map((num, i) => (
+                      <span key={i} className="inline-flex items-center px-2 py-0.5 text-xs font-mono font-bold bg-blue-50 text-blue-700 rounded border border-blue-200">
+                        #{String(num).padStart(4, '0')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Botón WhatsApp */}
+          {whatsappLink && (
+            <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-teal-200">
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow transition-colors"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                📩 Enviar comprobante por WhatsApp
+              </a>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Componente Principal ──────────────────────────────
 export default function VentasGeneralModal({ 
   isOpen, 
@@ -295,11 +451,13 @@ export default function VentasGeneralModal({
   rifaNombre 
 }) {
   const [ventas, setVentas] = useState([]);
+  const [abonosPeriodo, setAbonosPeriodo] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [paginacion, setPaginacion] = useState(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState(null);
+  const [tabActiva, setTabActiva] = useState('ventas'); // 'ventas' | 'recaudos'
 
   // Filtros locales
   const [filtroOrigen, setFiltroOrigen] = useState('TODOS');
@@ -316,6 +474,7 @@ export default function VentasGeneralModal({
     try {
       const data = await getVentasGeneral(rifaId, fechaInicio, fechaFin, page, 100);
       setVentas(data.ventas || []);
+      setAbonosPeriodo(data.abonos_periodo || []);
       setResumen(data.resumen || null);
       setPaginacion(data.paginacion || null);
     } catch (error) {
@@ -341,6 +500,19 @@ export default function VentasGeneralModal({
       return true;
     });
   }, [ventas, filtroOrigen, filtroEstado, busqueda]);
+
+  // Filtrar abonos localmente por búsqueda
+  const abonosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return abonosPeriodo;
+    const q = busqueda.toLowerCase();
+    return abonosPeriodo.filter(a => {
+      const matchNombre = a.cliente_nombre?.toLowerCase().includes(q);
+      const matchTel = a.cliente_telefono?.includes(q);
+      const matchCedula = a.cliente_identificacion?.includes(q);
+      const matchBoleta = a.numeros_boletas?.some(n => String(n).includes(q));
+      return matchNombre || matchTel || matchCedula || matchBoleta;
+    });
+  }, [abonosPeriodo, busqueda]);
 
   // Periodo label
   const periodoLabel = useMemo(() => {
@@ -421,6 +593,23 @@ export default function VentasGeneralModal({
                 <p className="text-lg font-bold text-rose-600">{fmt(resumen.saldo_pendiente_total)}</p>
               </div>
             </div>
+
+            {/* Recaudo del Día - Dinero real que entró */}
+            <div className="mt-3">
+              <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-4 text-center shadow-sm">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-xl">💰</span>
+                  <p className="text-xs font-semibold text-emerald-100 uppercase tracking-wider">Recaudo del Período</p>
+                  {resumen.cantidad_abonos_dia > 0 && (
+                    <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {resumen.cantidad_abonos_dia} abono{resumen.cantidad_abonos_dia !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <p className="text-2xl font-extrabold text-white">{fmt(resumen.recaudo_dia || 0)}</p>
+                <p className="text-[10px] text-emerald-200 mt-1">Dinero real recibido (incluye abonos a ventas anteriores)</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -473,8 +662,35 @@ export default function VentasGeneralModal({
           </select>
 
           <span className="text-xs text-slate-400 ml-auto">
-            {ventasFiltradas.length} de {ventas.length} ventas
+            {tabActiva === 'ventas'
+              ? `${ventasFiltradas.length} de ${ventas.length} ventas`
+              : `${abonosFiltrados.length} de ${abonosPeriodo.length} recaudos`
+            }
           </span>
+        </div>
+
+        {/* Tabs: Ventas | Recaudos */}
+        <div className="px-6 bg-white border-b border-slate-200 flex gap-0">
+          <button
+            onClick={() => { setTabActiva('ventas'); setExpandedId(null); }}
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${
+              tabActiva === 'ventas'
+                ? 'border-slate-900 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            🛒 Ventas ({ventas.length})
+          </button>
+          <button
+            onClick={() => { setTabActiva('recaudos'); setExpandedId(null); }}
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${
+              tabActiva === 'recaudos'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            💰 Recaudos del Período ({abonosPeriodo.length})
+          </button>
         </div>
 
         {/* Tabla */}
@@ -486,9 +702,106 @@ export default function VentasGeneralModal({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Cargando ventas...
+                Cargando...
               </div>
             </div>
+
+          ) : tabActiva === 'recaudos' ? (
+            /* ─── TABLA DE RECAUDOS/ABONOS ─── */
+            abonosFiltrados.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <span className="text-4xl mb-3">📭</span>
+                <p className="font-medium">No hay recaudos en este período</p>
+                <p className="text-sm mt-1">No se registraron abonos confirmados en el rango seleccionado</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-teal-50 border-b border-teal-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Fecha Abono</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Cliente</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Origen</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Boletas</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Monto Abono</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Saldo Pend.</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Estado Venta</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Tipo</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-teal-700 uppercase tracking-wider">Método Pago</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-teal-50">
+                  {abonosFiltrados.map((abono) => {
+                    const ecVenta = estadoColors[abono.estado_venta] || estadoColors.EXPIRADA;
+                    const isExpanded = expandedId === abono.abono_id;
+
+                    return (
+                      <React.Fragment key={abono.abono_id}>
+                        <tr
+                          onClick={() => setExpandedId(isExpanded ? null : abono.abono_id)}
+                          className={`cursor-pointer transition-colors ${
+                            isExpanded ? 'bg-teal-50/50' : 'hover:bg-teal-50/30'
+                          }`}
+                        >
+                          <td className="px-4 py-3">
+                            <div>
+                              <span className="text-slate-900 font-medium text-xs">{fmtDate(abono.fecha_abono)}</span>
+                              <p className="text-[10px] text-slate-400 mt-0.5">Venta: {fmtDate(abono.fecha_venta)}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="text-slate-900 font-medium">{abono.cliente_nombre}</p>
+                              <p className="text-xs text-slate-400">{abono.cliente_telefono}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                              abono.es_venta_online
+                                ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                                : 'bg-orange-50 text-orange-600 border border-orange-200'
+                            }`}>
+                              {abono.es_venta_online ? '🌐 Online' : '🏪 Punto Físico'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-sm font-bold text-blue-600">{abono.cantidad_boletas}</span>
+                              <span className="text-xs text-slate-400">bol.</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-bold text-teal-700">{fmt(abono.monto)}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`font-bold ${abono.saldo_pendiente > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                              {fmt(abono.saldo_pendiente)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${ecVenta.bg} ${ecVenta.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${ecVenta.dot}`} />
+                              {estadoLabel[abono.estado_venta] || abono.estado_venta}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-xs font-medium px-2 py-1 rounded-full bg-teal-50 text-teal-700">
+                              Recaudo
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-xs font-medium text-slate-700">
+                              {abono.medio_pago}
+                            </span>
+                          </td>
+                        </tr>
+                        {isExpanded && <AbonoDetalleExpandido abono={abono} />}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
+
           ) : ventasFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <span className="text-4xl mb-3">📭</span>
