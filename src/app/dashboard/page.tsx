@@ -15,6 +15,11 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
+  const normalizedRole = user?.rol?.toUpperCase()
+  const canUseOperationalModules = ['SUPER_ADMIN', 'VENDEDOR', 'ADMIN'].includes(normalizedRole || '')
+  const canUseRifas = normalizedRole === 'SUPER_ADMIN'
+  const canUseReportes = ['SUPER_ADMIN', 'VENDEDOR'].includes(normalizedRole || '')
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     const userData = localStorage.getItem('user')
@@ -72,7 +77,7 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Banner de Ventas Online Pendientes */}
-        {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+        {canUseOperationalModules && (
           <VentasOnlineBanner onVerPendientes={() => router.push('/ventas-publicas')} />
         )}
 
@@ -101,8 +106,8 @@ export default function DashboardPage() {
           <div className="mt-8">
             <h3 className="text-lg font-semibold text-black mb-4">Módulos</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Módulo de Ventas - Disponible para SUPER_ADMIN y VENDEDOR */}
-              {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+              {/* Módulo de Ventas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
+              {canUseOperationalModules && (
                 <a
                   href="/ventas"
                   className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200 hover:shadow-md transition-shadow cursor-pointer group"
@@ -124,8 +129,8 @@ export default function DashboardPage() {
                 </a>
               )}
 
-              {/* Módulo de Ventas Públicas - Disponible para SUPER_ADMIN y VENDEDOR */}
-              {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+              {/* Módulo de Ventas Públicas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
+              {canUseOperationalModules && (
                 <a
                   href="/ventas-publicas"
                   className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg border border-green-200 hover:shadow-md transition-shadow cursor-pointer group"
@@ -147,8 +152,8 @@ export default function DashboardPage() {
                 </a>
               )}
 
-              {/* Módulo de Boletas Reservadas - Disponible para SUPER_ADMIN y VENDEDOR */}
-              {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') && (
+              {/* Módulo de Boletas Reservadas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
+              {canUseOperationalModules && (
                 <a
                   href="/boletas-reservadas"
                   className="bg-gradient-to-r from-amber-50 to-amber-100 p-6 rounded-lg border border-amber-200 hover:shadow-md transition-shadow cursor-pointer group"
@@ -177,7 +182,7 @@ export default function DashboardPage() {
                 <h4 className="text-lg font-medium text-slate-900 mb-2">Clientes</h4>
                 <p className="text-sm text-slate-600">Gestionar clientes del sistema</p>
               </a>
-              {user.rol === 'SUPER_ADMIN' && (
+              {canUseRifas && (
                 <a
                   href="/rifas"
                   className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
@@ -186,7 +191,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-slate-600">Gestionar rifas y sorteos</p>
                 </a>
               )}
-              {user.rol === 'SUPER_ADMIN' && (
+              {canUseOperationalModules && (
                 <a
                   href="/boletas/ver"
                   className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
@@ -195,7 +200,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-slate-600">Ver todas las boletas del sistema</p>
                 </a>
               )}
-              {(user.rol === 'SUPER_ADMIN' || user.rol === 'VENDEDOR') ? (
+              {canUseReportes ? (
                 <a
                   href="/analytics"
                   className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
@@ -203,7 +208,7 @@ export default function DashboardPage() {
                   <h4 className="text-lg font-medium text-slate-900 mb-2">Reportes</h4>
                   <p className="text-sm text-slate-600">Ver reportes y métricas de rifas</p>
                 </a>
-              ) : (
+              ) : normalizedRole === 'ADMIN' ? null : (
                 <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 opacity-50">
                   <h4 className="text-lg font-medium text-slate-400 mb-2">Reportes</h4>
                   <p className="text-sm text-slate-400">Próximamente</p>

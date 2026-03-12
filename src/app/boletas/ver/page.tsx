@@ -32,7 +32,7 @@ export default function VerBoletasPage() {
       const user = JSON.parse(userData)
       setUserRole(user.rol)
       
-      if (user.rol !== 'SUPER_ADMIN') {
+      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'ADMIN') {
         setError('No tienes permisos para acceder a este módulo')
         setLoading(false)
         return
@@ -87,7 +87,7 @@ export default function VerBoletasPage() {
 
   // --- Renderizado de estados de error y carga ---
 
-  if (userRole && userRole !== 'SUPER_ADMIN') {
+  if (userRole && userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white border border-slate-200 shadow-xl rounded-2xl p-8 max-w-md text-center">

@@ -85,7 +85,7 @@ export default function VentasPage() {
       const user = JSON.parse(userData)
       
       // Verificar rol
-      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'VENDEDOR') {
+      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'VENDEDOR' && user.rol !== 'ADMIN') {
         router.push('/dashboard')
         return
       }
