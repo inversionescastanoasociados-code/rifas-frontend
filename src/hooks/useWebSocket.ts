@@ -25,6 +25,10 @@ export function useWebSocket({
   const reconnectDelay = 1000 // 1 segundo
 
   const connect = useCallback(() => {
+    if (!rifaId) {
+      return
+    }
+
     // Verificar si ya estamos conectados o si hemos excedido intentos
     if (reconnectAttempts.current >= maxReconnectAttempts) {
       console.log('WebSocket: Máximo de intentos alcanzado, desactivando reconexión')

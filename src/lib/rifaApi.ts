@@ -52,6 +52,23 @@ class RifaApiService {
     return this.handleResponse<RifaListResponse>(response)
   }
 
+  async getRifasOperativas(estado?: string): Promise<RifaListResponse> {
+    const params = new URLSearchParams()
+    if (estado) {
+      params.set('estado', estado)
+    }
+
+    const queryString = params.toString()
+    const response = await fetch(
+      `${API_BASE_URL}/api/rifas/operativas${queryString ? `?${queryString}` : ''}`,
+      {
+        headers: this.getAuthHeaders()
+      }
+    )
+
+    return this.handleResponse<RifaListResponse>(response)
+  }
+
   async getRifaById(id: string): Promise<RifaResponse> {
     const response = await fetch(`${API_BASE_URL}/api/rifas/${id}`, {
       headers: this.getAuthHeaders()

@@ -56,7 +56,7 @@ export default function VerBoletasPage() {
   const fetchRifas = async () => {
     try {
       setLoading(true)
-      const response = await rifaApi.getRifas()
+      const response = await rifaApi.getRifasOperativas()
       setRifas(response.data)
       setError(null)
     } catch (err) {

@@ -61,7 +61,7 @@ export default function CrearBoletasPage() {
 
   const fetchRifas = async () => {
     try {
-      const response = await rifaApi.getRifas()
+      const response = await rifaApi.getRifasOperativas('ACTIVA')
       setRifas(response.data.filter(rifa => rifa.estado === 'ACTIVA'))
       setError(null)
     } catch (err) {

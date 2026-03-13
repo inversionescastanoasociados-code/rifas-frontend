@@ -90,11 +90,10 @@ export default function VentasPage() {
         return
       }
 
-      // Intentar cargar rifas usando el API service existente
+      // Cargar rifas activas usando endpoint operativo (sin acceso al módulo de rifas)
       try {
-        const response = await rifaApi.getRifas()
-        const rifasActivas = response.data.filter((rifa: Rifa) => rifa.estado === 'ACTIVA')
-        setRifas(rifasActivas)
+        const response = await rifaApi.getRifasOperativas('ACTIVA')
+        setRifas(response.data)
         setError(null) // Limpiar error si todo funciona
       } catch (rifaError: any) {
         console.warn('Error cargando rifas, verificando si es HTML 404...', rifaError)
