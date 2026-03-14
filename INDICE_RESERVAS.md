@@ -11,7 +11,7 @@ Quiero usar el módulo de reservas:
 
 ### 👨‍💻 **Desarrollador / Técnico**
 Quiero entender/modificar el código:
-- 📖 Lee: [RESERVAS_IMPLEMENTACION.md](RESERVAS_IMPLEMENTACION.md)
+- 📖 Lee: [RESERVAS_IMPLEMENTACION.md](RESERVAS_IMMENTACION.md)
 - 🔍 Ver componentes en: `src/components/ventas/`
 - 🔗 Ver tipos en: `src/types/ventas.ts`
 - 🔌 Ver API en: `src/lib/ventasApi.ts`
