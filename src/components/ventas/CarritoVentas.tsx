@@ -40,7 +40,7 @@ export default function CarritoVentas({
   onBoletaRemovida,
   onVentaCompletada
 }: CarritoVentasProps) {
-  const [medioPagoId, setMedioPagoId] = useState<string>('d397d917-c0d0-4c61-b2b3-2ebfab7deeb7')
+  const [medioPagoId, setMedioPagoId] = useState<string>('')
   const [notas, setNotas] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -93,6 +93,11 @@ export default function CarritoVentas({
 
     if (boletas.length === 0) {
       setError('Seleccione al menos una boleta')
+      return
+    }
+
+    if (tipoVenta !== 'RESERVA' && !medioPagoId) {
+      setError('Seleccione un método de pago')
       return
     }
 
@@ -667,6 +672,7 @@ export default function CarritoVentas({
             disabled={procesando}
             className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black"
           >
+            <option value="">Seleccionar método de pago</option>
             <option value="d397d917-c0d0-4c61-b2b3-2ebfab7deeb7">Efectivo</option>
             <option value="af6e15fc-c52c-4491-abe1-20243af301c4">Nequi</option>
             <option value="db94562d-bb01-42a3-9414-6e369a1a70ba">PSE</option>
