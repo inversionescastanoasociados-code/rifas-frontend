@@ -46,29 +46,56 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-500">Cargando...</div>
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-slate-500 text-sm">Cargando...</span>
+        </div>
       </div>
     )
   }
 
+  const roleLabel: Record<string, string> = {
+    SUPER_ADMIN: 'Super Administrador',
+    ADMIN: 'Administrador',
+    VENDEDOR: 'Vendedor',
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white shadow-sm border-b border-slate-200">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50/30">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-black">Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-slate-900 leading-tight">Sistema de Rifas</h1>
+                <p className="text-[11px] text-slate-400 leading-none">Panel de Administración</p>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-slate-900">{user.nombre}</p>
-                <p className="text-xs text-slate-500">{user.email}</p>
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-semibold">
+                  {user.nombre?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-slate-800 leading-tight">{user.nombre}</p>
+                  <p className="text-[11px] text-slate-400 leading-tight">{roleLabel[normalizedRole || ''] || user.rol}</p>
+                </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors duration-200"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                title="Cerrar sesión"
               >
-                Cerrar sesión
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           </div>
@@ -81,143 +108,260 @@ export default function DashboardPage() {
           <VentasOnlineBanner onVerPendientes={() => router.push('/ventas-publicas')} />
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-xl font-semibold text-black mb-4">
-            Bienvenido al Dashboard
+        {/* Welcome Section */}
+        <div className="mb-8 animate-fade-in">
+          <h2 className="text-2xl font-semibold text-slate-900 mb-1">
+            Bienvenido, {user.nombre.split(' ')[0]}
           </h2>
-          <p className="text-slate-600 mb-6">
-            Usuario logueado: <span className="font-medium">{user.nombre}</span>
+          <p className="text-slate-500 text-sm">
+            Gestiona tus rifas, ventas y clientes desde un solo lugar
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-              <h3 className="text-sm font-medium text-slate-500 mb-2">Rol</h3>
-              <p className="text-2xl font-light text-slate-900">{user.rol}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-              <h3 className="text-sm font-medium text-slate-500 mb-2">ID de Usuario</h3>
-              <p className="text-sm font-mono text-slate-900">{user.id}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-              <h3 className="text-sm font-medium text-slate-500 mb-2">Estado</h3>
-              <p className="text-2xl font-light text-green-600">Activo</p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Rol</p>
+                <p className="text-lg font-semibold text-slate-900">{roleLabel[normalizedRole || ''] || user.rol}</p>
+              </div>
             </div>
           </div>
-
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold text-black mb-4">Módulos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Módulo de Ventas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
-              {canUseOperationalModules && (
-                <a
-                  href="/ventas"
-                  className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200 hover:shadow-md transition-shadow cursor-pointer group"
-                >
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white group-hover:bg-blue-700 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-blue-900 mb-2 ml-3">Ventas</h4>
-                  </div>
-                  <p className="text-sm text-blue-700">Sistema de ventas con bloqueo en tiempo real</p>
-                  <div className="mt-3 flex items-center text-xs text-blue-600">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                      En vivo
-                    </span>
-                  </div>
-                </a>
-              )}
-
-              {/* Módulo de Ventas Públicas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
-              {canUseOperationalModules && (
-                <a
-                  href="/ventas-publicas"
-                  className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg border border-green-200 hover:shadow-md transition-shadow cursor-pointer group"
-                >
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-white group-hover:bg-green-700 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-green-900 mb-2 ml-3">Ventas Públicas</h4>
-                  </div>
-                  <p className="text-sm text-green-700">Confirmar pagos desde la web pública</p>
-                  <div className="mt-3 flex items-center text-xs text-green-600">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800">
-                      Nuevo
-                    </span>
-                  </div>
-                </a>
-              )}
-
-              {/* Módulo de Boletas Reservadas - Disponible para SUPER_ADMIN, VENDEDOR y ADMIN */}
-              {canUseOperationalModules && (
-                <a
-                  href="/boletas-reservadas"
-                  className="bg-gradient-to-r from-amber-50 to-amber-100 p-6 rounded-lg border border-amber-200 hover:shadow-md transition-shadow cursor-pointer group"
-                >
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-amber-600 rounded-lg flex items-center justify-center text-white group-hover:bg-amber-700 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-amber-900 mb-2 ml-3">Boletas Reservadas</h4>
-                  </div>
-                  <p className="text-sm text-amber-700">Administrar y liberar boletas reservadas sin pago</p>
-                  <div className="mt-3 flex items-center text-xs text-amber-600">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800">
-                      Nuevo
-                    </span>
-                  </div>
-                </a>
-              )}
-              
-              <a
-                href="/clientes"
-                className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <h4 className="text-lg font-medium text-slate-900 mb-2">Clientes</h4>
-                <p className="text-sm text-slate-600">Gestionar clientes del sistema</p>
-              </a>
-              {canUseRifas && (
-                <a
-                  href="/rifas"
-                  className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <h4 className="text-lg font-medium text-slate-900 mb-2">Rifas</h4>
-                  <p className="text-sm text-slate-600">Gestionar rifas y sorteos</p>
-                </a>
-              )}
-              {canUseOperationalModules && (
-                <a
-                  href="/boletas/ver"
-                  className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <h4 className="text-lg font-medium text-slate-900 mb-2">Boletas</h4>
-                  <p className="text-sm text-slate-600">Ver todas las boletas del sistema</p>
-                </a>
-              )}
-              {canUseReportes ? (
-                <a
-                  href="/analytics"
-                  className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <h4 className="text-lg font-medium text-slate-900 mb-2">Reportes</h4>
-                  <p className="text-sm text-slate-600">Ver reportes y métricas de rifas</p>
-                </a>
-              ) : normalizedRole === 'ADMIN' ? null : (
-                <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 opacity-50">
-                  <h4 className="text-lg font-medium text-slate-400 mb-2">Reportes</h4>
-                  <p className="text-sm text-slate-400">Próximamente</p>
-                </div>
-              )}
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Correo</p>
+                <p className="text-sm font-medium text-slate-900 truncate max-w-[180px]">{user.email}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Estado</p>
+                <p className="text-lg font-semibold text-green-600">Activo</p>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Modules */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-center gap-2 mb-5">
+            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-slate-900">Módulos</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Ventas */}
+            {canUseOperationalModules && (
+              <a
+                href="/ventas"
+                className="group relative bg-gradient-to-br from-indigo-500 to-indigo-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-indigo-600/15"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold border border-white/10">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                      En vivo
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold mb-1">Ventas</h4>
+                  <p className="text-indigo-100 text-sm leading-relaxed">Sistema de ventas con bloqueo en tiempo real</p>
+                  <div className="mt-4 flex items-center text-indigo-200 text-xs font-medium group-hover:text-white transition-colors">
+                    Ir al módulo
+                    <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              </a>
+            )}
+
+            {/* Ventas Públicas */}
+            {canUseOperationalModules && (
+              <a
+                href="/ventas-publicas"
+                className="group relative bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-emerald-600/15"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                      </svg>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold border border-white/10">
+                      Online
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold mb-1">Ventas Públicas</h4>
+                  <p className="text-emerald-100 text-sm leading-relaxed">Confirmar pagos desde la web pública</p>
+                  <div className="mt-4 flex items-center text-emerald-200 text-xs font-medium group-hover:text-white transition-colors">
+                    Ir al módulo
+                    <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              </a>
+            )}
+
+            {/* Boletas Reservadas */}
+            {canUseOperationalModules && (
+              <a
+                href="/boletas-reservadas"
+                className="group relative bg-gradient-to-br from-amber-500 to-amber-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-amber-600/15"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold border border-white/10">
+                      Reservas
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold mb-1">Boletas Reservadas</h4>
+                  <p className="text-amber-100 text-sm leading-relaxed">Administrar y liberar boletas reservadas</p>
+                  <div className="mt-4 flex items-center text-amber-200 text-xs font-medium group-hover:text-white transition-colors">
+                    Ir al módulo
+                    <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              </a>
+            )}
+
+            {/* Clientes */}
+            <a
+              href="/clientes"
+              className="group bg-white p-6 rounded-2xl border border-slate-200/80 hover:border-slate-300 card-hover shadow-sm"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center group-hover:bg-violet-100 transition-colors">
+                  <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h4 className="text-base font-semibold text-slate-900">Clientes</h4>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed">Gestionar clientes del sistema</p>
+              <div className="mt-3 flex items-center text-slate-400 text-xs font-medium group-hover:text-indigo-600 transition-colors">
+                Ir al módulo
+                <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              </div>
+            </a>
+
+            {/* Rifas */}
+            {canUseRifas && (
+              <a
+                href="/rifas"
+                className="group bg-white p-6 rounded-2xl border border-slate-200/80 hover:border-slate-300 card-hover shadow-sm"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center group-hover:bg-rose-100 transition-colors">
+                    <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-semibold text-slate-900">Rifas</h4>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed">Gestionar rifas y sorteos</p>
+                <div className="mt-3 flex items-center text-slate-400 text-xs font-medium group-hover:text-indigo-600 transition-colors">
+                  Ir al módulo
+                  <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                </div>
+              </a>
+            )}
+
+            {/* Boletas */}
+            {canUseOperationalModules && (
+              <a
+                href="/boletas/ver"
+                className="group bg-white p-6 rounded-2xl border border-slate-200/80 hover:border-slate-300 card-hover shadow-sm"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center group-hover:bg-sky-100 transition-colors">
+                    <svg className="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-semibold text-slate-900">Boletas</h4>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed">Ver todas las boletas del sistema</p>
+                <div className="mt-3 flex items-center text-slate-400 text-xs font-medium group-hover:text-indigo-600 transition-colors">
+                  Ir al módulo
+                  <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                </div>
+              </a>
+            )}
+
+            {/* Reportes */}
+            {canUseReportes ? (
+              <a
+                href="/analytics"
+                className="group bg-white p-6 rounded-2xl border border-slate-200/80 hover:border-slate-300 card-hover shadow-sm"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+                    <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-semibold text-slate-900">Reportes</h4>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed">Ver reportes y métricas de rifas</p>
+                <div className="mt-3 flex items-center text-slate-400 text-xs font-medium group-hover:text-indigo-600 transition-colors">
+                  Ir al módulo
+                  <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                </div>
+              </a>
+            ) : normalizedRole === 'ADMIN' ? null : (
+              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200/50 opacity-60">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-medium text-slate-400">Reportes</h4>
+                </div>
+                <p className="text-sm text-slate-400">Próximamente</p>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="mt-auto py-6 text-center">
+        <p className="text-xs text-slate-400">Sistema de Rifas © {new Date().getFullYear()} · v2.0</p>
+      </footer>
     </div>
   )
 }

@@ -194,6 +194,12 @@ class VentasApiService {
     )
   }
 
+  async getNextIdentificacion() {
+    return this.request<{ identificacion: string }>(
+      `/clientes/next-identificacion`
+    )
+  }
+
   async getClienteById(clienteId: string) {
     return this.request<Cliente>(
       `/clientes/${clienteId}`

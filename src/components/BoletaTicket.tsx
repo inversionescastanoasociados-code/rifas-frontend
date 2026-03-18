@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
 
 interface BoletaTicketProps {
@@ -80,42 +80,30 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     }
   })()
 
-  const reservadaHastaFmt = formatDateDisplay(reservadaHasta ?? null)
-
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.debug('BoletaTicket props', {
-      estado,
-      estadoNorm,
-      deuda,
-      deudaNum,
-      clienteInfo,
-      reservadaHasta,
-      reservadaHastaFmt,
-    })
-  }, [estado, deuda, clienteInfo, reservadaHasta, reservadaHastaFmt])
-
-  // --- Interpretación de estados ---
   const esReservada = estadoNorm === 'RESERVADA'
   const esCancelada = estadoNorm === 'ANULADA' || estadoNorm === 'CANCELADA'
 
   const estadoPagadoWords = new Set(['CON_PAGO', 'PAGADA', 'PAGADO', 'VENDIDA'])
   const esPagada = (estadoPagadoWords.has(estadoNorm) || (tieneCliente && deudaNum === 0)) && tieneCliente
 
-  const esAbonada = (estadoNorm === 'ABONADA' || (tieneCliente && typeof deudaNum === 'number' && deudaNum > 0))
+  const esAbonada =
+    estadoNorm === 'ABONADA' || (tieneCliente && typeof deudaNum === 'number' && deudaNum > 0)
 
   const badge = (label: string, className: string) => (
-    <div className={`w-full py-1 text-center font-extrabold text-[11px] tracking-wide ${className}`}>
+    <div
+      className={`w-full py-1 text-center font-extrabold text-[11px] ${className}`}
+      style={{ letterSpacing: '0.5px' }}
+    >
       {label}
     </div>
   )
 
-  const baseText = 'text-[9px] text-center space-y-1 text-black leading-snug'
+  const baseText = 'text-[9px] text-left space-y-1 text-black leading-snug'
 
   const renderEstado = () => {
     if (esCancelada) {
       return (
-        <div className={baseText}>
+        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('BOLETA CANCELADA', 'bg-red-600 text-white')}
           <p className="font-bold">Esta boleta no tiene validez</p>
         </div>
@@ -124,19 +112,26 @@ export default function BoletaTicket(props: BoletaTicketProps) {
 
     if (esReservada && tieneCliente) {
       return (
-        <div className={baseText}>
+        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('RESERVADA', 'bg-blue-600 text-white')}
+          {typeof deudaNum === 'number' && deudaNum > 0 && (
+            <p className="font-extrabold">
+              Deuda: ${deudaNum.toLocaleString('es-CO')}
+            </p>
+          )}
           <p className="font-semibold">A nombre de:</p>
           <p>{clienteInfo?.nombre ?? '—'}</p>
           <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
-          <p className="font-bold" style={{ wordSpacing: '1px' }}>Reservada hasta: {reservadaHastaFmt ?? '—'}</p>
+          <p className="font-bold" style={{ wordSpacing: '1px' }}>
+            Reservada hasta: {formatDateDisplay(reservadaHasta) ?? '—'}
+          </p>
         </div>
       )
     }
 
     if (esReservada && !tieneCliente) {
       return (
-        <div className={baseText}>
+        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('BLOQUEADA', 'bg-amber-200 text-black')}
           <p className="font-semibold">Boleta bloqueada momentáneamente</p>
         </div>
@@ -145,7 +140,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
 
     if (esPagada) {
       return (
-        <div className={baseText}>
+        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('PAGADA', 'bg-green-700 text-white')}
           <p className="font-semibold">A nombre de:</p>
           <p>{clienteInfo?.nombre ?? '—'}</p>
@@ -156,9 +151,11 @@ export default function BoletaTicket(props: BoletaTicketProps) {
 
     if (esAbonada) {
       return (
-        <div className={baseText}>
+        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('ABONADA', 'bg-orange-400 text-black')}
-          <p className="font-extrabold">Deuda: {typeof deudaNum === 'number' ? `$${deudaNum.toLocaleString('es-CO')}` : '—'}</p>
+          <p className="font-extrabold">
+            Deuda: {typeof deudaNum === 'number' ? `$${deudaNum.toLocaleString('es-CO')}` : '—'}
+          </p>
           <p className="font-semibold">A nombre de:</p>
           <p>{clienteInfo?.nombre ?? '—'}</p>
           <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
@@ -167,7 +164,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     }
 
     return (
-      <div className={baseText}>
+      <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
         {badge('DISPONIBLE', 'bg-emerald-300 text-black')}
       </div>
     )
@@ -181,8 +178,24 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       style={{ width: '800px', height: '352px', minWidth: '800px' }}
     >
       {/* LEFT */}
-      <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '179px', wordSpacing: '2px', whiteSpace: 'normal', wordBreak: 'normal', overflowWrap: 'break-word' }}>
-        <div className="text-[9px] text-center space-y-0.5 text-black font-medium leading-tight" style={{ wordSpacing: '1px' }}>
+      <div
+        className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black"
+        style={{
+          width: '210px',
+          height: '352px',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontKerning: 'none',
+          fontVariantLigatures: 'none',
+          overflow: 'hidden',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
+        }}
+      >
+        {/* Condiciones */}
+        <div
+          className="text-[9px] text-black font-semibold leading-snug text-left"
+          style={{ overflowWrap: 'break-word', wordBreak: 'break-word', wordSpacing: '3px', letterSpacing: '0.6px' }}
+        >
           <p>- Boleta sin pagar no juega</p>
           {diasCaducidad !== null ? (
             <p>- {diasCaducidad} días de caducidad</p>
@@ -192,24 +205,39 @@ export default function BoletaTicket(props: BoletaTicketProps) {
           <p>- Juega hasta quedar en poder del público</p>
         </div>
 
-        {renderEstado()}
-
-        <div className="flex justify-center">
-          <img src={qrUrl} className="w-20 h-20 border border-black" alt="QR" />
+        {/* Estado */}
+        <div className="flex-1 flex items-center mt-1 mb-1 overflow-hidden">
+          <div className="w-full" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+            {renderEstado()}
+          </div>
         </div>
 
+        {/* QR */}
+        <div className="flex justify-center mb-1">
+          <img
+            src={qrUrl}
+            alt="QR"
+            style={{ width: '72px', height: '72px', border: '1px solid #000' }}
+          />
+        </div>
+
+        {/* Nota */}
         {nota && (
-          <div className="text-center text-[8px] italic text-slate-600 px-1 leading-tight" style={{ maxHeight: '24px', overflow: 'hidden' }}>
+          <div
+            className="text-center text-[8px] italic text-slate-600"
+            style={{ maxHeight: '24px', overflow: 'hidden', lineHeight: '10px' }}
+          >
             {nota}
           </div>
         )}
 
-        <div className="space-y-0.5">
-          <div className="text-center text-lg font-extrabold text-black">
+        {/* Número y precio */}
+        <div className="text-center mt-1">
+          <div className="text-lg font-extrabold text-black leading-tight">
             #{numero.toString().padStart(4, '0')}
           </div>
           {typeof precio === 'number' && precio > 0 && (
-            <div className="text-center text-[11px] font-bold text-black">
+            <div className="text-[11px] font-bold text-black leading-snug">
               ${precio.toLocaleString('es-CO')}
             </div>
           )}

@@ -94,6 +94,13 @@ class ClienteApiService {
     })
     return this.handleResponse<ClienteDetalleResponse>(response)
   }
+
+  async getNextIdentificacion(): Promise<{ success: boolean; data: { identificacion: string } }> {
+    const response = await fetch(`${API_BASE_URL}/api/clientes/next-identificacion`, {
+      headers: this.getAuthHeaders()
+    })
+    return this.handleResponse<{ success: boolean; data: { identificacion: string } }>(response)
+  }
 }
 
 export const clienteApi = new ClienteApiService()

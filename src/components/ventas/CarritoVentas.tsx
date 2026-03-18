@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import html2canvas from 'html2canvas-pro'
 import { ventasApi } from '@/lib/ventasApi'
 import { BoletaEnCarrito, Cliente, VentaRequest } from '@/types/ventas'
 import BoletaTicket from '@/components/BoletaTicket'
@@ -11,6 +10,7 @@ import DialogoReserva from './DialogoReserva'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { normalizarTelefono } from '@/utils/telefono'
+import { downloadBoletaImage } from '@/utils/downloadBoletaImage'
 
 const MEDIOS_PAGO_MAP: Record<string, string> = {
   'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7': 'Efectivo',
@@ -230,23 +230,14 @@ export default function CarritoVentas({
     return `${minutos}:${segundos.toString().padStart(2, '0')}`
   }
 
-  // Hooks de descarga (deben estar antes de cualquier return condicional)
+  // Hooks de descarga (misma lógica que módulo de Mis Boletas)
   const descargarBoleta = useCallback(async (boletaNumero: number, identificacion: string, elementId: string) => {
-    const wrapper = document.getElementById(elementId)
-    const el = wrapper?.querySelector('.boleta-ticket') as HTMLElement ?? wrapper
-    if (!el) return
     try {
-      const canvas = await html2canvas(el, {
-        scale: 4.03, // 800*4.03 ≈ 3224, 352*4.03 ≈ 1417
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      })
-      const link = document.createElement('a')
       const cc = (identificacion || 'SIN_CC').replace(/\s+/g, '_')
-      link.download = `boleta_${boletaNumero.toString().padStart(4, '0')}_CC_${cc}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      await downloadBoletaImage({
+        elementId,
+        fileName: `boleta_${boletaNumero.toString().padStart(4, '0')}_CC_${cc}.png`,
+      })
     } catch (err) {
       console.error('Error descargando boleta:', err)
     }
@@ -371,23 +362,33 @@ export default function CarritoVentas({
                       </Link>
                     </div>
                   </div>
-                  {/* Boleta renderizada */}
-                  <ResponsiveBoletaWrapper id={`boleta-print-${b.id}`}>
-                      <BoletaTicket
-                        qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
-                        barcode={b.barcode || ''}
-                        numero={b.numero}
-                        imagenUrl={b.imagen_url}
-                        rifaNombre={rifaNombre || ''}
-                        estado={tipoVenta === 'ABONO' ? 'ABONADA' : 'CON_PAGO'}
-                        clienteInfo={{
-                          nombre: cliente.nombre,
-                          identificacion: cliente.identificacion
-                        }}
-                        deuda={tipoVenta === 'ABONO' ? saldoPendiente / boletasVenta.length : 0}
-                        precio={precioBoleta}
-                      />
-                  </ResponsiveBoletaWrapper>
+              {/* Boleta renderizada */}
+              <ResponsiveBoletaWrapper id={`boleta-print-${b.id}`}>
+                <BoletaTicket
+                  qrUrl={b.qr_url || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=boleta-${b.id}`}
+                  barcode={b.barcode || ''}
+                  numero={b.numero}
+                  imagenUrl={b.imagen_url}
+                  rifaNombre={rifaNombre || ''}
+                  estado={
+                    tipoVenta === 'ABONO'
+                      ? (abonosPorBoleta[b.id] || 0) >= precioBoleta
+                        ? 'PAGADA'
+                        : 'ABONADA'
+                      : 'CON_PAGO'
+                  }
+                  clienteInfo={{
+                    nombre: cliente.nombre,
+                    identificacion: cliente.identificacion
+                  }}
+                  deuda={
+                    tipoVenta === 'ABONO'
+                      ? Math.max(precioBoleta - (abonosPorBoleta[b.id] || 0), 0)
+                      : 0
+                  }
+                  precio={precioBoleta}
+                />
+              </ResponsiveBoletaWrapper>
                 </div>
               ))}
             </div>

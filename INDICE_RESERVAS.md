@@ -11,7 +11,13 @@ Quiero usar el módulo de reservas:
 
 ### 👨‍💻 **Desarrollador / Técnico**
 Quiero entender/modificar el código:
-- 📖 Lee: [RESERVAS_IMPLEMENTACION.md](RESERVAS_IMMENTACION.md)
+- 📖 Lee: [RESERVAS_IMPLEMENTACION.md](RESERVAS_IMMENTACION.md)cd rifas-backend-main
+git add src/modules/clientes/clientes.routes.js src/modules/clientes/clientes.controller.js src/modules/clientes/clientes.service.js
+git commit -m "feat: agregar endpoint para generar identificación secuencial"
+git push origin maincd rifas-backend-main
+git add src/modules/clientes/clientes.routes.js src/modules/clientes/clientes.controller.js src/modules/clientes/clientes.service.js
+git commit -m "feat: agregar endpoint para generar identificación secuencial"
+git push origin main
 - 🔍 Ver componentes en: `src/components/ventas/`
 - 🔗 Ver tipos en: `src/types/ventas.ts`
 - 🔌 Ver API en: `src/lib/ventasApi.ts`

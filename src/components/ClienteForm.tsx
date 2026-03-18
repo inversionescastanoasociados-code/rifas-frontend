@@ -20,6 +20,7 @@ export default function ClienteForm({ cliente, onSubmit, onCancel }: ClienteForm
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [generandoId, setGenerandoId] = useState(false)
 
   useEffect(() => {
     if (cliente) {
@@ -45,6 +46,24 @@ export default function ClienteForm({ cliente, onSubmit, onCancel }: ClienteForm
         ...prev,
         [name]: ''
       }))
+    }
+  }
+
+  const generarIdentificacion = async () => {
+    setGenerandoId(true)
+    try {
+      const response = await clienteApi.getNextIdentificacion()
+      setFormData(prev => ({
+        ...prev,
+        identificacion: response.data.identificacion
+      }))
+      if (errors.identificacion) {
+        setErrors(prev => ({ ...prev, identificacion: '' }))
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, identificacion: 'Error al generar identificación' }))
+    } finally {
+      setGenerandoId(false)
     }
   }
 
@@ -191,17 +210,29 @@ export default function ClienteForm({ cliente, onSubmit, onCancel }: ClienteForm
             <label htmlFor="identificacion" className="block text-sm font-bold text-black mb-2">
               Identificación *
             </label>
-            <input
-              type="text"
-              id="identificacion"
-              name="identificacion"
-              value={formData.identificacion}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all duration-200 text-slate-900 placeholder-slate-400 ${
-                errors.identificacion ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
-              }`}
-              placeholder="12345678901"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                id="identificacion"
+                name="identificacion"
+                value={formData.identificacion}
+                onChange={handleInputChange}
+                className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all duration-200 text-slate-900 placeholder-slate-400 ${
+                  errors.identificacion ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
+                }`}
+                placeholder="12345678901"
+              />
+              {!cliente && (
+                <button
+                  type="button"
+                  onClick={generarIdentificacion}
+                  disabled={generandoId}
+                  className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                >
+                  {generandoId ? '...' : 'Generar'}
+                </button>
+              )}
+            </div>
             {errors.identificacion && (
               <p className="mt-1 text-sm text-red-600">{errors.identificacion}</p>
             )}

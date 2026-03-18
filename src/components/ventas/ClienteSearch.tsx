@@ -31,6 +31,7 @@ export default function ClienteSearch({
   const [creando, setCreando] = useState(false)
   const [clienteCreadoExitosamente, setClienteCreadoExitosamente] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [generandoId, setGenerandoId] = useState(false)
 
 
   useEffect(() => {
@@ -73,6 +74,20 @@ export default function ClienteSearch({
     const timeoutId = setTimeout(buscarClientes, 300)
     return () => clearTimeout(timeoutId)
   }, [busqueda, cedulaBusqueda, tipoBusqueda])
+
+  // Generar identificación secuencial
+  const generarIdentificacion = async () => {
+    setGenerandoId(true)
+    setError(null)
+    try {
+      const response = await ventasApi.getNextIdentificacion()
+      setClienteNuevo(prev => ({ ...prev, identificacion: response.data.identificacion }))
+    } catch (err) {
+      setError('Error al generar identificación')
+    } finally {
+      setGenerandoId(false)
+    }
+  }
 
   // Crear nuevo cliente
   const crearCliente = async () => {
@@ -372,13 +387,23 @@ export default function ClienteSearch({
               <label className="block text-sm font-bold text-black mb-2">
                 Identificación
               </label>
-              <input
-                type="text"
-                value={clienteNuevo.identificacion}
-                onChange={(e) => setClienteNuevo({ ...clienteNuevo, identificacion: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black placeholder:text-slate-500"
-                placeholder="123456789"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={clienteNuevo.identificacion}
+                  onChange={(e) => setClienteNuevo({ ...clienteNuevo, identificacion: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black placeholder:text-slate-500"
+                  placeholder="123456789"
+                />
+                <button
+                  type="button"
+                  onClick={generarIdentificacion}
+                  disabled={generandoId}
+                  className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                >
+                  {generandoId ? '...' : 'Generar'}
+                </button>
+              </div>
             </div>
           </div>
           <div>
