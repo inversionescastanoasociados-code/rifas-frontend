@@ -197,6 +197,20 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
       container.style.cssText = 'position:fixed;top:-2000px;left:0;width:900px;pointer-events:none;'
       document.body.appendChild(container)
 
+      // 4) Pre-cargar datos financieros de boletas ABONADAS seleccionadas
+      const financieroMap: Record<string, { precio_boleta: number; total_pagado: number; saldo_pendiente: number }> = {}
+      const boletasAbonadas = boletasToDownload.filter(b => (b.estado ?? '').toString().trim().toUpperCase() === 'ABONADA')
+      if (boletasAbonadas.length > 0) {
+        const detalles = await Promise.all(
+          boletasAbonadas.map(b =>
+            boletaApi.getBoletaById(b.id).then(r => ({ id: b.id, financiero: r.data.boleta_financiero })).catch(() => null)
+          )
+        )
+        detalles.forEach(d => {
+          if (d?.financiero) financieroMap[d.id] = d.financiero
+        })
+      }
+
       for (let i = 0; i < boletasToDownload.length; i++) {
         const boleta = boletasToDownload[i]
         setDownloadProgress({ current: i + 1, total: boletasToDownload.length })
@@ -237,7 +251,10 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
         } else if (esPagada) {
           estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#15803d;color:white;">PAGADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
         } else if (esAbonada) {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fb923c;color:black;">ABONADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
+          const fin = financieroMap[boleta.id]
+          const abonado = fin ? fin.total_pagado : 0
+          const saldo = fin ? fin.saldo_pendiente : (precioNum ? precioNum : 0)
+          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fb923c;color:black;">ABONADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>${fin ? `<p style="font-weight:700;text-align:center;font-size:10px;color:#15803d;">Abonado: $${abonado.toLocaleString('es-CO')}</p><p style="font-weight:700;text-align:center;font-size:10px;color:#dc2626;">Deuda: $${saldo.toLocaleString('es-CO')}</p>` : ''}`
         } else {
           estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#6ee7b7;color:black;">DISPONIBLE</div>`
         }
