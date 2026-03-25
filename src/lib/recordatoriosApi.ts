@@ -16,6 +16,8 @@ export interface ClienteRecordatorio {
   deuda_total: number
   total_notificaciones: number
   ultima_notificacion: string | null
+  vendedor_id: string | null
+  vendedor_nombre: string | null
 }
 
 export interface RecordatorioListResponse {
@@ -43,6 +45,12 @@ export interface NotificacionHistorial {
   notificado_por_nombre: string | null
 }
 
+export interface Vendedor {
+  id: string
+  nombre: string
+  rol: string
+}
+
 class RecordatoriosApiService {
   private getAuthHeaders() {
     const token = localStorage.getItem('token')
@@ -65,14 +73,16 @@ class RecordatoriosApiService {
     limit: number = 20,
     search: string = '',
     filtro: 'todos' | 'reservadas' | 'abonadas' = 'todos',
-    notificado: 'todos' | 'si' | 'no' = 'todos'
+    notificado: 'todos' | 'si' | 'no' = 'todos',
+    vendedor: string = ''
   ): Promise<RecordatorioListResponse> {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
       filtro,
       notificado,
-      ...(search && { search })
+      ...(search && { search }),
+      ...(vendedor && { vendedor })
     })
 
     const response = await fetch(`${API_BASE_URL}/api/recordatorios?${params}`, {
@@ -89,8 +99,18 @@ class RecordatoriosApiService {
     return this.handleResponse(response)
   }
 
-  async getResumen(): Promise<{ success: boolean; data: ResumenRecordatorios }> {
-    const response = await fetch(`${API_BASE_URL}/api/recordatorios/resumen`, {
+  async getResumen(vendedor: string = ''): Promise<{ success: boolean; data: ResumenRecordatorios }> {
+    const params = new URLSearchParams({
+      ...(vendedor && { vendedor })
+    })
+    const response = await fetch(`${API_BASE_URL}/api/recordatorios/resumen?${params}`, {
+      headers: this.getAuthHeaders()
+    })
+    return this.handleResponse(response)
+  }
+
+  async getVendedores(): Promise<{ success: boolean; data: Vendedor[] }> {
+    const response = await fetch(`${API_BASE_URL}/api/recordatorios/vendedores`, {
       headers: this.getAuthHeaders()
     })
     return this.handleResponse(response)

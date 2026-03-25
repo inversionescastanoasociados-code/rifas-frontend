@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios } from '@/lib/recordatoriosApi'
+import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor } from '@/lib/recordatoriosApi'
 import { clienteApi } from '@/lib/clienteApi'
 import { RifaConBoletas } from '@/types/cliente'
 import { normalizarTelefono } from '@/utils/telefono'
@@ -58,7 +58,7 @@ async function generarMensajeWhatsApp(cliente: ClienteRecordatorio): Promise<str
 
     let msg = `🔔 *¡Hola ${nombre}!* 🎉\n\n`
     msg += `Le escribimos de *Inversiones Castaño* para recordarle sobre sus boletas pendientes.\n\n`
-    msg += `🎯 *¡No se quede por fuera del  anticipado este sabado 21 de Marzo por 6 millones de pesos !*\n`
+    msg += `🎯 *¡No se quede por fuera del  anticipado este sabado 28 de Marzo por 8 millones de pesos !*\n`
     msg += `Para participar en este anticipado cada boleta debe de estar cancelada por lo menos con $60.000 pesos.\n\n`
 
     // Detalle por rifa
@@ -117,15 +117,24 @@ export default function RecordatoriosList() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filtroActivo, setFiltroActivo] = useState<'todos' | 'reservadas' | 'abonadas'>('todos')
   const [filtroNotificado, setFiltroNotificado] = useState<'todos' | 'si' | 'no'>('todos')
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('')
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [loading, setLoading] = useState(true)
   const [cargandoRecordatorio, setCargandoRecordatorio] = useState<string | null>(null)
+
+  // Cargar vendedores al montar
+  useEffect(() => {
+    recordatoriosApi.getVendedores()
+      .then(res => setVendedores(res.data || []))
+      .catch(() => setVendedores([]))
+  }, [])
 
   const fetchClientes = useCallback(async (page: number = 1) => {
     setLoading(true)
     try {
       const [listResponse, resumenResponse] = await Promise.all([
-        recordatoriosApi.getClientesParaRecordatorio(page, pagination.limit, searchQuery, filtroActivo, filtroNotificado),
-        recordatoriosApi.getResumen()
+        recordatoriosApi.getClientesParaRecordatorio(page, pagination.limit, searchQuery, filtroActivo, filtroNotificado, filtroVendedor),
+        recordatoriosApi.getResumen(filtroVendedor)
       ])
       setClientes(listResponse.data)
       setPagination(listResponse.pagination)
@@ -135,7 +144,7 @@ export default function RecordatoriosList() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filtroActivo, filtroNotificado, pagination.limit])
+  }, [searchQuery, filtroActivo, filtroNotificado, filtroVendedor, pagination.limit])
 
   useEffect(() => {
     fetchClientes(1)
@@ -203,6 +212,36 @@ export default function RecordatoriosList() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">🔔 Recordatorios de Pago</h2>
           <p className="text-sm text-slate-500 mt-1">Clientes con boletas pendientes — envíales un recordatorio por WhatsApp</p>
+        </div>
+      </div>
+
+      {/* Filtro principal: Vendedor/Admin */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">👤 Filtrar por Vendedor / Admin</label>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFiltroVendedor('')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              filtroVendedor === ''
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            👥 Todos
+          </button>
+          {vendedores.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setFiltroVendedor(v.id)}
+              className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                filtroVendedor === v.id
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {v.rol === 'SUPER_ADMIN' ? '👑' : v.rol === 'ADMIN' ? '🔑' : '🏷️'} {v.nombre}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -279,6 +318,7 @@ export default function RecordatoriosList() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Cliente</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Teléfono</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Vendedor</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Boletas Pend.</th>
                     <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Deuda</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Registrado</th>
@@ -319,6 +359,15 @@ export default function RecordatoriosList() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-black">{cliente.telefono}</td>
+                        <td className="px-4 py-3">
+                          {cliente.vendedor_nombre ? (
+                            <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded-full font-semibold">
+                              👤 {cliente.vendedor_nombre}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1 flex-wrap">
                             {(cliente.boletas_reservadas || 0) > 0 && (
@@ -411,6 +460,9 @@ export default function RecordatoriosList() {
                             {fueNotificado && <span className="text-green-600 text-xs">✓</span>}
                           </div>
                           <div className="text-xs text-slate-500">{cliente.telefono} · {formatDateShort(cliente.created_at)}</div>
+                          {cliente.vendedor_nombre && (
+                            <div className="text-xs text-indigo-600 font-medium mt-0.5">👤 {cliente.vendedor_nombre}</div>
+                          )}
                         </div>
                       </div>
                     </div>
