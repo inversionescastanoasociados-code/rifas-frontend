@@ -328,6 +328,35 @@ export default function DashboardPage() {
               </a>
             )}
 
+            {/* Ganadores - Solo SUPER_ADMIN */}
+            {canUseRifas && (
+              <a
+                href="/ganadores"
+                className="group relative bg-gradient-to-br from-yellow-500 to-amber-600 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-amber-600/15"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold border border-white/10">
+                      Super Admin
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold mb-1">Ganadores</h4>
+                  <p className="text-amber-100 text-sm leading-relaxed">Asignar boletas a ganadores</p>
+                  <div className="mt-4 flex items-center text-amber-200 text-xs font-medium group-hover:text-white transition-colors">
+                    Ir al módulo
+                    <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              </a>
+            )}
+
             {/* Boletas */}
             {canUseOperationalModules && (
               <a
