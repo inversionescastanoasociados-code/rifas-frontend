@@ -3,6 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { API_BASE_URL } from '@/config/api'
+import { getStorageImageUrl } from '@/lib/storageImageUrl'
+
+interface VentaInfo {
+  monto_total: number
+  abono_total: number
+  saldo_pendiente: number
+  estado_venta: string
+}
 
 interface BoletaResult {
   encontrada: boolean
@@ -15,7 +23,10 @@ interface BoletaResult {
     rifa_id: string
     rifa_nombre: string
     precio_boleta?: number
+    rifa_imagen_url?: string | null
+    nota?: string | null
     cliente_nombre?: string | null
+    venta?: VentaInfo | null
   }
 }
 
@@ -226,52 +237,129 @@ export default function GanadoresPage() {
           </div>
         )}
 
-        {/* Resultado: boleta ya asignada */}
-        {resultado?.encontrada && !resultado.disponible && resultado.boleta && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900">Boleta #{resultado.boleta.numero}</h3>
-                <p className="text-xs text-slate-500">{resultado.boleta.rifa_nombre}</p>
-              </div>
-              <span className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${
-                resultado.boleta.estado === 'PAGADA' ? 'bg-green-50 text-green-700 border border-green-200' :
-                resultado.boleta.estado === 'ABONADA' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                resultado.boleta.estado === 'RESERVADA' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                'bg-slate-50 text-slate-700 border border-slate-200'
-              }`}>
-                {resultado.boleta.estado}
-              </span>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-sm text-slate-600">
-                <span className="font-medium text-slate-900">Asignada a: </span>
-                {resultado.boleta.cliente_nombre || 'Sin nombre registrado'}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">Esta boleta ya tiene un cliente asignado y no se puede reasignar desde aquí.</p>
-            </div>
-          </div>
-        )}
+        {/* Resultado: boleta ya asignada — estilo BoletaTicket sin QR, cédula ni teléfono */}
+        {resultado?.encontrada && !resultado.disponible && resultado.boleta && (() => {
+          const b = resultado.boleta!
+          const estadoNorm = (b.estado ?? '').toUpperCase()
+          const deuda = b.venta?.saldo_pendiente ?? 0
+          const imagen = getStorageImageUrl(b.rifa_imagen_url ?? null) ?? b.rifa_imagen_url
+          const esPagada = estadoNorm === 'PAGADA' || estadoNorm === 'CON_PAGO'
+          const esAbonada = estadoNorm === 'ABONADA'
+          const esReservada = estadoNorm === 'RESERVADA'
 
-        {/* Resultado: boleta disponible → Formulario de asignación */}
-        {resultado?.encontrada && resultado.disponible && resultado.boleta && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900">Boleta #{resultado.boleta.numero} — Disponible</h3>
-                <p className="text-xs text-slate-500">{resultado.boleta.rifa_nombre} · Precio: ${resultado.boleta.precio_boleta?.toLocaleString('es-CO')} COP</p>
+          return (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              {/* Ticket card */}
+              <div className="flex border-2 border-black bg-white mx-auto overflow-hidden" style={{ maxWidth: '800px', height: '352px' }}>
+                {/* LEFT SIDE */}
+                <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '210px', height: '352px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                  {/* Conditions */}
+                  <div className="text-[9px] text-black font-semibold leading-snug text-left" style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
+                    <p>- Boleta sin pagar no juega</p>
+                    <p>- Válida hasta el día del sorteo</p>
+                    <p>- Juega hasta quedar en poder del público</p>
+                  </div>
+
+                  {/* Estado */}
+                  <div className="flex-1 flex items-center mt-1 mb-1 overflow-hidden">
+                    <div className="w-full text-[9px] text-left space-y-1 text-black leading-snug" style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
+                      {/* Badge */}
+                      <div className={`w-full py-1 text-center font-extrabold text-[11px] ${
+                        esPagada ? 'bg-green-700 text-white' :
+                        esAbonada ? 'bg-orange-400 text-black' :
+                        esReservada ? 'bg-blue-600 text-white' :
+                        'bg-slate-200 text-black'
+                      }`} style={{ letterSpacing: '0.5px' }}>
+                        {esPagada ? 'PAGADA' : esAbonada ? 'ABONADA' : estadoNorm}
+                      </div>
+
+                      {/* Deuda (only for abonada) */}
+                      {esAbonada && deuda > 0 && (
+                        <p className="font-extrabold">Deuda: ${deuda.toLocaleString('es-CO')}</p>
+                      )}
+
+                      {/* Client name — NO cedula, NO teléfono */}
+                      <p className="font-semibold">A nombre de:</p>
+                      <p>{b.cliente_nombre ?? '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Nota */}
+                  {b.nota && (
+                    <div className="text-center text-[8px] italic text-slate-600" style={{ maxHeight: '24px', overflow: 'hidden', lineHeight: '10px' }}>
+                      {b.nota}
+                    </div>
+                  )}
+
+                  {/* Number + Price */}
+                  <div className="text-center mt-1">
+                    <div className="text-lg font-extrabold text-black leading-tight">
+                      #{b.numero.toString().padStart(4, '0')}
+                    </div>
+                    {typeof b.precio_boleta === 'number' && b.precio_boleta > 0 && (
+                      <div className="text-[11px] font-bold text-black leading-snug">
+                        ${b.precio_boleta.toLocaleString('es-CO')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT SIDE — Rifa Image */}
+                <div className="flex-shrink-0 h-full" style={{ width: '590px' }}>
+                  {imagen ? (
+                    <img src={imagen} alt={b.rifa_nombre} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                      <span className="text-slate-400 text-sm">{b.rifa_nombre}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          )
+        })()}
+
+        {/* Resultado: boleta disponible → Ticket preview + Formulario */}
+        {resultado?.encontrada && resultado.disponible && resultado.boleta && (() => {
+          const b = resultado.boleta!
+          const imagen = getStorageImageUrl(b.rifa_imagen_url ?? null) ?? b.rifa_imagen_url
+          return (
+          <div className="space-y-6">
+            {/* Ticket preview */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="flex border-2 border-black bg-white mx-auto overflow-hidden" style={{ maxWidth: '800px', height: '352px' }}>
+                <div className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black" style={{ width: '210px', height: '352px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                  <div className="text-[9px] text-black font-semibold leading-snug text-left" style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
+                    <p>- Boleta sin pagar no juega</p>
+                    <p>- Válida hasta el día del sorteo</p>
+                    <p>- Juega hasta quedar en poder del público</p>
+                  </div>
+                  <div className="flex-1 flex items-center mt-1 mb-1">
+                    <div className="w-full text-[9px] text-left space-y-1 text-black leading-snug" style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
+                      <div className="w-full py-1 text-center font-extrabold text-[11px] bg-emerald-300 text-black" style={{ letterSpacing: '0.5px' }}>DISPONIBLE</div>
+                    </div>
+                  </div>
+                  <div className="text-center mt-1">
+                    <div className="text-lg font-extrabold text-black leading-tight">#{b.numero.toString().padStart(4, '0')}</div>
+                    {typeof b.precio_boleta === 'number' && b.precio_boleta > 0 && (
+                      <div className="text-[11px] font-bold text-black leading-snug">${b.precio_boleta.toLocaleString('es-CO')}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 h-full" style={{ width: '590px' }}>
+                  {imagen ? (
+                    <img src={imagen} alt={b.rifa_nombre} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                      <span className="text-slate-400 text-sm">{b.rifa_nombre}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Form */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
 
             <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
               <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -384,7 +472,9 @@ export default function GanadoresPage() {
               )}
             </button>
           </div>
-        )}
+          </div>
+          )
+        })()}
       </main>
     </div>
   )
