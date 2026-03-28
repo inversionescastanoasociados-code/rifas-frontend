@@ -348,7 +348,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <h4 className="text-lg font-semibold mb-1">Ganadores</h4>
-                  <p className="text-amber-100 text-sm leading-relaxed">Asignar boletas a ganadores</p>
+                  <p className="text-amber-100 text-sm leading-relaxed">Gestionar ganadores</p>
                   <div className="mt-4 flex items-center text-amber-200 text-xs font-medium group-hover:text-white transition-colors">
                     Ir al módulo
                     <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>

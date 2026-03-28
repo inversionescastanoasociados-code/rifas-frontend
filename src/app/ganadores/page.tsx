@@ -152,12 +152,12 @@ export default function GanadoresPage() {
           }
         }
       })
-      setExito(`Ganador asignado: Boleta ${String(data.data.boleta_numero).padStart(4, '0')} → ${data.data.cliente_nombre}`)
+      setExito(`🏆 ${data.data.cliente_nombre} — Boleta ${String(data.data.boleta_numero).padStart(4, '0')}`)
       setCliente({ nombre: '', telefono: '', email: '', direccion: '', identificacion: '' })
       setMontoAbono('')
       setNumeroBoleta('')
     } catch (err: any) {
-      setError(err.message || 'Error asignando ganador')
+      setError(err.message || 'Error al procesar ganador')
     } finally {
       setAsignando(false)
     }
@@ -474,14 +474,14 @@ export default function GanadoresPage() {
               {asignando ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Asignando...
+                  Procesando...
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                   </svg>
-                  Asignar Ganador
+                  Confirmar Ganador
                 </>
               )}
             </button>
