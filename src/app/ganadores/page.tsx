@@ -136,8 +136,23 @@ export default function GanadoresPage() {
           medio_pago_id: medioPagoId,
         }),
       })
-      setExito(`Ganador asignado: Boleta #${data.data.boleta_numero} → ${data.data.cliente_nombre} (${data.data.estado_venta})`)
-      setResultado(null)
+      const boletaPrevia = resultado!.boleta!
+      setResultado({
+        encontrada: true,
+        disponible: false,
+        boleta: {
+          ...boletaPrevia,
+          estado: data.data.estado_boleta || data.data.estado_venta,
+          cliente_nombre: data.data.cliente_nombre,
+          venta: {
+            monto_total: boletaPrevia.precio_boleta || 0,
+            abono_total: data.data.monto_abono,
+            saldo_pendiente: Math.max((boletaPrevia.precio_boleta || 0) - data.data.monto_abono, 0),
+            estado_venta: data.data.estado_venta
+          }
+        }
+      })
+      setExito(`Ganador asignado: Boleta ${String(data.data.boleta_numero).padStart(4, '0')} → ${data.data.cliente_nombre}`)
       setCliente({ nombre: '', telefono: '', email: '', direccion: '', identificacion: '' })
       setMontoAbono('')
       setNumeroBoleta('')
@@ -173,7 +188,6 @@ export default function GanadoresPage() {
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-slate-900 leading-tight">Ganadores</h1>
-                <p className="text-[11px] text-slate-400 leading-none">Asignar boletas a ganadores</p>
               </div>
             </div>
             <span className="text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full font-semibold border border-amber-200">SUPER ADMIN</span>
