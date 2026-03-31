@@ -58,7 +58,7 @@ async function generarMensajeWhatsApp(cliente: ClienteRecordatorio): Promise<str
 
     let msg = `🔔 *¡Hola ${nombre}!* 🎉\n\n`
     msg += `Le escribimos de *Inversiones Castaño* para recordarle sobre sus boletas pendientes.\n\n`
-    msg += `🎯 *¡No se quede por fuera del  anticipado este sabado 28 de Marzo por 8 millones de pesos !*\n`
+    msg += `🎯 *¡No se quede por fuera del  anticipado este sabado 4 de Abril por 2 millones de pesos !*\n`
     msg += `Para participar en este anticipado cada boleta debe de estar cancelada por lo menos con $60.000 pesos.\n\n`
 
     // Detalle por rifa
