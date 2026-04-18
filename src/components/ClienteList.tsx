@@ -5,6 +5,7 @@ import { Cliente } from '@/types/cliente'
 import { clienteApi } from '@/lib/clienteApi'
 import { RifaConBoletas } from '@/types/cliente'
 import { normalizarTelefono } from '@/utils/telefono'
+import { getMediosDePagoTexto } from '@/config/paymentInfo'
 
 interface ClienteListProps {
   clientes: Cliente[]
@@ -83,7 +84,7 @@ async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<
       msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
     }
 
-    msg += `\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+    msg += `\n${getMediosDePagoTexto()}`
 
     msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
 
@@ -95,7 +96,7 @@ async function generarWhatsAppRecordatorioConDetalle(cliente: Cliente): Promise<
     const deuda = cliente.deuda_total || 0
     let msg = `🔔 *Recordatorio de pago pendiente*\n\nHola *${nombre}*, le recordamos que tiene boletas pendientes por pagar.\n\n`
     if (deuda > 0) msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n`
-    msg += `\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+    msg += `\n${getMediosDePagoTexto()}`
     msg += `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
     msg += `\n\nPor favor, acérquese a completar su pago. ¡Gracias! 🙏`
     return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`

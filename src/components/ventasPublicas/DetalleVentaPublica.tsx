@@ -7,6 +7,7 @@ import { ventasApi } from '@/lib/ventasApi'
 import ReciboAbono, { ReciboAbonoData } from '@/components/ventas/ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { normalizarTelefono } from '@/utils/telefono'
+import { getMediosDePagoTexto } from '@/config/paymentInfo'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -480,14 +481,15 @@ export default function DetalleVentaPublica({
     
     const numeros = venta.boletas.map(b => `#${b.numero.toString().padStart(4, '0')}`).join(', ')
     
+    const mediosPago = getMediosDePagoTexto()
     let mensaje = ''
 
     if (venta.estado_venta === 'SIN_REVISAR') {
-      mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*.\n\n🏆 *PARA PARTICIPAR EN LOS PREMIOS:*\n✅ *Anticipados de 2 millones:* cancelar el *50%* de la boleta a partir del 7 de marzo\n🚢 *Crucero (9 de mayo):* cancelar el *75%* de la boleta\n🎁 *Premio mayor (20 de junio):* cancelar el *100%* de la boleta\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*.\n\n🏆 *PARA PARTICIPAR EN LOS PREMIOS:*\n✅ *Anticipados de 2 millones:* cancelar el *50%* de la boleta a partir del 7 de marzo\n🚢 *Crucero (9 de mayo):* cancelar el *75%* de la boleta\n🎁 *Premio mayor (20 de junio):* cancelar el *100%* de la boleta\n\n${mediosPago}\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias!`
     } else if (venta.estado_venta === 'ABONADA') {
-      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes un saldo pendiente de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Total: ${formatoMoneda(venta.monto_total)}, Abonado: ${formatoMoneda(venta.abono_total)}.\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\n¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes un saldo pendiente de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*). Total: ${formatoMoneda(venta.monto_total)}, Abonado: ${formatoMoneda(venta.abono_total)}.\n\n${mediosPago}\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\n¡Gracias!`
     } else if (venta.estado_venta === 'PENDIENTE') {
-      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes pendiente el pago de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*).\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias!`
+      mensaje = `Hola ${venta.cliente_nombre}, te recordamos que tienes pendiente el pago de *${formatoMoneda(venta.saldo_pendiente)}* en la rifa *${venta.rifa_nombre}* (boletas: *${numeros}*).\n\n${mediosPago}\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias!`
     }
 
     return `https://wa.me/${telefonoCompleto}?text=${encodeURIComponent(mensaje)}`

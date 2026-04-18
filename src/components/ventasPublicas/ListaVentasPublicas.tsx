@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { VentaPublicaListado } from '@/types/ventasPublicas'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { normalizarTelefono } from '@/utils/telefono'
+import { getMediosDePagoBloque } from '@/config/paymentInfo'
 
 interface ListaVentasPublicasProps {
   onSelectVenta: (ventaId: string) => void
@@ -122,7 +123,7 @@ export default function ListaVentasPublicas({
       ? venta.numeros_boletas.map(n => `#${String(n).padStart(4, '0')}`).join(', ')
       : `${venta.cantidad_boletas} boleta(s)`
     
-    const mediosDePago = `\n\n*MEDIOS DE PAGO*\n💰 LLAVE 0091761012 \n💰 CUENTA DE AHORROS BANCOLOMBIA: 70800002342\nINVERSIONES CASTANO SAS\n\n*Importante: enviar comprobante de pago una vez realizada la transferencia* ✅`
+    const mediosDePago = getMediosDePagoBloque()
 
     const linkBoletas = `\n\n📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas`
 

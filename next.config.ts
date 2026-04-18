@@ -6,6 +6,9 @@ const backendOrigin = apiBase.replace(/\/api\/?$/, "");
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  turbopack: {
+    root: __dirname,
+  },
   async rewrites() {
     return [
       // Proxy /storage/* al backend para evitar ERR_BLOCKED_BY_RESPONSE.NotSameOrigin
