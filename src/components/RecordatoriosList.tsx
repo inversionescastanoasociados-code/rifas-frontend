@@ -115,6 +115,21 @@ export default function RecordatoriosList() {
   const [loading, setLoading] = useState(true)
   const [cargandoRecordatorio, setCargandoRecordatorio] = useState<string | null>(null)
 
+  // Detectar si el usuario logueado es VENDEDOR y forzar filtro
+  const [isVendedor, setIsVendedor] = useState(false)
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        const user = JSON.parse(userData)
+        if (user.rol?.toUpperCase() === 'VENDEDOR' && user.id) {
+          setIsVendedor(true)
+          setFiltroVendedor(user.id)
+        }
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   // Cargar vendedores al montar
   useEffect(() => {
     recordatoriosApi.getVendedores()
@@ -208,7 +223,8 @@ export default function RecordatoriosList() {
         </div>
       </div>
 
-      {/* Filtro principal: Vendedor/Admin */}
+      {/* Filtro principal: Vendedor/Admin — oculto para VENDEDOR (auto-filtrado) */}
+      {!isVendedor && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <label className="block text-xs font-bold text-slate-600 uppercase mb-2">👤 Filtrar por Vendedor / Admin</label>
         <div className="flex gap-2 flex-wrap">
@@ -237,6 +253,7 @@ export default function RecordatoriosList() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Filter Cards - Tipo de boleta */}
       <div className="grid grid-cols-3 gap-3">

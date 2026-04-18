@@ -18,7 +18,8 @@ export default function DashboardPage() {
   const normalizedRole = user?.rol?.toUpperCase()
   const canUseOperationalModules = ['SUPER_ADMIN', 'VENDEDOR', 'ADMIN'].includes(normalizedRole || '')
   const canUseRifas = normalizedRole === 'SUPER_ADMIN'
-  const canUseReportes = ['SUPER_ADMIN', 'VENDEDOR'].includes(normalizedRole || '')
+  const canUseReportes = normalizedRole === 'SUPER_ADMIN'
+  const canUseRecordatorios = normalizedRole === 'VENDEDOR'
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -258,7 +259,7 @@ export default function DashboardPage() {
             )}
 
             {/* Recordatorios */}
-            {canUseOperationalModules && (
+            {canUseRecordatorios && (
               <a
                 href="/recordatorios"
                 className="group relative bg-gradient-to-br from-rose-500 to-rose-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-rose-600/15"

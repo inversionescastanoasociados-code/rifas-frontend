@@ -20,7 +20,7 @@ export default function RecordatoriosPage() {
     try {
       const user = JSON.parse(userData)
       const rol = user.rol?.toUpperCase()
-      if (['SUPER_ADMIN', 'ADMIN', 'VENDEDOR'].includes(rol)) {
+      if (rol === 'VENDEDOR') {
         setAuthorized(true)
       } else {
         router.push('/dashboard')
