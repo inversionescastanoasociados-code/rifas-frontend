@@ -102,7 +102,22 @@ async function generarMensajeWhatsApp(cliente: ClienteRecordatorio): Promise<str
   }
 }
 
+// Detectar vendedor logueado de forma sincrónica para evitar race conditions
+function getLoggedUserVendedorInfo(): { isVendedor: boolean; vendedorId: string } {
+  try {
+    const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+    if (userData) {
+      const user = JSON.parse(userData)
+      if (user.rol?.toUpperCase() === 'VENDEDOR' && user.id) {
+        return { isVendedor: true, vendedorId: user.id }
+      }
+    }
+  } catch { /* ignore */ }
+  return { isVendedor: false, vendedorId: '' }
+}
+
 export default function RecordatoriosList() {
+  const loggedUser = getLoggedUserVendedorInfo()
   const [clientes, setClientes] = useState<ClienteRecordatorio[]>([])
   const [resumen, setResumen] = useState<ResumenRecordatorios | null>(null)
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
@@ -110,25 +125,11 @@ export default function RecordatoriosList() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filtroActivo, setFiltroActivo] = useState<'todos' | 'reservadas' | 'abonadas'>('todos')
   const [filtroNotificado, setFiltroNotificado] = useState<'todos' | 'si' | 'no'>('todos')
-  const [filtroVendedor, setFiltroVendedor] = useState<string>('')
+  const [filtroVendedor, setFiltroVendedor] = useState<string>(loggedUser.vendedorId)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [loading, setLoading] = useState(true)
   const [cargandoRecordatorio, setCargandoRecordatorio] = useState<string | null>(null)
-
-  // Detectar si el usuario logueado es VENDEDOR y forzar filtro
-  const [isVendedor, setIsVendedor] = useState(false)
-  useEffect(() => {
-    try {
-      const userData = localStorage.getItem('user')
-      if (userData) {
-        const user = JSON.parse(userData)
-        if (user.rol?.toUpperCase() === 'VENDEDOR' && user.id) {
-          setIsVendedor(true)
-          setFiltroVendedor(user.id)
-        }
-      }
-    } catch { /* ignore */ }
-  }, [])
+  const isVendedor = loggedUser.isVendedor
 
   // Cargar vendedores al montar
   useEffect(() => {

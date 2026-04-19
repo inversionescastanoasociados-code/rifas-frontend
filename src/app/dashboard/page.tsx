@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const canUseRifas = normalizedRole === 'SUPER_ADMIN'
   const canUseReportes = normalizedRole === 'SUPER_ADMIN'
   const canUseRecordatorios = normalizedRole === 'VENDEDOR'
+  const canUseVentasPublicas = ['SUPER_ADMIN', 'ADMIN'].includes(normalizedRole || '')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -105,7 +106,7 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Banner de Ventas Online Pendientes */}
-        {canUseOperationalModules && (
+        {canUseVentasPublicas && (
           <VentasOnlineBanner onVerPendientes={() => router.push('/ventas-publicas')} />
         )}
 
@@ -201,7 +202,7 @@ export default function DashboardPage() {
             )}
 
             {/* Ventas Públicas */}
-            {canUseOperationalModules && (
+            {canUseVentasPublicas && (
               <a
                 href="/ventas-publicas"
                 className="group relative bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-emerald-600/15"

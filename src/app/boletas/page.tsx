@@ -21,7 +21,7 @@ export default function BoletasPage() {
       setUserRole(user.rol)
       
       // Check if user has allowed role
-      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'ADMIN') {
+      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'ADMIN' && user.rol !== 'VENDEDOR') {
         router.push('/dashboard')
         return
       }
@@ -30,12 +30,12 @@ export default function BoletasPage() {
     }
   }, [router])
 
-  if (userRole && userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+  if (userRole && userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN' && userRole !== 'VENDEDOR') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-6 py-4 rounded-lg max-w-md">
           <h2 className="text-lg font-medium mb-2">Acceso Restringido</h2>
-          <p>Este módulo solo está disponible para usuarios con rol SUPER_ADMIN o ADMIN</p>
+          <p>Este módulo solo está disponible para usuarios con rol SUPER_ADMIN, ADMIN o VENDEDOR</p>
           <button
             onClick={() => router.push('/dashboard')}
             className="mt-4 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800"

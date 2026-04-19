@@ -48,7 +48,7 @@ export default function CrearBoletasPage() {
       const user = JSON.parse(userData)
       setUserRole(user.rol)
       
-      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'ADMIN') {
+      if (user.rol !== 'SUPER_ADMIN' && user.rol !== 'ADMIN' && user.rol !== 'VENDEDOR') {
         router.push('/dashboard')
         return
       }
