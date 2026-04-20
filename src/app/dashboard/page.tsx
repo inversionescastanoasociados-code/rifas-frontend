@@ -19,7 +19,7 @@ export default function DashboardPage() {
   const canUseOperationalModules = ['SUPER_ADMIN', 'VENDEDOR', 'ADMIN'].includes(normalizedRole || '')
   const canUseRifas = normalizedRole === 'SUPER_ADMIN'
   const canUseReportes = normalizedRole === 'SUPER_ADMIN'
-  const canUseRecordatorios = normalizedRole === 'VENDEDOR'
+  const canUseRecordatorios = ['SUPER_ADMIN', 'ADMIN', 'VENDEDOR'].includes(normalizedRole || '')
   const canUseVentasPublicas = ['SUPER_ADMIN', 'ADMIN'].includes(normalizedRole || '')
 
   useEffect(() => {
