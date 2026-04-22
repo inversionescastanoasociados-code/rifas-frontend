@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const canUseOperationalModules = ['SUPER_ADMIN', 'VENDEDOR', 'ADMIN'].includes(normalizedRole || '')
   const canUseRifas = normalizedRole === 'SUPER_ADMIN'
   const canUseReportes = normalizedRole === 'SUPER_ADMIN'
+  const canUseMisReportes = ['SUPER_ADMIN', 'ADMIN', 'VENDEDOR'].includes(normalizedRole || '')
   const canUseRecordatorios = ['SUPER_ADMIN', 'ADMIN', 'VENDEDOR'].includes(normalizedRole || '')
   const canUseVentasPublicas = ['SUPER_ADMIN', 'ADMIN'].includes(normalizedRole || '')
   const canUseVendedoresStats = normalizedRole === 'SUPER_ADMIN'
@@ -443,6 +444,35 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-sm text-slate-400">Próximamente</p>
               </div>
+            )}
+
+            {/* Mis Reportes (ADMIN / VENDEDOR / SUPER_ADMIN) - solo ventas del usuario */}
+            {canUseMisReportes && (
+              <a
+                href="/mis-reportes"
+                className="group relative bg-gradient-to-br from-teal-500 to-teal-700 p-6 rounded-2xl text-white overflow-hidden card-hover shadow-lg shadow-teal-600/15"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold border border-white/10">
+                      Personal
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold mb-1">Mis Reportes</h4>
+                  <p className="text-teal-100 text-sm leading-relaxed">Ventas, abonos y métricas de tu propia gestión</p>
+                  <div className="mt-4 flex items-center text-teal-200 text-xs font-medium group-hover:text-white transition-colors">
+                    Ir al módulo
+                    <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              </a>
             )}
           </div>
         </div>

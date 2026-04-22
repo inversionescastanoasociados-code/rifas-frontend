@@ -16,16 +16,22 @@ type Rifa = {
   nombre: string;
 };
 
+type Scope = 'global' | 'mis-ventas';
+
 type Props = {
   rifas: Rifa[];
+  scope?: Scope;
+  title?: string;
 };
 
-export default function AnalyticsDashboard({ rifas }: Props) {
+export default function AnalyticsDashboard({ rifas, scope = 'global', title }: Props) {
   const router = useRouter();
 
   const onBack = () => {
     router.push('/dashboard');
   };
+
+  const headerTitle = title ?? (scope === 'mis-ventas' ? 'Mis Reportes' : 'Análisis de Rifas');
 
   const [selectedRifa, setSelectedRifa] = useState<string | null>(
     rifas.length ? rifas[0].id : null
@@ -49,14 +55,15 @@ export default function AnalyticsDashboard({ rifas }: Props) {
       const result = await getReporteRifa(
         selectedRifa,
         fechaInicio,
-        fechaFin
+        fechaFin,
+        scope
       );
       setData(result);
       setLoading(false);
     };
 
     fetchData();
-  }, [selectedRifa, fechaInicio, fechaFin]);
+  }, [selectedRifa, fechaInicio, fechaFin, scope]);
 
   if (!rifas.length) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -79,7 +86,7 @@ export default function AnalyticsDashboard({ rifas }: Props) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-light text-slate-900">Análisis de Rifas</h1>
+              <h1 className="text-2xl font-light text-slate-900">{headerTitle}</h1>
             </div>
           </div>
         </div>
@@ -102,7 +109,7 @@ export default function AnalyticsDashboard({ rifas }: Props) {
           </div>
         ) : data ? (
           <div className={`space-y-6 ${loading ? 'opacity-50 pointer-events-none' : 'transition-opacity duration-300'}`}>
-            <KPISection data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} />
+            <KPISection data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} scope={scope} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <MethodsChart methods={data.metodos_pago} serieDiaria={data.serie_diaria} fechaInicio={fechaInicio} fechaFin={fechaFin} />
               <TicketsChart resumen={data.resumen_boletas} boletasPeriodo={data.boletas_periodo} hayFiltro={!!(fechaInicio && fechaFin)} />

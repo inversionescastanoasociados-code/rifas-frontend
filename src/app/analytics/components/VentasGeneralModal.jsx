@@ -448,7 +448,8 @@ export default function VentasGeneralModal({
   rifaId, 
   fechaInicio, 
   fechaFin,
-  rifaNombre 
+  rifaNombre,
+  scope = 'global'
 }) {
   const [ventas, setVentas] = useState([]);
   const [abonosPeriodo, setAbonosPeriodo] = useState([]);
@@ -467,12 +468,12 @@ export default function VentasGeneralModal({
   useEffect(() => {
     if (!isOpen || !rifaId) return;
     fetchVentas();
-  }, [isOpen, rifaId, fechaInicio, fechaFin, page]);
+  }, [isOpen, rifaId, fechaInicio, fechaFin, page, scope]);
 
   const fetchVentas = async () => {
     setLoading(true);
     try {
-      const data = await getVentasGeneral(rifaId, fechaInicio, fechaFin, page, 100);
+      const data = await getVentasGeneral(rifaId, fechaInicio, fechaFin, page, 100, scope);
       setVentas(data.ventas || []);
       setAbonosPeriodo(data.abonos_periodo || []);
       setResumen(data.resumen || null);

@@ -3,7 +3,17 @@ import axios from 'axios';
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://rifas-backend-production.up.railway.app';
 
-export const getReporteRifa = async (rifaId, fechaInicio, fechaFin) => {
+/**
+ * scope:
+ *   'global'      → /api/reportes/rifa/...        (todas las ventas - solo SUPER_ADMIN)
+ *   'mis-ventas'  → /api/reportes/mis-ventas/...  (solo ventas del usuario autenticado)
+ */
+const buildBase = (scope) =>
+  scope === 'mis-ventas'
+    ? `${API_BASE_URL}/api/reportes/mis-ventas/rifa`
+    : `${API_BASE_URL}/api/reportes/rifa`;
+
+export const getReporteRifa = async (rifaId, fechaInicio, fechaFin, scope = 'global') => {
   const params = {};
 
   if (fechaInicio && fechaFin) {
@@ -14,7 +24,7 @@ export const getReporteRifa = async (rifaId, fechaInicio, fechaFin) => {
   const token = localStorage.getItem('token');
 
   const response = await axios.get(
-    `${API_BASE_URL}/api/reportes/rifa/${rifaId}`,
+    `${buildBase(scope)}/${rifaId}`,
     {
       params,
       headers: token
@@ -26,7 +36,25 @@ export const getReporteRifa = async (rifaId, fechaInicio, fechaFin) => {
   return response.data;
 };
 
-export const getVentasGeneral = async (rifaId, fechaInicio, fechaFin, page = 1, limit = 50, filters = {}) => {
+export const getVentasGeneral = async (
+  rifaId,
+  fechaInicio,
+  fechaFin,
+  page = 1,
+  limit = 50,
+  filtersOrScope = {},
+  maybeScope
+) => {
+  // Compatibilidad: el 6º arg histórico era `filters` (objeto). Ahora también
+  // aceptamos directamente un string scope. El 7º arg explícito (maybeScope)
+  // siempre gana si viene definido.
+  let scope = 'global';
+  if (typeof filtersOrScope === 'string') {
+    scope = filtersOrScope;
+  } else if (typeof maybeScope === 'string') {
+    scope = maybeScope;
+  }
+
   const params = { page, limit };
 
   if (fechaInicio && fechaFin) {
@@ -37,7 +65,7 @@ export const getVentasGeneral = async (rifaId, fechaInicio, fechaFin, page = 1, 
   const token = localStorage.getItem('token');
 
   const response = await axios.get(
-    `${API_BASE_URL}/api/reportes/rifa/${rifaId}/ventas`,
+    `${buildBase(scope)}/${rifaId}/ventas`,
     {
       params,
       headers: token
