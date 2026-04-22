@@ -42,7 +42,9 @@ export default function MisReportesPage() {
 
     const fetchRifas = async () => {
       try {
-        const res = await rifaApi.getRifas();
+        // Usamos /api/rifas/operativas porque /api/rifas requiere SUPER_ADMIN
+        // y este modulo es accesible para ADMIN y VENDEDOR.
+        const res = await rifaApi.getRifasOperativas();
         setRifas(res.data);
       } catch (error) {
         console.error('Error cargando rifas', error);
