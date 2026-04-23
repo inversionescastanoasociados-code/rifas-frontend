@@ -41,7 +41,7 @@ export default function DetalleVentaPublica({
   // Estado para registrar abono/pago
   const [mostrarFormAbono, setMostrarFormAbono] = useState(false)
   const [montoAbono, setMontoAbono] = useState<number>(0)
-  const [metodoPago, setMetodoPago] = useState<string>(MEDIOS_PAGO[0].id)
+  const [metodoPago, setMetodoPago] = useState<string>('')
   const [notasAbono, setNotasAbono] = useState('')
   const [pagarTodo, setPagarTodo] = useState(false)
   const [procesandoAbono, setProcesandoAbono] = useState(false)
@@ -1091,6 +1091,7 @@ export default function DetalleVentaPublica({
                   onChange={(e) => setMetodoPago(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900"
                 >
+                  <option value="">Selecciona método de pago</option>
                   {MEDIOS_PAGO.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.label}
@@ -1133,7 +1134,7 @@ export default function DetalleVentaPublica({
                 </button>
                 <button
                   onClick={handleRegistrarAbonoMultiple}
-                  disabled={procesandoAbono || totalAbonoMulti <= 0}
+                  disabled={procesandoAbono || !metodoPago || totalAbonoMulti <= 0}
                   className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {procesandoAbono ? (
@@ -1141,6 +1142,8 @@ export default function DetalleVentaPublica({
                       <span className="inline-block animate-spin">⏳</span>
                       <span>Procesando...</span>
                     </>
+                  ) : !metodoPago ? (
+                    <span>Selecciona método de pago</span>
                   ) : (
                     <>
                       <span>💰</span>
@@ -1213,6 +1216,7 @@ export default function DetalleVentaPublica({
                   onChange={(e) => setMetodoPago(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900"
                 >
+                  <option value="">Selecciona método de pago</option>
                   {MEDIOS_PAGO.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.label}
@@ -1289,7 +1293,7 @@ export default function DetalleVentaPublica({
                 </button>
                 <button
                   onClick={handleRegistrarAbono}
-                  disabled={procesandoAbono || montoAbono <= 0}
+                  disabled={procesandoAbono || !metodoPago || montoAbono <= 0}
                   className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {procesandoAbono ? (
@@ -1297,6 +1301,8 @@ export default function DetalleVentaPublica({
                       <span className="inline-block animate-spin">⏳</span>
                       <span>Procesando...</span>
                     </>
+                  ) : !metodoPago ? (
+                    <span>Selecciona método de pago</span>
                   ) : (
                     <>
                       <span>{pagarTodo ? '✅' : '💰'}</span>

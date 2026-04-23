@@ -71,7 +71,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [loading, setLoading] = useState(true)
   const [accion, setAccion] = useState<AccionGestionar>(null)
   const [monto, setMonto] = useState<number>(0)
-  const [metodoPago, setMetodoPago] = useState<string>(MEDIOS_PAGO[0].id)
+  const [metodoPago, setMetodoPago] = useState<string>('')
   const [notas, setNotas] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -826,6 +826,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 onChange={(e) => setMetodoPago(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white text-black"
               >
+                <option value="">Selecciona método de pago</option>
                 {MEDIOS_PAGO.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}
@@ -895,14 +896,16 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               <button
                 type="button"
                 onClick={() => setMostrarConfirmacionAbono(true)}
-                disabled={procesando || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
+                disabled={procesando || !metodoPago || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
                 {procesando
                   ? 'Registrando...'
-                  : Object.keys(boletasSeleccionadas).length > 0
-                    ? `Registrar abono a ${Object.keys(boletasSeleccionadas).length} boleta${Object.keys(boletasSeleccionadas).length > 1 ? 's' : ''} ($${Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0).toLocaleString('es-CO')})`
-                    : 'Registrar abono'}
+                  : !metodoPago
+                    ? 'Selecciona método de pago'
+                    : Object.keys(boletasSeleccionadas).length > 0
+                      ? `Registrar abono a ${Object.keys(boletasSeleccionadas).length} boleta${Object.keys(boletasSeleccionadas).length > 1 ? 's' : ''} ($${Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0).toLocaleString('es-CO')})`
+                      : 'Registrar abono'}
               </button>
             </div>
 

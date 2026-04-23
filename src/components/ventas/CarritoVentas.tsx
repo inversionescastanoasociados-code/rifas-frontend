@@ -766,7 +766,7 @@ export default function CarritoVentas({
         ) : (
           <button
             onClick={() => setMostrarConfirmacion(true)}
-            disabled={!tipoVentaSeleccionado || procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || (tipoVenta === 'ABONO' && montoAbono <= 0)}
+            disabled={!tipoVentaSeleccionado || procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || !medioPagoId || (tipoVenta === 'ABONO' && montoAbono <= 0)}
             className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors ${
               tipoVenta === 'COMPLETA' 
                 ? 'bg-green-600 hover:bg-green-700' 
@@ -779,9 +779,11 @@ export default function CarritoVentas({
               ? 'Procesando...' 
               : !tipoVentaSeleccionado
                 ? 'Selecciona tipo de operación'
-                : tipoVenta === 'ABONO' 
-                  ? `Crear Abono ($${montoAbono.toLocaleString('es-CO')})`
-                  : `Completar Venta ($${total.toLocaleString('es-CO')})`
+                : !medioPagoId
+                  ? 'Selecciona método de pago'
+                  : tipoVenta === 'ABONO' 
+                    ? `Crear Abono ($${montoAbono.toLocaleString('es-CO')})`
+                    : `Completar Venta ($${total.toLocaleString('es-CO')})`
             }
           </button>
         )}
