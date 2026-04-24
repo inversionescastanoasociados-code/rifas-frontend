@@ -40,7 +40,7 @@ function KPICard({ title, value, subtitle, icon, color, expanded, onToggle }) {
   );
 }
 
-export default function KPISection({ data, fechaInicio, fechaFin, scope = 'global' }) {
+export default function KPISection({ data, fechaInicio, fechaFin, scope = 'global', extraFilters = {} }) {
   const { finanzas, resumen_boletas, rifa, boletas_periodo, ventas_periodo, filtro_aplicado } = data;
   const [expandedCard, setExpandedCard] = useState(null);
   const [showVentasModal, setShowVentasModal] = useState(false);
@@ -185,6 +185,7 @@ export default function KPISection({ data, fechaInicio, fechaFin, scope = 'globa
         fechaFin={fechaFin}
         rifaNombre={rifa?.nombre}
         scope={scope}
+        extraFilters={extraFilters}
       />
 
       {/* Fila 2: Boletas por estado */}

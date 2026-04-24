@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import { rifaApi } from '@/lib/rifaApi';
+import { vendedoresStatsApi, VendedorStats } from '@/lib/vendedoresStatsApi';
 
 type Rifa = {
   id: string;
@@ -13,6 +14,8 @@ type Rifa = {
 export default function Page() {
   const router = useRouter();
   const [rifas, setRifas] = useState<Rifa[]>([]);
+  const [vendedores, setVendedores] = useState<VendedorStats[]>([]);
+  const [esSuperAdmin, setEsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [accesoDenegado, setAccesoDenegado] = useState(false);
 
@@ -25,23 +28,33 @@ export default function Page() {
       return;
     }
 
+    let role = '';
     try {
       const user = JSON.parse(userData);
-      const role = (user?.rol || '').toUpperCase();
+      role = (user?.rol || '').toUpperCase();
       if (!['SUPER_ADMIN', 'VENDEDOR'].includes(role)) {
         setAccesoDenegado(true);
         setLoading(false);
         return;
       }
+      setEsSuperAdmin(role === 'SUPER_ADMIN');
     } catch {
       router.push('/login');
       return;
     }
 
-    const fetchRifas = async () => {
+    const fetchAll = async () => {
       try {
         const res = await rifaApi.getRifas();
         setRifas(res.data);
+        if (role === 'SUPER_ADMIN') {
+          try {
+            const vRes = await vendedoresStatsApi.list();
+            setVendedores(vRes.data || []);
+          } catch (e) {
+            console.error('Error cargando vendedores para filtro', e);
+          }
+        }
       } catch (error) {
         console.error("Error cargando rifas", error);
       } finally {
@@ -49,7 +62,7 @@ export default function Page() {
       }
     };
 
-    fetchRifas();
+    fetchAll();
   }, [router]);
 
   if (accesoDenegado) return (
@@ -79,5 +92,5 @@ export default function Page() {
     </div>
   );
 
-  return <AnalyticsDashboard rifas={rifas} />;
+  return <AnalyticsDashboard rifas={rifas} esSuperAdmin={esSuperAdmin} vendedores={vendedores} />;
 }

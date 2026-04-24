@@ -16,15 +16,28 @@ type Rifa = {
   nombre: string;
 };
 
+type Vendedor = {
+  id: string;
+  nombre: string;
+  rol: string;
+};
+
 type Scope = 'global' | 'mis-ventas';
+
+export type PersonFilter = {
+  tipo: 'TODOS' | 'ADMINS' | 'VENDEDOR';
+  vendedorId: string | null;
+};
 
 type Props = {
   rifas: Rifa[];
   scope?: Scope;
   title?: string;
+  esSuperAdmin?: boolean;
+  vendedores?: Vendedor[];
 };
 
-export default function AnalyticsDashboard({ rifas, scope = 'global', title }: Props) {
+export default function AnalyticsDashboard({ rifas, scope = 'global', title, esSuperAdmin = false, vendedores = [] }: Props) {
   const router = useRouter();
 
   const onBack = () => {
@@ -44,8 +57,19 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title }: P
   })();
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [fechaFin, setFechaFin] = useState(hoy);
+  const [personFilter, setPersonFilter] = useState<PersonFilter>({ tipo: 'TODOS', vendedorId: null });
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // Construir extraFilters para el backend (solo aplica a SUPER_ADMIN + scope global)
+  const extraFilters = (() => {
+    if (!esSuperAdmin || scope !== 'global') return {};
+    if (personFilter.tipo === 'ADMINS') return { filtroRol: 'ADMIN' };
+    if (personFilter.tipo === 'VENDEDOR' && personFilter.vendedorId) {
+      return { vendedorId: personFilter.vendedorId };
+    }
+    return {};
+  })();
 
   useEffect(() => {
     if (!selectedRifa) return;
@@ -56,14 +80,16 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title }: P
         selectedRifa,
         fechaInicio,
         fechaFin,
-        scope
+        scope,
+        extraFilters
       );
       setData(result);
       setLoading(false);
     };
 
     fetchData();
-  }, [selectedRifa, fechaInicio, fechaFin, scope]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRifa, fechaInicio, fechaFin, scope, personFilter.tipo, personFilter.vendedorId]);
 
   if (!rifas.length) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -101,6 +127,10 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title }: P
           fechaFin={fechaFin}
           setFechaInicio={setFechaInicio}
           setFechaFin={setFechaFin}
+          esSuperAdmin={esSuperAdmin && scope === 'global'}
+          vendedores={vendedores as any}
+          personFilter={personFilter as any}
+          setPersonFilter={setPersonFilter as any}
         />
 
         {loading && !data ? (
@@ -109,7 +139,7 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title }: P
           </div>
         ) : data ? (
           <div className={`space-y-6 ${loading ? 'opacity-50 pointer-events-none' : 'transition-opacity duration-300'}`}>
-            <KPISection data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} scope={scope} />
+            <KPISection data={data} fechaInicio={fechaInicio} fechaFin={fechaFin} scope={scope} extraFilters={extraFilters} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <MethodsChart methods={data.metodos_pago} serieDiaria={data.serie_diaria} fechaInicio={fechaInicio} fechaFin={fechaFin} />
               <TicketsChart resumen={data.resumen_boletas} boletasPeriodo={data.boletas_periodo} hayFiltro={!!(fechaInicio && fechaFin)} />

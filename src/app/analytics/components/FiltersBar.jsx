@@ -9,6 +9,11 @@ export default function FiltersBar({
   fechaFin,
   setFechaInicio,
   setFechaFin,
+  // Filtros exclusivos de SUPER_ADMIN (opcionales)
+  esSuperAdmin = false,
+  vendedores = [],
+  personFilter = { tipo: 'TODOS', vendedorId: null },
+  setPersonFilter = () => {},
 }) {
   // Fecha local (evita adelanto de fecha por UTC en horario nocturno Colombia)
   const toLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -43,7 +48,8 @@ export default function FiltersBar({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
       
       {/* Selector de Rifa (Estilo Premium) */}
       <div className="flex flex-col gap-2">
@@ -119,6 +125,79 @@ export default function FiltersBar({
           </div>
         </div>
       </div>
+      </div>
+
+      {esSuperAdmin && (
+        <div className="border-t border-slate-100 pt-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                Super Admin
+              </span>
+              Filtrar por usuario
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setPersonFilter({ tipo: 'TODOS', vendedorId: null })}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'TODOS' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersonFilter({ tipo: 'ADMINS', vendedorId: null })}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'ADMINS' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Administradores
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersonFilter({ tipo: 'VENDEDOR', vendedorId: personFilter.vendedorId })}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'VENDEDOR' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Vendedor
+                </button>
+              </div>
+
+              {personFilter.tipo === 'VENDEDOR' && (
+                <div className="relative">
+                  <select
+                    className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-4 py-2 pr-9 outline-none cursor-pointer transition-all min-w-[220px]"
+                    value={personFilter.vendedorId || ''}
+                    onChange={(e) => setPersonFilter({ tipo: 'VENDEDOR', vendedorId: e.target.value || null })}
+                  >
+                    <option value="">— Selecciona un vendedor —</option>
+                    {vendedores
+                      .filter(v => String(v.rol).toUpperCase() === 'VENDEDOR')
+                      .map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.nombre}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {personFilter.tipo !== 'TODOS' && (
+            <div className="text-xs text-slate-500 italic md:text-right">
+              {personFilter.tipo === 'ADMINS'
+                ? 'Mostrando ventas agregadas de TODOS los administradores.'
+                : personFilter.vendedorId
+                  ? 'Mostrando ventas únicamente del vendedor seleccionado.'
+                  : 'Selecciona un vendedor para aplicar el filtro.'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

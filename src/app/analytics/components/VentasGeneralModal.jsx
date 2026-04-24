@@ -449,7 +449,8 @@ export default function VentasGeneralModal({
   fechaInicio, 
   fechaFin,
   rifaNombre,
-  scope = 'global'
+  scope = 'global',
+  extraFilters = {}
 }) {
   const [ventas, setVentas] = useState([]);
   const [abonosPeriodo, setAbonosPeriodo] = useState([]);
@@ -468,12 +469,13 @@ export default function VentasGeneralModal({
   useEffect(() => {
     if (!isOpen || !rifaId) return;
     fetchVentas();
-  }, [isOpen, rifaId, fechaInicio, fechaFin, page, scope]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, rifaId, fechaInicio, fechaFin, page, scope, extraFilters.vendedorId, extraFilters.filtroRol]);
 
   const fetchVentas = async () => {
     setLoading(true);
     try {
-      const data = await getVentasGeneral(rifaId, fechaInicio, fechaFin, page, 100, scope);
+      const data = await getVentasGeneral(rifaId, fechaInicio, fechaFin, page, 100, scope, undefined, extraFilters);
       setVentas(data.ventas || []);
       setAbonosPeriodo(data.abonos_periodo || []);
       setResumen(data.resumen || null);

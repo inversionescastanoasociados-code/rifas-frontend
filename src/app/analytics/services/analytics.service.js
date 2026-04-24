@@ -13,12 +13,24 @@ const buildBase = (scope) =>
     ? `${API_BASE_URL}/api/reportes/mis-ventas/rifa`
     : `${API_BASE_URL}/api/reportes/rifa`;
 
-export const getReporteRifa = async (rifaId, fechaInicio, fechaFin, scope = 'global') => {
+export const getReporteRifa = async (
+  rifaId,
+  fechaInicio,
+  fechaFin,
+  scope = 'global',
+  extraFilters = {}
+) => {
   const params = {};
 
   if (fechaInicio && fechaFin) {
     params.fechaInicio = fechaInicio;
     params.fechaFin = fechaFin;
+  }
+
+  // Filtros exclusivos de SUPER_ADMIN (el backend los ignora para otros roles)
+  if (scope === 'global') {
+    if (extraFilters.vendedorId) params.vendedorId = extraFilters.vendedorId;
+    if (extraFilters.filtroRol) params.filtroRol = extraFilters.filtroRol;
   }
 
   const token = localStorage.getItem('token');
@@ -43,7 +55,8 @@ export const getVentasGeneral = async (
   page = 1,
   limit = 50,
   filtersOrScope = {},
-  maybeScope
+  maybeScope,
+  extraFilters = {}
 ) => {
   // Compatibilidad: el 6º arg histórico era `filters` (objeto). Ahora también
   // aceptamos directamente un string scope. El 7º arg explícito (maybeScope)
@@ -60,6 +73,11 @@ export const getVentasGeneral = async (
   if (fechaInicio && fechaFin) {
     params.fechaInicio = fechaInicio;
     params.fechaFin = fechaFin;
+  }
+
+  if (scope === 'global') {
+    if (extraFilters.vendedorId) params.vendedorId = extraFilters.vendedorId;
+    if (extraFilters.filtroRol) params.filtroRol = extraFilters.filtroRol;
   }
 
   const token = localStorage.getItem('token');
