@@ -64,7 +64,7 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title, esS
   // Construir extraFilters para el backend (solo aplica a SUPER_ADMIN + scope global)
   const extraFilters = (() => {
     if (!esSuperAdmin || scope !== 'global') return {};
-    if (personFilter.tipo === 'ADMINS') return { filtroRol: 'ADMIN' };
+    if (personFilter.tipo === 'ADMINS') return { filtroRol: 'ADMINS' };
     if (personFilter.tipo === 'VENDEDOR' && personFilter.vendedorId) {
       return { vendedorId: personFilter.vendedorId };
     }
