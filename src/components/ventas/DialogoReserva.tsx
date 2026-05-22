@@ -111,7 +111,7 @@ export default function DialogoReserva({
     mensaje += `💰 *Valor total:* $${subtotal.toLocaleString('es-CO')}\n`
     mensaje += `📅 *Reserva válida hasta:* ${fechaLimite}\n\n`
     mensaje += `⚠️ Recuerda realizar el pago antes de la fecha límite. Boleta sin pagar no juega.`
-    mensaje += `\n\n🏆 *PARA PARTICIPAR EN LOS PREMIOS:*\n✅ *Anticipados:* mínimo $90.000 abonados todos los sábados por $2.000.000 acumulables\n🎁 *Premio mayor (20 de junio):* boleta pagada al 100%`
+    mensaje += `\n\n🏆 *PARA PARTICIPAR EN LOS PREMIOS:*\n✅ *Anticipados:* mínimo $60.000 abonados todos los sábados por $2.000.000 acumulables\n🎁 *Premio mayor (20 de junio):* boleta pagada al 100%`
     mensaje += mediosDePago
 
     if (linkBoletas) {
