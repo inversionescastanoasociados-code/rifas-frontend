@@ -96,8 +96,16 @@ function FilaBoleta({ b }: { b: BoletaSeguimiento }) {
 }
 
 /* ─── Tarjeta de cliente ─────────────────────────────────────────────────── */
-function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
-  const [expandida, setExpandida] = useState(false)
+function TarjetaCliente({ cliente, onContactoRegistrado }: {
+  cliente: ClienteSeguimiento
+  onContactoRegistrado: (clienteId: string, total: number, ultimo: string) => void
+}) {
+  const [expandida, setExpandida]       = useState(false)
+  const [registrando, setRegistrando]   = useState(false)
+  const [contactos, setContactos]       = useState({
+    total:  cliente.total_contactos  ?? 0,
+    ultimo: cliente.ultimo_contacto  ?? null as string | null,
+  })
 
   const totalDeuda = cliente.boletas.reduce(
     (acc, b) => acc + Number(b.saldo_pendiente), 0
@@ -116,6 +124,23 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
 
   const telNorm = normalizarTelefono(cliente.telefono)
   const waUrl = telNorm ? `https://wa.me/${telNorm}` : null
+
+  const handleContactar = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (registrando) return
+    setRegistrando(true)
+    try {
+      const res = await seguimientoClientesApi.registrarContacto(cliente.cliente_id)
+      const newTotal  = res.total_contactos
+      const newUltimo = res.ultimo_contacto
+      setContactos({ total: newTotal, ultimo: newUltimo })
+      onContactoRegistrado(cliente.cliente_id, newTotal, newUltimo)
+    } catch {
+      // silencioso — no rompe la UI
+    } finally {
+      setRegistrando(false)
+    }
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -148,6 +173,17 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
                 WhatsApp
               </a>
             )}
+          </div>
+          {/* Números de boletas */}
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {cliente.boletas.map(b => (
+              <span
+                key={b.boleta_id}
+                className={`inline-block font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded border ${estadoColor[b.estado] || 'bg-slate-100 text-slate-500 border-slate-200'}`}
+              >
+                #{String(b.numero).padStart(4, '0')}
+              </span>
+            ))}
           </div>
         </div>
 
@@ -182,14 +218,15 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
           )}
         </div>
 
-        {/* Recordatorio info */}
-        <div className="text-right shrink-0 min-w-[130px]">
+        {/* Recordatorio + contacto */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0 min-w-[140px]">
+          {/* Recordatorios (sistema existente) */}
           {cliente.total_notificaciones === 0 ? (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500 border border-slate-200">
               🔕 Sin notificar
             </span>
           ) : (
-            <div>
+            <div className="text-right">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
                 🔔 {cliente.total_notificaciones}x notificado
               </span>
@@ -198,6 +235,38 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
               </p>
             </div>
           )}
+
+          {/* Contacto seguimiento (nuevo) */}
+          <div className="flex flex-col items-end gap-0.5">
+            {contactos.total === 0 ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-400 border border-slate-200">
+                📵 No contactado
+              </span>
+            ) : (
+              <div className="text-right">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-700 border border-teal-200">
+                  📞 {contactos.total}x contactado
+                </span>
+                <p className="text-slate-400 text-xs mt-0.5 leading-tight">
+                  último: {fmtDateTime(contactos.ultimo)}
+                </p>
+              </div>
+            )}
+            <button
+              onClick={handleContactar}
+              disabled={registrando}
+              className="mt-0.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
+                bg-teal-600 hover:bg-teal-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {registrando ? (
+                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              ) : '📞'}
+              {registrando ? 'Registrando…' : 'Marcar contactado'}
+            </button>
+          </div>
         </div>
 
         {/* Fecha cliente */}
@@ -604,7 +673,17 @@ export default function SeguimientoClientes() {
       {clientes.length > 0 && (
         <div className="space-y-3">
           {clientes.map(c => (
-            <TarjetaCliente key={c.cliente_id} cliente={c} />
+            <TarjetaCliente
+              key={c.cliente_id}
+              cliente={c}
+              onContactoRegistrado={(id, total, ultimo) => {
+                setClientes(prev => prev.map(cl =>
+                  cl.cliente_id === id
+                    ? { ...cl, total_contactos: total, ultimo_contacto: ultimo }
+                    : cl
+                ))
+              }}
+            />
           ))}
         </div>
       )}
