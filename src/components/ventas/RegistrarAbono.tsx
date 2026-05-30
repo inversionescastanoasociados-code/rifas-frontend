@@ -42,6 +42,8 @@ interface VentaNormalizada {
   telefono: string
   email?: string
   created_at?: string
+  vendedor_nombre?: string | null
+  vendedor_email?: string | null
   abonos: Array<{ id: string; monto: number; created_at: string; metodo_pago?: string }>
   boletas?: Array<{
     id: string
@@ -105,6 +107,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         telefono: d.cliente_telefono ?? d.telefono ?? '',
         email: d.cliente_email ?? d.email,
         created_at: d.created_at,
+        vendedor_nombre: d.vendedor_nombre ?? null,
+        vendedor_email: d.vendedor_email ?? null,
         abonos: d.abonos ?? [],
         boletas: d.boletas ?? []
       })
@@ -466,6 +470,44 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         >
           ← Volver a ventas
         </button>
+      </div>
+
+      {/* ⚠️ ADVERTENCIA DE VENDEDOR — siempre visible al ingresar */}
+      <div className={`rounded-xl border-2 p-5 flex items-start gap-4 shadow-md ${
+        venta.vendedor_nombre
+          ? 'bg-amber-50 border-amber-400'
+          : 'bg-red-50 border-red-400'
+      }`}>
+        <div className="text-4xl flex-shrink-0 mt-0.5">
+          {venta.vendedor_nombre ? '⚠️' : '🚫'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-base font-extrabold uppercase tracking-wide mb-1 ${
+            venta.vendedor_nombre ? 'text-amber-800' : 'text-red-800'
+          }`}>
+            {venta.vendedor_nombre
+              ? 'Esta venta fue registrada por:'
+              : 'Esta venta no tiene vendedor asignado'}
+          </p>
+          {venta.vendedor_nombre ? (
+            <>
+              <p className="text-2xl font-black text-amber-900 leading-tight">
+                {venta.vendedor_nombre.toUpperCase()}
+              </p>
+              {venta.vendedor_email && (
+                <p className="text-sm text-amber-700 mt-0.5">{venta.vendedor_email}</p>
+              )}
+              <p className="text-sm text-amber-800 mt-2 font-semibold">
+                ⛔ Solo <span className="underline">{venta.vendedor_nombre}</span> debería registrar abonos a esta venta.
+                Si tú no eres ese vendedor, confirma con tu superior antes de continuar.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-red-800 font-semibold mt-1">
+              Verifica con administración a quién pertenece esta venta antes de registrar el abono.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Boletas en cards */}
@@ -927,6 +969,15 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                   </div>
                   
                   <div className="space-y-3 text-sm">
+                    {venta?.vendedor_nombre && (
+                      <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <span className="text-lg">⚠️</span>
+                        <div>
+                          <span className="text-xs text-amber-700 font-semibold uppercase tracking-wide block">Venta de:</span>
+                          <span className="font-bold text-amber-900">{venta.vendedor_nombre}</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-slate-600">Cliente:</span>
                       <span className="font-medium text-slate-900">{venta?.nombre}</span>
