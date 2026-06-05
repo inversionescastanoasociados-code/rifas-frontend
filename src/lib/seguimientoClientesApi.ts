@@ -26,6 +26,8 @@ export interface ClienteSeguimiento {
   ultima_notificacion: string | null
   total_contactos: number
   ultimo_contacto: string | null
+  total_whatsapp: number
+  ultimo_whatsapp: string | null
   boletas: BoletaSeguimiento[]
 }
 
@@ -96,6 +98,20 @@ class SeguimientoClientesApiService {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ nota: nota ?? null }),
+      }
+    )
+    return this.handleResponse(res)
+  }
+
+  async registrarWhatsapp(clienteId: string): Promise<{
+    total_whatsapp: number
+    ultimo_whatsapp: string
+  }> {
+    const res = await fetch(
+      `${API_BASE_URL}/api/reportes/seguimiento-clientes/${encodeURIComponent(clienteId)}/whatsapp`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
       }
     )
     return this.handleResponse(res)
