@@ -24,9 +24,10 @@ interface VentaPendiente {
 interface Props {
   clienteId?: string
   ventaIdDirecta?: string  // Si se pasa, ir directamente a RegistrarAbono sin listar
+  onAbonoFinalizado?: () => void
 }
 
-export default function ListaVentasPendientes({ clienteId, ventaIdDirecta }: Props) {
+export default function ListaVentasPendientes({ clienteId, ventaIdDirecta, onAbonoFinalizado }: Props) {
   const [ventas, setVentas] = useState<VentaPendiente[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +75,7 @@ export default function ListaVentasPendientes({ clienteId, ventaIdDirecta }: Pro
         }}
         onAbonoRegistrado={() => {
           setVentaDirecta(null)
-          fetchVentas()
+          onAbonoFinalizado?.()
         }}
       />
     )
@@ -196,7 +197,7 @@ export default function ListaVentasPendientes({ clienteId, ventaIdDirecta }: Pro
           }}
           onAbonoRegistrado={() => {
             setVentaSeleccionada(null)
-            fetchVentas()
+            onAbonoFinalizado?.()
           }}
         />
       )}

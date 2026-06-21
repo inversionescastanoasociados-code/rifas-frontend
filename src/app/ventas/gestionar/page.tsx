@@ -82,6 +82,7 @@ export default function GestionarAbonosPage() {
     setVentaSeleccionadaId(null)
     setErrorBusqueda(null)
     setClienteSeleccionado(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Si ya tenemos una venta seleccionada (por boleta), ir al componente RegistrarAbono
@@ -247,6 +248,7 @@ export default function GestionarAbonosPage() {
             <ListaVentasPendientes
               clienteId={ventaResultado?.cliente.id}
               ventaIdDirecta={ventaSeleccionadaId}
+              onAbonoFinalizado={resetBusqueda}
             />
           </div>
         )}
@@ -280,7 +282,10 @@ export default function GestionarAbonosPage() {
               </div>
             </div>
 
-            <ListaVentasPendientes clienteId={clienteSeleccionado.id} />
+            <ListaVentasPendientes
+              clienteId={clienteSeleccionado.id}
+              onAbonoFinalizado={resetBusqueda}
+            />
           </div>
         )}
       </main>
