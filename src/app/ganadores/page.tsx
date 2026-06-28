@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { API_BASE_URL } from '@/config/api'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
+import GanadorAsignarDirecto from '@/components/ganadores/GanadorAsignarDirecto'
 
 interface VentaInfo {
   monto_total: number
@@ -61,6 +62,7 @@ export default function GanadoresPage() {
   const [medioPagoId, setMedioPagoId] = useState(MEDIOS_PAGO[0].id)
   const [asignando, setAsignando] = useState(false)
   const [exito, setExito] = useState<string | null>(null)
+  const [modo, setModo] = useState<'buscar' | 'directo'>('buscar')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -196,6 +198,36 @@ export default function GanadoresPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Submódulos */}
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => { setModo('buscar'); setError(''); setExito(null) }}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              modo === 'buscar'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Buscar Boleta
+          </button>
+          <button
+            type="button"
+            onClick={() => { setModo('directo'); setError(''); setExito(null) }}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              modo === 'directo'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Asignar Directo
+          </button>
+        </div>
+
+        {modo === 'directo' ? (
+          <GanadorAsignarDirecto />
+        ) : (
+        <>
         {/* Buscar boleta */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 mb-6">
           <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -489,6 +521,8 @@ export default function GanadoresPage() {
           </div>
           )
         })()}
+        </>
+        )}
       </main>
     </div>
   )
