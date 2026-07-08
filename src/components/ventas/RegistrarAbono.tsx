@@ -1024,13 +1024,6 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 ✅ Pagar total de todas
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setAccion('cancelar')}
-              className="px-6 py-3 border-2 border-red-200 text-red-700 rounded-xl hover:bg-red-50 font-medium transition-colors"
-            >
-              Cancelar venta
-            </button>
           </div>
         </div>
       )}
