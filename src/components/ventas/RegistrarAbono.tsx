@@ -34,6 +34,19 @@ interface AbonoBoletaHistorial {
   metodo_pago: string
   notas: string | null
   fecha: string
+  registrado_por_nombre?: string | null
+}
+
+interface AbonoVenta {
+  id: string
+  monto: number
+  created_at: string
+  metodo_pago?: string
+  gateway_pago?: string
+  boleta_numero?: number
+  boleta_id?: string
+  estado?: string
+  registrado_por_nombre?: string | null
 }
 
 interface BoletaVenta {
@@ -64,8 +77,41 @@ interface VentaNormalizada {
   created_at?: string
   vendedor_nombre?: string | null
   vendedor_email?: string | null
-  abonos: Array<{ id: string; monto: number; created_at: string; metodo_pago?: string }>
+  abonos: AbonoVenta[]
   boletas?: BoletaVenta[]
+}
+
+function claveTransaccionAbono(createdAt: string) {
+  const fecha = new Date(createdAt)
+  return `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}-${fecha.getHours()}-${fecha.getMinutes()}`
+}
+
+function getUltimaTransaccionAbono(abonos: AbonoVenta[]) {
+  const activos = abonos.filter((a) => a.estado !== 'ANULADO')
+  if (activos.length === 0) return null
+
+  const grupos = new Map<string, AbonoVenta[]>()
+  for (const abono of activos) {
+    const clave = claveTransaccionAbono(abono.created_at)
+    if (!grupos.has(clave)) grupos.set(clave, [])
+    grupos.get(clave)!.push(abono)
+  }
+
+  const ultimoGrupo = [...grupos.values()].pop()!
+  const montoTotal = ultimoGrupo.reduce((sum, a) => sum + Number(a.monto), 0)
+  const boletasNumeros = [...new Set(ultimoGrupo.map((a) => a.boleta_numero).filter((n) => n != null))].sort(
+    (a, b) => Number(a) - Number(b)
+  )
+  const referencia = ultimoGrupo[0]
+
+  return {
+    montoTotal,
+    boletasNumeros,
+    fecha: referencia.created_at,
+    metodoPago: referencia.metodo_pago || referencia.gateway_pago || 'N/A',
+    registradoPor: referencia.registrado_por_nombre || 'No registrado',
+    cantidadAbonos: ultimoGrupo.length,
+  }
 }
 
 function normalizarVenta(d: any): VentaNormalizada {
@@ -558,20 +604,18 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const mostrarFormularioCancelar = accion === 'cancelar'
 
   // Calcular cantidad de transacciones de abono (agrupando por fecha/hora)
-  // Si varios abonos tienen la misma fecha/hora (o muy cercana), se cuentan como 1 transacción
   const cantidadTransaccionesAbono = (() => {
-    if (venta.abonos.length === 0) return 0
-    
-    // Agrupar abonos por fecha/hora redondeada a minutos (misma transacción)
+    const activos = venta.abonos.filter((a) => a.estado !== 'ANULADO')
+    if (activos.length === 0) return 0
+
     const grupos = new Set<string>()
-    for (const abono of venta.abonos) {
-      const fecha = new Date(abono.created_at)
-      // Redondear a minutos para agrupar abonos de la misma transacción
-      const clave = `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}-${fecha.getHours()}-${fecha.getMinutes()}`
-      grupos.add(clave)
+    for (const abono of activos) {
+      grupos.add(claveTransaccionAbono(abono.created_at))
     }
     return grupos.size
   })()
+
+  const ultimaTransaccion = getUltimaTransaccionAbono(venta.abonos)
 
   // Mapa para obtener datos de boleta desde un abono (usando boleta_id)
   const boletasPorId: Record<string, {
@@ -776,6 +820,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                             <div className="text-slate-600">
                               {abono.metodo_pago}
                             </div>
+                            {abono.registrado_por_nombre && (
+                              <div className="text-slate-700 font-medium mt-0.5">
+                                Por: {abono.registrado_por_nombre}
+                              </div>
+                            )}
                             {abono.notas && (
                               <div className="text-slate-400 italic mt-0.5 truncate">
                                 {abono.notas}
@@ -830,8 +879,57 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           </div>
         </div>
 
+        {/* Último abono — destacado */}
+        {ultimaTransaccion && (
+          <div className="mb-4 rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  Último abono registrado
+                </div>
+                <div className="text-3xl font-bold text-emerald-800">
+                  ${ultimaTransaccion.montoTotal.toLocaleString('es-CO')}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-emerald-900">
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 font-semibold">
+                    {ultimaTransaccion.metodoPago}
+                  </span>
+                  <span>
+                    {new Date(ultimaTransaccion.fecha).toLocaleDateString('es-CO')}{' '}
+                    {new Date(ultimaTransaccion.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+              <div className="min-w-[220px] space-y-2 text-sm">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Registrado por</div>
+                  <div className="text-lg font-bold text-slate-900">{ultimaTransaccion.registradoPor}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Boletas abonadas</div>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {ultimaTransaccion.boletasNumeros.map((num) => (
+                      <span
+                        key={num}
+                        className="inline-flex items-center rounded-md bg-white border border-emerald-200 px-2 py-1 font-mono text-sm font-bold text-emerald-800"
+                      >
+                        #{String(num).padStart(4, '0')}
+                      </span>
+                    ))}
+                  </div>
+                  {ultimaTransaccion.cantidadAbonos > 1 && (
+                    <p className="text-xs text-emerald-700 mt-1">
+                      {ultimaTransaccion.cantidadAbonos} abonos en esta transacción
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Información adicional */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-4 border-t border-slate-200 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 pt-4 border-t border-slate-200 text-sm">
           {venta.created_at && (
             <div>
               <div className="text-slate-500 text-xs mb-1">Fecha de creación</div>
@@ -855,20 +953,6 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               {cantidadTransaccionesAbono} {cantidadTransaccionesAbono === 1 ? 'transacción' : 'transacciones'}
             </div>
           </div>
-          {venta.abonos.length > 0 && (() => {
-            const ultimoAbono = venta.abonos[venta.abonos.length - 1]
-            return (
-              <div>
-                <div className="text-slate-500 text-xs mb-1">Último abono</div>
-                <div className="font-medium text-slate-700">
-                  {new Date(ultimoAbono.created_at).toLocaleDateString()}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {new Date(ultimoAbono.created_at).toLocaleTimeString()}
-                </div>
-              </div>
-            )
-          })()}
           {venta.monto_total > 0 && (
             <div>
               <div className="text-slate-500 text-xs mb-1">Porcentaje pagado</div>
