@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor, NotificacionHistorial } from '@/lib/recordatoriosApi'
 
 const LINEAS_CONTACTO = [1, 2, 3, 4, 5] as const
@@ -44,6 +45,37 @@ function getLoggedUserVendedorInfo(): { isVendedor: boolean; vendedorId: string 
     }
   } catch { /* ignore */ }
   return { isVendedor: false, vendedorId: '' }
+}
+
+function ModalPortal({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 overscroll-contain"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div onClick={(e) => e.stopPropagation()} className="w-full sm:w-auto sm:max-w-full">
+        {children}
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 export default function RecordatoriosList() {
@@ -527,40 +559,42 @@ export default function RecordatoriosList() {
       )}
 
       {clienteContactoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200">
+        <ModalPortal onClose={cerrarModalContacto}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden sm:mx-auto">
+            <div className="sm:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-slate-300" />
+            </div>
+            <div className="px-5 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
               <h3 className="text-lg font-bold text-slate-900">Registrar contacto</h3>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-slate-500 mt-0.5 truncate">
                 {clienteContactoModal.nombre} — {clienteContactoModal.telefono}
               </p>
             </div>
-            <div className="px-6 py-5">
+            <div className="px-5 sm:px-6 py-4 sm:py-5">
               <p className="text-sm font-semibold text-slate-700 mb-3">¿Desde qué línea se contactó?</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-2 sm:gap-3">
                 {LINEAS_CONTACTO.map((linea) => (
                   <button
                     key={linea}
                     type="button"
                     onClick={() => setLineaSeleccionada(linea)}
-                    className={`py-3 rounded-xl text-sm font-bold transition-all border-2 ${
+                    className={`py-4 sm:py-3 rounded-xl text-base sm:text-sm font-bold transition-all border-2 active:scale-95 ${
                       lineaSeleccionada === linea
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
                         : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50'
                     }`}
                   >
-                    {linea}
+                    L{linea}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-slate-400 mt-3">Selecciona la línea telefónica usada para la llamada.</p>
             </div>
-            <div className="px-6 py-4 bg-slate-50 flex gap-3 justify-end">
+            <div className="px-5 sm:px-6 py-4 bg-slate-50 flex gap-3 border-t border-slate-200 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={cerrarModalContacto}
                 disabled={!!marcandoContactado}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-xl sm:rounded-lg text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -568,23 +602,26 @@ export default function RecordatoriosList() {
                 type="button"
                 onClick={handleConfirmarContacto}
                 disabled={!lineaSeleccionada || marcandoContactado === clienteContactoModal.id}
-                className="px-5 py-2 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 sm:flex-none px-5 py-3 sm:py-2 rounded-xl sm:rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {marcandoContactado === clienteContactoModal.id ? 'Guardando...' : 'Confirmar contacto'}
+                {marcandoContactado === clienteContactoModal.id ? 'Guardando...' : 'Confirmar'}
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {historialModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 shrink-0">
-              <h3 className="text-lg font-bold text-slate-900">Historial de contactos</h3>
-              <p className="text-sm text-slate-500 mt-1">{historialModal.cliente.nombre}</p>
+        <ModalPortal onClose={cerrarHistorial}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[min(85vh,640px)] overflow-hidden flex flex-col sm:mx-auto">
+            <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-slate-300" />
             </div>
-            <div className="overflow-y-auto flex-1 px-6 py-4">
+            <div className="px-5 sm:px-6 py-3 sm:py-4 border-b border-slate-200 shrink-0">
+              <h3 className="text-lg font-bold text-slate-900">Historial de contactos</h3>
+              <p className="text-sm text-slate-500 mt-0.5 truncate">{historialModal.cliente.nombre}</p>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 sm:px-6 py-4 min-h-0">
               {historialModal.items.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-6">Sin registros en esta rifa.</p>
               ) : (
@@ -610,17 +647,17 @@ export default function RecordatoriosList() {
                 </ul>
               )}
             </div>
-            <div className="px-6 py-4 bg-slate-50 flex justify-end shrink-0">
+            <div className="px-5 sm:px-6 py-4 bg-slate-50 flex justify-end shrink-0 border-t border-slate-200 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={cerrarHistorial}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800"
+                className="w-full sm:w-auto px-4 py-3 sm:py-2 rounded-xl sm:rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800"
               >
                 Cerrar
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   )
