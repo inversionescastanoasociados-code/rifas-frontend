@@ -2,10 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor } from '@/lib/recordatoriosApi'
-import { clienteApi } from '@/lib/clienteApi'
-import { RifaConBoletas } from '@/types/cliente'
-import { normalizarTelefono } from '@/utils/telefono'
-import { getMediosDePagoTexto } from '@/config/paymentInfo'
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-CO', {
@@ -14,15 +10,6 @@ const formatCurrency = (value: number) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value)
-}
-
-function getEstadoEmoji(estado: string): string {
-  switch (estado) {
-    case 'RESERVADA': return '📌'
-    case 'ABONADA': return '💳'
-    case 'PAGADA': return '✅'
-    default: return '🔹'
-  }
 }
 
 function formatDateTime(dateString: string | null) {
@@ -44,68 +31,6 @@ function formatDateShort(dateString: string) {
   })
 }
 
-/**
- * Genera = URL de WhatsApp con un mensaje bonito personalizado
- */
-async function generarMensajeWhatsApp(
-  cliente: ClienteRecordatorio,
-  tipo: 'todos' | 'reservadas' | 'abonadas' = 'todos'
-): Promise<string | null> {
-  const telCompleto = normalizarTelefono(cliente.telefono)
-  if (!telCompleto || telCompleto.length < 7) return null
-
-  const nombre = cliente.nombre || 'Cliente'
-
-  try {
-    const response = await clienteApi.getClienteDetalle(cliente.id)
-    const { rifas, resumen } = response.data
-
-    let msg = `🔔 *¡Hola ${nombre}!* 🎉\n\n`
-    msg += `Le escribimos de *Inversiones Castaño* para recordarle sobre sus boletas pendientes.\n\n`
-    msg += `🎯 *¡No se quede por fuera del  premio mayor que vuelve y juega este sabado 27 de Junio recuerda pagar el total de tu boleta para participar!*\n`
-    
-
-    // Detalle por rifa
-    rifas.forEach((rifa: RifaConBoletas) => {
-      const boletasPendientes = rifa.boletas.filter(b => b.estado === 'RESERVADA' || b.estado === 'ABONADA')
-      if (boletasPendientes.length === 0) return
-
-      msg += `🎟️ *${rifa.rifa_nombre}*\n`
-      boletasPendientes.forEach(b => {
-        const num = `#${String(b.numero).padStart(4, '0')}`
-        if (b.estado === 'RESERVADA') {
-          msg += `  ${getEstadoEmoji(b.estado)} Boleta *${num}* — Reservada (pendiente: ${formatCurrency(Number(b.saldo))})\n`
-        } else {
-          msg += `  ${getEstadoEmoji(b.estado)} Boleta *${num}* — Abonado: ${formatCurrency(Number(b.abono))} de ${formatCurrency(Number(b.precio_unitario))} (falta: ${formatCurrency(Number(b.saldo))})\n`
-        }
-      })
-      msg += `\n`
-    })
-
-    const deuda = Number(resumen.total_deuda) || 0
-    if (deuda > 0) {
-      msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n\n`
-    }
-
-    msg += `🏦 ${getMediosDePagoTexto()}\n\n`
-    msg += `📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\n`
-    msg += `¡Gracias por su confianza! 🙏✨`
-
-    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
-  } catch {
-    // Fallback si falla la API
-    const deuda = cliente.deuda_total || 0
-    let msg = `🔔 *¡Hola ${nombre}!* 🎉\n\n`
-    msg += `Le recordamos que tiene boletas pendientes por pagar.\n\n`
-    if (deuda > 0) msg += `💰 *Total pendiente: ${formatCurrency(deuda)}*\n\n`
-    msg += `🏦 ${getMediosDePagoTexto()}\n\n`
-    msg += `📲 *Revisa tus boletas aquí:*\nhttps://elgrancamion.com/boletas\n\n`
-    msg += `¡Complete su pago para participar en los sorteos anticipados! 🙏✨`
-    return `https://wa.me/${telCompleto}?text=${encodeURIComponent(msg)}`
-  }
-}
-
-// Detectar vendedor logueado de forma sincrónica para evitar race conditions
 function getLoggedUserVendedorInfo(): { isVendedor: boolean; vendedorId: string } {
   try {
     const userData = typeof window !== 'undefined' ? localStorage.getItem('user') : null
@@ -131,10 +56,9 @@ export default function RecordatoriosList() {
   const [filtroVendedor, setFiltroVendedor] = useState<string>(loggedUser.vendedorId)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [loading, setLoading] = useState(true)
-  const [cargandoRecordatorio, setCargandoRecordatorio] = useState<string | null>(null)
+  const [marcandoContactado, setMarcandoContactado] = useState<string | null>(null)
   const isVendedor = loggedUser.isVendedor
 
-  // Cargar vendedores al montar
   useEffect(() => {
     recordatoriosApi.getVendedores()
       .then(res => setVendedores(res.data || []))
@@ -167,37 +91,30 @@ export default function RecordatoriosList() {
     setSearchQuery(searchTerm)
   }
 
-  const handleEnviarRecordatorio = async (cliente: ClienteRecordatorio) => {
-    setCargandoRecordatorio(cliente.id)
+  const handleMarcarContactado = async (cliente: ClienteRecordatorio) => {
+    setMarcandoContactado(cliente.id)
     try {
-      const url = await generarMensajeWhatsApp(cliente, filtroActivo)
-      if (url) {
-        window.open(url, '_blank')
-        // Registrar la notificación
-        await recordatoriosApi.registrarNotificacion(cliente.id)
-        // Actualizar el cliente en la lista local
-        setClientes(prev => prev.map(c =>
-          c.id === cliente.id
-            ? {
-                ...c,
-                total_notificaciones: c.total_notificaciones + 1,
-                ultima_notificacion: new Date().toISOString()
-              }
-            : c
-        ))
-        // Actualizar resumen
-        if (resumen && cliente.total_notificaciones === 0) {
-          setResumen({
-            ...resumen,
-            notificados: resumen.notificados + 1,
-            no_notificados: Math.max(resumen.no_notificados - 1, 0)
-          })
-        }
+      await recordatoriosApi.registrarNotificacion(cliente.id)
+      setClientes(prev => prev.map(c =>
+        c.id === cliente.id
+          ? {
+              ...c,
+              total_notificaciones: c.total_notificaciones + 1,
+              ultima_notificacion: new Date().toISOString()
+            }
+          : c
+      ))
+      if (resumen && cliente.total_notificaciones === 0) {
+        setResumen({
+          ...resumen,
+          notificados: resumen.notificados + 1,
+          no_notificados: Math.max(resumen.no_notificados - 1, 0)
+        })
       }
     } catch (error) {
-      console.error('Error enviando recordatorio:', error)
+      console.error('Error marcando contactado:', error)
     } finally {
-      setCargandoRecordatorio(null)
+      setMarcandoContactado(null)
     }
   }
 
@@ -211,23 +128,47 @@ export default function RecordatoriosList() {
     { key: 'abonadas' as const, label: 'Con Abonadas', count: resumen?.con_abonadas ?? 0, color: 'bg-blue-600', textColor: 'text-white' },
   ]
 
-  const notifFilters = [
+  const contactoFilters = [
     { key: 'todos' as const, label: 'Todos', count: resumen?.total_pendientes ?? 0, emoji: '📋' },
-    { key: 'no' as const, label: 'Sin Notificar', count: resumen?.no_notificados ?? 0, emoji: '🔴' },
-    { key: 'si' as const, label: 'Notificados', count: resumen?.notificados ?? 0, emoji: '✅' },
+    { key: 'no' as const, label: 'Sin contactar', count: resumen?.no_notificados ?? 0, emoji: '🔴' },
+    { key: 'si' as const, label: 'Contactados', count: resumen?.notificados ?? 0, emoji: '✅' },
   ]
+
+  const BotonContactado = ({ cliente, fueContactado }: { cliente: ClienteRecordatorio; fueContactado: boolean }) => (
+    <button
+      onClick={() => handleMarcarContactado(cliente)}
+      disabled={marcandoContactado === cliente.id}
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 ${
+        fueContactado
+          ? 'bg-green-600 text-white hover:bg-green-500 shadow-sm'
+          : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20'
+      }`}
+      title={fueContactado ? 'Registrar nuevo contacto por llamada' : 'Marcar como contactado por llamada'}
+    >
+      {marcandoContactado === cliente.id ? (
+        <span className="animate-spin">⏳</span>
+      ) : (
+        <>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          {fueContactado ? 'Contactado' : 'Marcar contactado'}
+        </>
+      )}
+    </button>
+  )
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">🔔 Recordatorios de Pago</h2>
-          <p className="text-sm text-slate-500 mt-1">Clientes con boletas pendientes — envíales un recordatorio por WhatsApp</p>
+          <h2 className="text-2xl font-bold text-slate-900">📞 Recordatorios de Cobro</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Clientes con boleta sin pagar o con abono menor a $80.000 — marca cuando los contactes por llamada
+          </p>
         </div>
       </div>
 
-      {/* Filtro principal: Vendedor/Admin — oculto para VENDEDOR (auto-filtrado) */}
       {!isVendedor && (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <label className="block text-xs font-bold text-slate-600 uppercase mb-2">👤 Filtrar por Vendedor / Admin</label>
@@ -259,7 +200,6 @@ export default function RecordatoriosList() {
       </div>
       )}
 
-      {/* Filter Cards - Tipo de boleta */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {filters.map((f) => (
           <button
@@ -275,9 +215,8 @@ export default function RecordatoriosList() {
         ))}
       </div>
 
-      {/* Filter - Notificado/No notificado */}
       <div className="flex gap-2 flex-wrap">
-        {notifFilters.map((f) => (
+        {contactoFilters.map((f) => (
           <button
             key={f.key}
             onClick={() => setFiltroNotificado(f.key)}
@@ -292,7 +231,6 @@ export default function RecordatoriosList() {
         ))}
       </div>
 
-      {/* Search */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
         <form onSubmit={handleSearchSubmit} className="flex gap-3">
           <input
@@ -311,7 +249,6 @@ export default function RecordatoriosList() {
         </form>
       </div>
 
-      {/* Client List */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
@@ -325,7 +262,6 @@ export default function RecordatoriosList() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -336,26 +272,24 @@ export default function RecordatoriosList() {
                     <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Boletas Pend.</th>
                     <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Deuda</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Registrado</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Notificación</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Contacto</th>
                     <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {clientes.map((cliente) => {
-                    const fueNotificado = cliente.total_notificaciones > 0
+                    const fueContactado = cliente.total_notificaciones > 0
                     return (
                       <tr
                         key={cliente.id}
                         className={`transition-colors ${
-                          fueNotificado
-                            ? 'bg-green-50/60 hover:bg-green-50'
-                            : 'hover:bg-slate-50'
+                          fueContactado ? 'bg-green-50/60 hover:bg-green-50' : 'hover:bg-slate-50'
                         }`}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${
-                              fueNotificado
+                              fueContactado
                                 ? 'bg-gradient-to-br from-green-500 to-green-600'
                                 : 'bg-gradient-to-br from-slate-700 to-slate-500'
                             }`}>
@@ -364,15 +298,15 @@ export default function RecordatoriosList() {
                             <div>
                               <div className="text-sm font-bold text-black flex items-center gap-1.5">
                                 {cliente.nombre}
-                                {fueNotificado && (
-                                  <span className="text-green-600 text-xs" title={`Notificado ${cliente.total_notificaciones} vez(es)`}>✓</span>
+                                {fueContactado && (
+                                  <span className="text-green-600 text-xs" title={`Contactado ${cliente.total_notificaciones} vez(es)`}>✓</span>
                                 )}
                               </div>
                               <div className="text-xs text-slate-500">{cliente.email || cliente.identificacion}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-black">{cliente.telefono}</td>
+                        <td className="px-4 py-3 text-sm text-black font-medium">{cliente.telefono}</td>
                         <td className="px-4 py-3">
                           {cliente.vendedor_nombre ? (
                             <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded-full font-semibold">
@@ -403,7 +337,7 @@ export default function RecordatoriosList() {
                           {formatDateShort(cliente.created_at)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {fueNotificado ? (
+                          {fueContactado ? (
                             <div>
                               <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
                                 ✅ {cliente.total_notificaciones}x
@@ -414,32 +348,12 @@ export default function RecordatoriosList() {
                             </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs px-2 py-1 rounded-full font-semibold">
-                              🔴 Sin notificar
+                              🔴 Sin contactar
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleEnviarRecordatorio(cliente)}
-                            disabled={cargandoRecordatorio === cliente.id}
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 ${
-                              fueNotificado
-                                ? 'bg-green-600 text-white hover:bg-green-500 shadow-sm'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20 animate-pulse hover:animate-none'
-                            }`}
-                            title={fueNotificado ? 'Enviar otro recordatorio' : 'Enviar primer recordatorio'}
-                          >
-                            {cargandoRecordatorio === cliente.id ? (
-                              <span className="animate-spin">⏳</span>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                </svg>
-                                {fueNotificado ? 'Reenviar' : 'Recordar'}
-                              </>
-                            )}
-                          </button>
+                          <BotonContactado cliente={cliente} fueContactado={fueContactado} />
                         </td>
                       </tr>
                     )
@@ -448,36 +362,31 @@ export default function RecordatoriosList() {
               </table>
             </div>
 
-            {/* Mobile cards */}
             <div className="lg:hidden divide-y divide-slate-100">
               {clientes.map((cliente) => {
-                const fueNotificado = cliente.total_notificaciones > 0
+                const fueContactado = cliente.total_notificaciones > 0
                 return (
-                  <div
-                    key={cliente.id}
-                    className={`p-4 transition-colors ${
-                      fueNotificado ? 'bg-green-50/60' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${
-                          fueNotificado
-                            ? 'bg-gradient-to-br from-green-500 to-green-600'
-                            : 'bg-gradient-to-br from-slate-700 to-slate-500'
-                        }`}>
-                          {cliente.nombre?.charAt(0)?.toUpperCase() || '?'}
+                  <div key={cliente.id} className={`p-4 ${fueContactado ? 'bg-green-50/60' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 ${
+                        fueContactado
+                          ? 'bg-gradient-to-br from-green-500 to-green-600'
+                          : 'bg-gradient-to-br from-slate-700 to-slate-500'
+                      }`}>
+                        {cliente.nombre?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-black truncate flex items-center gap-1">
+                          {cliente.nombre}
+                          {fueContactado && <span className="text-green-600 text-xs">✓</span>}
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-black truncate flex items-center gap-1">
-                            {cliente.nombre}
-                            {fueNotificado && <span className="text-green-600 text-xs">✓</span>}
-                          </div>
-                          <div className="text-xs text-slate-500">{cliente.telefono} · {formatDateShort(cliente.created_at)}</div>
-                          {cliente.vendedor_nombre && (
-                            <div className="text-xs text-indigo-600 font-medium mt-0.5">👤 {cliente.vendedor_nombre}</div>
-                          )}
-                        </div>
+                        <a href={`tel:${cliente.telefono}`} className="text-sm text-indigo-600 font-medium">
+                          {cliente.telefono}
+                        </a>
+                        <div className="text-xs text-slate-500">{formatDateShort(cliente.created_at)}</div>
+                        {cliente.vendedor_nombre && (
+                          <div className="text-xs text-indigo-600 font-medium mt-0.5">👤 {cliente.vendedor_nombre}</div>
+                        )}
                       </div>
                     </div>
 
@@ -495,38 +404,19 @@ export default function RecordatoriosList() {
                       <span className="text-xs font-bold text-red-700">
                         Deuda: {formatCurrency(cliente.deuda_total || 0)}
                       </span>
-                      {fueNotificado ? (
+                      {fueContactado ? (
                         <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded font-semibold">
-                          ✅ Notificado {cliente.total_notificaciones}x · {formatDateTime(cliente.ultima_notificacion)}
+                          ✅ Contactado {cliente.total_notificaciones}x
                         </span>
                       ) : (
                         <span className="bg-red-50 text-red-600 text-xs px-1.5 py-0.5 rounded font-semibold">
-                          🔴 Sin notificar
+                          🔴 Sin contactar
                         </span>
                       )}
                     </div>
 
                     <div className="mt-3 flex justify-end">
-                      <button
-                        onClick={() => handleEnviarRecordatorio(cliente)}
-                        disabled={cargandoRecordatorio === cliente.id}
-                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 ${
-                          fueNotificado
-                            ? 'bg-green-600 text-white hover:bg-green-500'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-md shadow-emerald-600/20'
-                        }`}
-                      >
-                        {cargandoRecordatorio === cliente.id ? (
-                          '⏳ Cargando...'
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                            </svg>
-                            {fueNotificado ? '📩 Reenviar' : '📩 Recordar'}
-                          </>
-                        )}
-                      </button>
+                      <BotonContactado cliente={cliente} fueContactado={fueContactado} />
                     </div>
                   </div>
                 )
@@ -536,7 +426,6 @@ export default function RecordatoriosList() {
         )}
       </div>
 
-      {/* Pagination */}
       {pagination.totalPages > 1 && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
