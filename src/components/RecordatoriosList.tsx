@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor } from '@/lib/recordatoriosApi'
+import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor, NotificacionHistorial } from '@/lib/recordatoriosApi'
+
+const LINEAS_CONTACTO = [1, 2, 3, 4, 5] as const
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-CO', {
@@ -57,6 +59,13 @@ export default function RecordatoriosList() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [loading, setLoading] = useState(true)
   const [marcandoContactado, setMarcandoContactado] = useState<string | null>(null)
+  const [clienteContactoModal, setClienteContactoModal] = useState<ClienteRecordatorio | null>(null)
+  const [lineaSeleccionada, setLineaSeleccionada] = useState<number | null>(null)
+  const [historialModal, setHistorialModal] = useState<{
+    cliente: ClienteRecordatorio
+    items: NotificacionHistorial[]
+  } | null>(null)
+  const [cargandoHistorial, setCargandoHistorial] = useState<string | null>(null)
   const isVendedor = loggedUser.isVendedor
 
   useEffect(() => {
@@ -91,16 +100,32 @@ export default function RecordatoriosList() {
     setSearchQuery(searchTerm)
   }
 
-  const handleMarcarContactado = async (cliente: ClienteRecordatorio) => {
+  const abrirModalContacto = (cliente: ClienteRecordatorio) => {
+    setClienteContactoModal(cliente)
+    setLineaSeleccionada(null)
+  }
+
+  const cerrarModalContacto = () => {
+    if (marcandoContactado) return
+    setClienteContactoModal(null)
+    setLineaSeleccionada(null)
+  }
+
+  const handleConfirmarContacto = async () => {
+    if (!clienteContactoModal || !lineaSeleccionada) return
+
+    const cliente = clienteContactoModal
     setMarcandoContactado(cliente.id)
     try {
-      await recordatoriosApi.registrarNotificacion(cliente.id)
+      const res = await recordatoriosApi.registrarNotificacion(cliente.id, lineaSeleccionada)
+      const createdAt = res.data.created_at || new Date().toISOString()
       setClientes(prev => prev.map(c =>
         c.id === cliente.id
           ? {
               ...c,
               total_notificaciones: c.total_notificaciones + 1,
-              ultima_notificacion: new Date().toISOString()
+              ultima_notificacion: createdAt,
+              ultima_linea_contacto: lineaSeleccionada
             }
           : c
       ))
@@ -111,12 +136,30 @@ export default function RecordatoriosList() {
           no_notificados: Math.max(resumen.no_notificados - 1, 0)
         })
       }
+      cerrarModalContacto()
     } catch (error) {
       console.error('Error marcando contactado:', error)
+      alert('No se pudo registrar el contacto. Intenta de nuevo.')
     } finally {
       setMarcandoContactado(null)
     }
   }
+
+  const abrirHistorial = async (cliente: ClienteRecordatorio) => {
+    if ((cliente.total_notificaciones || 0) === 0) return
+    setCargandoHistorial(cliente.id)
+    try {
+      const res = await recordatoriosApi.getNotificacionesCliente(cliente.id)
+      setHistorialModal({ cliente, items: res.data || [] })
+    } catch (error) {
+      console.error('Error cargando historial:', error)
+      alert('No se pudo cargar el historial de contactos.')
+    } finally {
+      setCargandoHistorial(null)
+    }
+  }
+
+  const cerrarHistorial = () => setHistorialModal(null)
 
   const handlePageChange = (page: number) => {
     fetchClientes(page)
@@ -136,7 +179,7 @@ export default function RecordatoriosList() {
 
   const BotonContactado = ({ cliente, fueContactado }: { cliente: ClienteRecordatorio; fueContactado: boolean }) => (
     <button
-      onClick={() => handleMarcarContactado(cliente)}
+      onClick={() => abrirModalContacto(cliente)}
       disabled={marcandoContactado === cliente.id}
       className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 ${
         fueContactado
@@ -157,6 +200,38 @@ export default function RecordatoriosList() {
       )}
     </button>
   )
+
+  const BadgeContacto = ({ cliente, fueContactado }: { cliente: ClienteRecordatorio; fueContactado: boolean }) => {
+    if (!fueContactado) {
+      return (
+        <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs px-2 py-1 rounded-full font-semibold">
+          🔴 Sin contactar
+        </span>
+      )
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => abrirHistorial(cliente)}
+        disabled={cargandoHistorial === cliente.id}
+        className="inline-flex flex-col items-center gap-0.5 hover:opacity-80 disabled:opacity-50"
+        title="Ver historial de contactos"
+      >
+        <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
+          {cargandoHistorial === cliente.id ? '⏳' : `✅ ${cliente.total_notificaciones}x`}
+        </span>
+        <span className="text-[10px] text-slate-400">
+          {formatDateTime(cliente.ultima_notificacion)}
+        </span>
+        {cliente.ultima_linea_contacto && (
+          <span className="text-[10px] text-indigo-600 font-semibold">
+            Línea {cliente.ultima_linea_contacto}
+          </span>
+        )}
+      </button>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -337,20 +412,7 @@ export default function RecordatoriosList() {
                           {formatDateShort(cliente.created_at)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {fueContactado ? (
-                            <div>
-                              <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
-                                ✅ {cliente.total_notificaciones}x
-                              </span>
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                {formatDateTime(cliente.ultima_notificacion)}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs px-2 py-1 rounded-full font-semibold">
-                              🔴 Sin contactar
-                            </span>
-                          )}
+                          <BadgeContacto cliente={cliente} fueContactado={fueContactado} />
                         </td>
                         <td className="px-4 py-3 text-right">
                           <BotonContactado cliente={cliente} fueContactado={fueContactado} />
@@ -405,9 +467,16 @@ export default function RecordatoriosList() {
                         Deuda: {formatCurrency(cliente.deuda_total || 0)}
                       </span>
                       {fueContactado ? (
-                        <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded font-semibold">
-                          ✅ Contactado {cliente.total_notificaciones}x
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => abrirHistorial(cliente)}
+                          disabled={cargandoHistorial === cliente.id}
+                          className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded font-semibold hover:opacity-80 disabled:opacity-50"
+                        >
+                          {cargandoHistorial === cliente.id
+                            ? '⏳'
+                            : `✅ Contactado ${cliente.total_notificaciones}x${cliente.ultima_linea_contacto ? ` · L${cliente.ultima_linea_contacto}` : ''}`}
+                        </button>
                       ) : (
                         <span className="bg-red-50 text-red-600 text-xs px-1.5 py-0.5 rounded font-semibold">
                           🔴 Sin contactar
@@ -451,6 +520,103 @@ export default function RecordatoriosList() {
                 className="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 Siguiente →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clienteContactoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Registrar contacto</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                {clienteContactoModal.nombre} — {clienteContactoModal.telefono}
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm font-semibold text-slate-700 mb-3">¿Desde qué línea se contactó?</p>
+              <div className="grid grid-cols-5 gap-2">
+                {LINEAS_CONTACTO.map((linea) => (
+                  <button
+                    key={linea}
+                    type="button"
+                    onClick={() => setLineaSeleccionada(linea)}
+                    className={`py-3 rounded-xl text-sm font-bold transition-all border-2 ${
+                      lineaSeleccionada === linea
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    }`}
+                  >
+                    {linea}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-3">Selecciona la línea telefónica usada para la llamada.</p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={cerrarModalContacto}
+                disabled={!!marcandoContactado}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarContacto}
+                disabled={!lineaSeleccionada || marcandoContactado === clienteContactoModal.id}
+                className="px-5 py-2 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {marcandoContactado === clienteContactoModal.id ? 'Guardando...' : 'Confirmar contacto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 shrink-0">
+              <h3 className="text-lg font-bold text-slate-900">Historial de contactos</h3>
+              <p className="text-sm text-slate-500 mt-1">{historialModal.cliente.nombre}</p>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+              {historialModal.items.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-6">Sin registros en esta rifa.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {historialModal.items.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-slate-900">
+                          {item.linea_contacto ? `Línea ${item.linea_contacto}` : 'Línea no registrada'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {item.notificado_por_nombre || 'Usuario'}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-500 text-right shrink-0">
+                        {formatDateTime(item.created_at)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-slate-50 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={cerrarHistorial}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800"
+              >
+                Cerrar
               </button>
             </div>
           </div>

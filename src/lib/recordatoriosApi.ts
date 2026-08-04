@@ -17,6 +17,7 @@ export interface ClienteRecordatorio {
   deuda_total: number
   total_notificaciones: number
   ultima_notificacion: string | null
+  ultima_linea_contacto: number | null
   vendedor_id: string | null
   vendedor_nombre: string | null
 }
@@ -44,6 +45,7 @@ export interface ResumenRecordatorios {
 export interface NotificacionHistorial {
   id: string
   created_at: string
+  linea_contacto: number | null
   notificado_por_nombre: string | null
 }
 
@@ -93,10 +95,14 @@ class RecordatoriosApiService {
     return this.handleResponse<RecordatorioListResponse>(response)
   }
 
-  async registrarNotificacion(clienteId: string): Promise<{ success: boolean; data: { id: string; created_at: string } }> {
+  async registrarNotificacion(
+    clienteId: string,
+    lineaContacto: number
+  ): Promise<{ success: boolean; data: { id: string; created_at: string; linea_contacto: number } }> {
     const response = await fetch(`${API_BASE_URL}/api/recordatorios/${clienteId}/notificar`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ linea_contacto: lineaContacto })
     })
     return this.handleResponse(response)
   }
