@@ -285,7 +285,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <h4 className="text-lg font-semibold mb-1">Recordatorios</h4>
-                  <p className="text-rose-100 text-sm leading-relaxed">Cobro por llamada — clientes con deuda o abono menor a $80.000</p>
+                  <p className="text-rose-100 text-sm leading-relaxed">Cobro por llamada — clientes con deuda mayor a $50.000 por boleta</p>
                   <div className="mt-4 flex items-center text-rose-200 text-xs font-medium group-hover:text-white transition-colors">
                     Ir al módulo
                     <svg className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>

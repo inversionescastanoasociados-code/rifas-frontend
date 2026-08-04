@@ -164,7 +164,7 @@ export default function RecordatoriosList() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">📞 Recordatorios de Cobro</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Clientes con boleta sin pagar o con abono menor a $80.000 — marca cuando los contactes por llamada
+            Clientes con deuda mayor a $50.000 por boleta — marca cuando los contactes por llamada
           </p>
         </div>
       </div>
