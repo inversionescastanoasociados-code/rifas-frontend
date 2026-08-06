@@ -5,6 +5,8 @@ import { ventasApi } from '@/lib/ventasApi'
 import { ReservaResponse } from '@/types/ventas'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 
+const MEDIO_PAGO_EFECTIVO_ID = 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7'
+
 interface DialogoConvertirReservaProps {
   isOpen: boolean
   reserva: ReservaResponse
@@ -21,10 +23,13 @@ export default function DialogoConvertirReserva({
   const [tipoVenta, setTipoVenta] = useState<'COMPLETA' | 'ABONO'>('COMPLETA')
   const [montoAbono, setMontoAbono] = useState<number>(0)
   const [medioPagoId, setMedioPagoId] = useState<string>('')
+  const [comprobante, setComprobante] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paso, setPaso] = useState<'confirmacion' | 'procesando' | 'completado' | 'error'>('confirmacion')
   const [ventaResponse, setVentaResponse] = useState<any>(null)
+
+  const requiereComprobante = !!medioPagoId && medioPagoId !== MEDIO_PAGO_EFECTIVO_ID
 
   if (!isOpen) return null
 
@@ -36,6 +41,10 @@ export default function DialogoConvertirReserva({
     // Validaciones
     if (!medioPagoId) {
       setError('Seleccione un método de pago')
+      return
+    }
+    if (requiereComprobante && !comprobante.trim()) {
+      setError('Ingresa el número de comprobante del pago')
       return
     }
     if (tipoVenta === 'ABONO') {
@@ -59,7 +68,8 @@ export default function DialogoConvertirReserva({
         {
           monto_total: totalVenta,
           total_pagado: tipoVenta === 'ABONO' ? montoAbono : totalVenta,
-          medio_pago_id: medioPagoId
+          medio_pago_id: medioPagoId,
+          referencia_pago: requiereComprobante ? comprobante.trim() : undefined
         }
       )
 
@@ -86,6 +96,7 @@ export default function DialogoConvertirReserva({
       setTipoVenta('COMPLETA')
       setMontoAbono(0)
       setMedioPagoId('')
+      setComprobante('')
       onClose()
     }
   }
@@ -375,6 +386,29 @@ export default function DialogoConvertirReserva({
             </select>
           </div>
 
+          {/* Comprobante de pago */}
+          {requiereComprobante ? (
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                N° de comprobante
+              </label>
+              <input
+                type="text"
+                value={comprobante}
+                onChange={(e) => setComprobante(e.target.value)}
+                disabled={procesando}
+                placeholder="Ej: 123456789"
+                className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black placeholder:text-slate-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">Cada comprobante solo se puede usar una vez.</p>
+            </div>
+          ) : medioPagoId === MEDIO_PAGO_EFECTIVO_ID ? (
+            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <span>💵</span>
+              <span>Pago en <strong>efectivo</strong>, no requiere comprobante.</span>
+            </div>
+          ) : null}
+
           {/* Resumen de totales */}
           <div className="border-t border-slate-200 pt-4">
             <div className="space-y-2">
@@ -421,7 +455,7 @@ export default function DialogoConvertirReserva({
           </button>
           <button
             onClick={procesarConversion}
-            disabled={procesando || (tipoVenta === 'ABONO' && montoAbono <= 0)}
+            disabled={procesando || !medioPagoId || (requiereComprobante && !comprobante.trim()) || (tipoVenta === 'ABONO' && montoAbono <= 0)}
             className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
           >
             {procesando ? 'Procesando...' : '✓ Convertir a Venta'}

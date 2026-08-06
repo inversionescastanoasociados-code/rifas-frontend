@@ -68,6 +68,7 @@ export interface BoletaDetail {
     metodo_pago: string
     estado: string
     linea_origen?: string | null
+    referencia_pago?: string | null
   } | null
   abonos?: AbonoHistorial[]
   boleta_financiero?: {

@@ -83,6 +83,8 @@ export interface VentaRequest {
     monto: number
   }>
   linea_origen: string
+  /** Número de comprobante del pago (PSE/transferencia). No requerido si el pago es en efectivo. */
+  referencia_pago?: string
 }
 
 export interface VentaResponse {
@@ -213,6 +215,8 @@ export interface ConvertirReservaRequest {
   monto_total: number
   total_pagado: number
   medio_pago_id: string
+  /** Número de comprobante del pago (PSE/transferencia). No requerido si el pago es en efectivo. */
+  referencia_pago?: string
 }
 
 export interface ConvertirReservaResponse {

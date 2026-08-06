@@ -22,6 +22,8 @@ const MEDIOS_PAGO_MAP: Record<string, string> = {
   '57a2f560-b3d7-4fa8-91cf-24e6b2a6d7ff': 'Tarjeta Crédito',
 }
 
+const MEDIO_PAGO_EFECTIVO_ID = 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7'
+
 interface CarritoVentasProps {
   boletas: BoletaEnCarrito[]
   cliente: Cliente
@@ -57,6 +59,9 @@ export default function CarritoVentas({
   const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [lineaOrigen, setLineaOrigen] = useState<LineaOrigenVenta | null>(null)
+  const [comprobante, setComprobante] = useState('')
+
+  const requiereComprobante = tipoVenta !== 'RESERVA' && !!medioPagoId && medioPagoId !== MEDIO_PAGO_EFECTIVO_ID
 
   // Calcular totales
   const subtotal = boletas.length * precioBoleta
@@ -130,6 +135,11 @@ export default function CarritoVentas({
       return
     }
 
+    if (requiereComprobante && !comprobante.trim()) {
+      setError('Ingresa el número de comprobante del pago')
+      return
+    }
+
     setProcesando(true)
     setError(null)
     setPaso('procesando')
@@ -153,6 +163,7 @@ export default function CarritoVentas({
         total_pagado: tipoVenta === 'ABONO' ? montoAbono : total,
         notas: notas || undefined,
         linea_origen: lineaOrigen,
+        referencia_pago: requiereComprobante ? comprobante.trim() : undefined,
         ...(tipoVenta === 'ABONO' ? {
           abonos_por_boleta: boletas
             .filter(b => (abonosPorBoleta[b.id] || 0) > 0)
@@ -756,7 +767,7 @@ export default function CarritoVentas({
           </button>
         ) : (
           <button
-            onClick={() => { setLineaOrigen(null); setMostrarConfirmacion(true) }}
+            onClick={() => { setLineaOrigen(null); setComprobante(''); setMostrarConfirmacion(true) }}
             disabled={!tipoVentaSeleccionado || procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || !medioPagoId || (tipoVenta === 'ABONO' && montoAbono <= 0)}
             className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors ${
               tipoVenta === 'COMPLETA' 
@@ -798,7 +809,29 @@ export default function CarritoVentas({
                 compact
               />
             </div>
-            
+
+            {requiereComprobante ? (
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-black mb-1">
+                  N° de comprobante ({MEDIOS_PAGO_MAP[medioPagoId] || 'transferencia'})
+                </label>
+                <input
+                  type="text"
+                  value={comprobante}
+                  onChange={(e) => setComprobante(e.target.value)}
+                  disabled={procesando}
+                  placeholder="Ej: 123456789"
+                  className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black placeholder:text-slate-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">Cada comprobante solo se puede usar una vez.</p>
+              </div>
+            ) : (
+              <div className="mb-5 flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <span>💵</span>
+                <span>Pago en <strong>efectivo</strong>, no requiere comprobante.</span>
+              </div>
+            )}
+
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Cliente:</span>
@@ -840,14 +873,14 @@ export default function CarritoVentas({
             
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => { setMostrarConfirmacion(false); setLineaOrigen(null) }}
+                onClick={() => { setMostrarConfirmacion(false); setLineaOrigen(null); setComprobante('') }}
                 className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => { setMostrarConfirmacion(false); procesarVenta() }}
-                disabled={!lineaOrigen || procesando}
+                disabled={!lineaOrigen || (requiereComprobante && !comprobante.trim()) || procesando}
                 className={`flex-1 px-4 py-2 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                   tipoVenta === 'COMPLETA' 
                     ? 'bg-green-600 hover:bg-green-700' 

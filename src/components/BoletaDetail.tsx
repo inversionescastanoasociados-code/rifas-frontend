@@ -265,6 +265,13 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   </span>
                 </div>
               )}
+
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">N° Comprobante:</span>
+                <span className="text-sm font-medium text-slate-900">
+                  {boleta.venta_info.referencia_pago || (boleta.venta_info.metodo_pago === 'Efectivo' ? 'Efectivo' : '—')}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -304,6 +311,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Fecha</th>
                   <th className="text-right py-2 px-3 text-slate-600 font-medium">Monto</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Método</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Comprobante</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Estado</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Notas</th>
                 </tr>
@@ -315,6 +323,9 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                     <td className="py-2 px-3 text-slate-900">{formatDate(abono.fecha)}</td>
                     <td className="py-2 px-3 text-right font-medium text-green-700">{formatCurrency(abono.monto)}</td>
                     <td className="py-2 px-3 text-slate-900">{abono.metodo_pago}</td>
+                    <td className="py-2 px-3 text-slate-900">
+                      {abono.referencia || (abono.metodo_pago === 'Efectivo' ? 'Efectivo' : '—')}
+                    </td>
                     <td className="py-2 px-3">
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                         abono.estado === 'CONFIRMADO' ? 'bg-green-100 text-green-800' :
@@ -334,7 +345,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   <td className="py-2 px-3 text-right font-bold text-green-700">
                     {formatCurrency(boleta.abonos.reduce((sum, a) => sum + a.monto, 0))}
                   </td>
-                  <td colSpan={3}></td>
+                  <td colSpan={4}></td>
                 </tr>
               </tfoot>
             </table>

@@ -53,31 +53,25 @@ export default function SelectorBoletas({
     try {
       const response = await ventasApi.getBoletasDisponibles(rifaId)
       const boletas = response.data || []
-      
-      // Filtrar solo las boletas disponibles y transformar al formato esperado
-      const boletasDisponibles = boletas
-        .filter((boleta: any) => boleta.estado === 'DISPONIBLE')
-        .map((boleta: any) => ({
-          id: boleta.id,
-          numero: boleta.numero,
-          estado: 'DISPONIBLE' as const,
-          qr_url: boleta.qr_url || '',
-          barcode: boleta.barcode || '',
-          imagen_url: boleta.imagen_url,
-          rifa_nombre: '',
-          rifa_id: rifaId,
-          precio: 0
-        }))
+
+      // El endpoint /disponibles ya devuelve solo boletas DISPONIBLE (campos mínimos)
+      const boletasDisponibles = boletas.map((boleta: any) => ({
+        id: boleta.id,
+        numero: boleta.numero,
+        estado: 'DISPONIBLE' as const,
+        qr_url: boleta.qr_url || '',
+        barcode: boleta.barcode || '',
+        imagen_url: boleta.imagen_url,
+        rifa_nombre: '',
+        rifa_id: rifaId,
+        precio: 0
+      }))
       
       setBoletasDisponibles(boletasDisponibles)
       
       // Si no hay boletas disponibles, mostrar mensaje informativo
       if (boletasDisponibles.length === 0) {
-        const totalBoletas = boletas.length
-        const reservadas = boletas.filter((b: any) => b.estado === 'RESERVADA').length
-        const vendidas = boletas.filter((b: any) => b.estado === 'VENDIDA').length
-        
-        setError(`No hay boletas disponibles. Total: ${totalBoletas}, Reservadas: ${reservadas}, Vendidas: ${vendidas}`)
+        setError('No hay boletas disponibles en este momento.')
       }
     } catch (error: any) {
       console.error('Error cargando boletas:', error)

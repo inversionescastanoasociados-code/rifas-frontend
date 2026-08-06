@@ -505,7 +505,7 @@ export default function ClienteDetalle({ clienteId, onBack }: ClienteDetalleProp
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Boleta</th>
                     <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase">Monto</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Medio Pago</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Referencia</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Comprobante</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
                   </tr>
                 </thead>
@@ -529,7 +529,13 @@ export default function ClienteDetalle({ clienteId, onBack }: ClienteDetalleProp
                       <td className="px-4 py-3 text-sm text-black">
                         {abono.medio_pago_nombre || abono.gateway_pago || '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{abono.referencia || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        {abono.referencia || (
+                          (abono.medio_pago_nombre || abono.gateway_pago || '').toLowerCase() === 'efectivo'
+                            ? 'Efectivo'
+                            : '—'
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm text-center">
                         <span
                           className={`px-2 py-1 rounded text-xs font-bold ${

@@ -176,6 +176,8 @@ const MEDIOS_PAGO = [
   { id: 'transferencia', label: 'PSE' },
 ]
 
+const MEDIO_PAGO_EFECTIVO_KEY = 'efectivo'
+
 export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: Props) {
   const [venta, setVenta] = useState<VentaNormalizada | null>(null)
   const [loading, setLoading] = useState(true)
@@ -183,6 +185,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [monto, setMonto] = useState<number>(0)
   const [metodoPago, setMetodoPago] = useState<string>('')
   const [notas, setNotas] = useState('')
+  const [comprobante, setComprobante] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmarCancelar, setConfirmarCancelar] = useState(false)
@@ -194,6 +197,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
   const [boletasSeleccionadas, setBoletasSeleccionadas] = useState<BoletasSeleccionadas>({})
   const [historialExpandido, setHistorialExpandido] = useState<Record<string, boolean>>({})
   const [mostrarConfirmacionAbono, setMostrarConfirmacionAbono] = useState(false)
+
+  const requiereComprobante = !!metodoPago && metodoPago !== MEDIO_PAGO_EFECTIVO_KEY
 
   useEffect(() => {
     cargarDetalle()
@@ -281,6 +286,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         return
       }
 
+      if (requiereComprobante && !comprobante.trim()) {
+        setError('Ingresa el número de comprobante del pago')
+        return
+      }
+
       setProcesando(true)
       setError(null)
       try {
@@ -289,7 +299,8 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
           monto: totalMulti,
           metodo_pago: metodoPago,
           notas: notasAbono,
-          boletas_abono: boletasAbono
+          boletas_abono: boletasAbono,
+          referencia: requiereComprobante ? comprobante.trim() : undefined
         })
         const ventaActualizada = await cargarDetalle({ silent: true })
         if (!ventaActualizada) return
@@ -297,6 +308,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         setBoletasSeleccionadas({})
         setMonto(0)
         setNotas('')
+        setComprobante('')
         setAccion(null)
 
         const numerosAbonados = boletasAbono.map((ba) => {
@@ -353,6 +365,11 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         return
       }
 
+      if (requiereComprobante && !comprobante.trim()) {
+        setError('Ingresa el número de comprobante del pago')
+        return
+      }
+
       setProcesando(true)
       setError(null)
       try {
@@ -360,13 +377,15 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         await ventasApi.registrarAbono(ventaId, {
           monto: montoValidado,
           metodo_pago: metodoPago,
-          notas: notasAbono
+          notas: notasAbono,
+          referencia: requiereComprobante ? comprobante.trim() : undefined
         })
         const ventaActualizada = await cargarDetalle({ silent: true })
         if (!ventaActualizada) return
 
         setMonto(0)
         setNotas('')
+        setComprobante('')
         setAccion(null)
 
         const esPagoTotal = ventaActualizada.saldo_pendiente <= 0
@@ -819,6 +838,9 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                             </div>
                             <div className="text-slate-600">
                               {abono.metodo_pago}
+                              {abono.referencia && (
+                                <span className="text-slate-500"> · Comprobante: {abono.referencia}</span>
+                              )}
                             </div>
                             {abono.registrado_por_nombre && (
                               <div className="text-slate-700 font-medium mt-0.5">
@@ -1082,6 +1104,27 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               </select>
             </div>
 
+            {requiereComprobante ? (
+              <div>
+                <label className="block text-sm font-bold text-black mb-1">
+                  N° de comprobante ({MEDIOS_PAGO.find((m) => m.id === metodoPago)?.label || 'transferencia'})
+                </label>
+                <input
+                  type="text"
+                  value={comprobante}
+                  onChange={(e) => setComprobante(e.target.value)}
+                  placeholder="Ej: 123456789"
+                  className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white text-black placeholder:text-slate-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">Cada comprobante solo se puede usar una vez.</p>
+              </div>
+            ) : metodoPago === MEDIO_PAGO_EFECTIVO_KEY ? (
+              <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <span>💵</span>
+                <span>Pago en <strong>efectivo</strong>, no requiere comprobante.</span>
+              </div>
+            ) : null}
+
             {/* Si NO hay boletas seleccionadas, mostrar input de monto general */}
             {Object.keys(boletasSeleccionadas).length === 0 && (
               <div className="space-y-2">
@@ -1135,7 +1178,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas(''); setBoletasSeleccionadas({}); setPagarTodo(false) }}
+                onClick={() => { setAccion(null); setError(null); setMonto(0); setNotas(''); setComprobante(''); setBoletasSeleccionadas({}); setPagarTodo(false) }}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
               >
                 Cancelar
@@ -1143,7 +1186,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               <button
                 type="button"
                 onClick={() => setMostrarConfirmacionAbono(true)}
-                disabled={procesando || !metodoPago || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
+                disabled={procesando || !metodoPago || (requiereComprobante && !comprobante.trim()) || (Object.keys(boletasSeleccionadas).length === 0 && monto <= 0) || (Object.keys(boletasSeleccionadas).length > 0 && Object.values(boletasSeleccionadas).reduce((s, m) => s + (m || 0), 0) <= 0)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
               >
                 {procesando
@@ -1229,6 +1272,12 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                       <span className="text-slate-600">Método de pago:</span>
                       <span className="font-medium text-slate-900">{MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago}</span>
                     </div>
+                    {requiereComprobante && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">N° comprobante:</span>
+                        <span className="font-medium text-slate-900">{comprobante}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex gap-3 mt-6">
@@ -1240,7 +1289,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                     </button>
                     <button
                       onClick={() => { setMostrarConfirmacionAbono(false); registrarAbono() }}
-                      disabled={procesando}
+                      disabled={procesando || (requiereComprobante && !comprobante.trim())}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
                     >
                       {procesando ? 'Procesando...' : '✅ Confirmar'}

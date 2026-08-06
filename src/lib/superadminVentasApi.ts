@@ -27,6 +27,7 @@ export interface SAVentaCabecera {
   estado_venta: string
   medio_pago_id: string | null
   gateway_pago: string | null
+  referencia_pago: string | null
   es_venta_online: boolean
   created_at: string
   updated_at: string
@@ -124,7 +125,7 @@ class SuperadminVentasApi {
     return this.handle<SAVentaDetalle>(res)
   }
 
-  async editarAbono(abonoId: string, body: { monto?: number; medio_pago_id?: string }): Promise<SAVentaDetalle> {
+  async editarAbono(abonoId: string, body: { monto?: number; medio_pago_id?: string; referencia?: string | null }): Promise<SAVentaDetalle> {
     const res = await this.fetchWithTimeout(`${BASE}/abonos/${abonoId}`, {
       method: 'PATCH',
       headers: this.getAuthHeaders(),
@@ -195,6 +196,15 @@ class SuperadminVentasApi {
       method: 'PATCH',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ cliente_id: clienteId }),
+    })
+    return this.handle<SAVentaDetalle>(res)
+  }
+
+  async editarComprobante(ventaId: string, referenciaPago: string | null): Promise<SAVentaDetalle> {
+    const res = await this.fetchWithTimeout(`${BASE}/${ventaId}/comprobante`, {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ referencia_pago: referenciaPago }),
     })
     return this.handle<SAVentaDetalle>(res)
   }

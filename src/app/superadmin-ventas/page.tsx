@@ -57,6 +57,8 @@ export default function SuperadminVentasPage() {
   const [nuevoAbonoBoleta, setNuevoAbonoBoleta] = useState('')
   const [agregarBoletaId, setAgregarBoletaId] = useState('')
   const [reasignarClienteId, setReasignarClienteId] = useState('')
+  const [editandoComprobante, setEditandoComprobante] = useState(false)
+  const [comprobanteVenta, setComprobanteVenta] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -88,6 +90,7 @@ export default function SuperadminVentasPage() {
 
   const abrirDetalle = async (ventaId: string) => {
     setError(''); setAviso(''); setCargandoDetalle(true); setDetalle(null)
+    setEditandoComprobante(false); setComprobanteVenta('')
     try {
       const data = await superadminVentasApi.getDetalle(ventaId)
       setDetalle(data)
@@ -271,6 +274,59 @@ export default function SuperadminVentasPage() {
                 </div>
               </div>
 
+              {/* Comprobante de la venta */}
+              <div className="mt-3 bg-slate-50 rounded-xl p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-slate-500">N° Comprobante</p>
+                    {!editandoComprobante && (
+                      <p className="font-medium text-slate-700">
+                        {v.referencia_pago || ((v.medio_pago_nombre || v.gateway_pago || '').toLowerCase() === 'efectivo' ? 'Efectivo' : '—')}
+                      </p>
+                    )}
+                  </div>
+                  {!editandoComprobante && (
+                    <button
+                      onClick={() => { setComprobanteVenta(v.referencia_pago || ''); setEditandoComprobante(true) }}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                    >
+                      Editar
+                    </button>
+                  )}
+                </div>
+                {editandoComprobante && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <input
+                      value={comprobanteVenta}
+                      onChange={(e) => setComprobanteVenta(e.target.value)}
+                      placeholder="N° de comprobante (vacío = sin comprobante)"
+                      className="flex-1 min-w-[200px] rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                    <button
+                      onClick={() => setConfirm({
+                        title: 'Editar comprobante de la venta',
+                        message: '¿Guardar el nuevo número de comprobante de esta venta?',
+                        type: 'warning',
+                        onConfirm: () => ejecutar(async () => {
+                          const r = await superadminVentasApi.editarComprobante(v.venta_id, comprobanteVenta.trim() || null)
+                          setEditandoComprobante(false)
+                          return r
+                        }, 'Comprobante actualizado.'),
+                      })}
+                      className="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setEditandoComprobante(false)}
+                      className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Acciones a nivel venta */}
               <div className="flex flex-wrap gap-3 mt-5 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2">
@@ -437,11 +493,11 @@ export default function SuperadminVentasPage() {
                     abono={a}
                     medios={detalle!.medios_pago}
                     disabled={procesando}
-                    onEditar={(monto, medio) => setConfirm({
+                    onEditar={(monto, medio, referencia) => setConfirm({
                       title: 'Editar abono',
                       message: `¿Guardar los cambios del abono?`,
                       type: 'warning',
-                      onConfirm: () => ejecutar(() => superadminVentasApi.editarAbono(a.abono_id, { monto, medio_pago_id: medio }), 'Abono actualizado.'),
+                      onConfirm: () => ejecutar(() => superadminVentasApi.editarAbono(a.abono_id, { monto, medio_pago_id: medio, referencia }), 'Abono actualizado.'),
                     })}
                     onAnular={() => setConfirm({
                       title: 'Anular abono',
@@ -536,12 +592,13 @@ function AbonoRow({
   abono: SAAbono
   medios: { id: string; nombre: string }[]
   disabled: boolean
-  onEditar: (monto: number, medio?: string) => void
+  onEditar: (monto: number, medio: string | undefined, referencia: string | null) => void
   onAnular: () => void
 }) {
   const [editando, setEditando] = useState(false)
   const [monto, setMonto] = useState(String(Number(abono.monto)))
   const [medio, setMedio] = useState(abono.medio_pago_id || '')
+  const [referencia, setReferencia] = useState(abono.referencia || '')
   const anulado = abono.estado === 'ANULADO'
 
   return (
@@ -551,6 +608,9 @@ function AbonoRow({
           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badgeColor(abono.estado)}`}>{abono.estado}</span>
           <span className="font-semibold text-slate-800">{money(abono.monto)}</span>
           <span className="text-xs text-slate-500">{abono.medio_pago_nombre || abono.gateway_pago || '—'}</span>
+          <span className="text-xs text-slate-400">
+            Comprobante: {abono.referencia || ((abono.medio_pago_nombre || abono.gateway_pago || '').toLowerCase() === 'efectivo' ? 'Efectivo' : '—')}
+          </span>
           {abono.boleta_numero != null && <span className="text-xs text-slate-400">Boleta #{abono.boleta_numero}</span>}
         </div>
         {!anulado && (
@@ -577,9 +637,15 @@ function AbonoRow({
             <option value="">Mantener método</option>
             {medios.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
+          <input
+            value={referencia}
+            onChange={(e) => setReferencia(e.target.value)}
+            placeholder="N° comprobante (vacío = sin comprobante)"
+            className="flex-1 min-w-[180px] rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+          />
           <button
             disabled={disabled || !monto || Number(monto) <= 0}
-            onClick={() => onEditar(Number(monto), medio || undefined)}
+            onClick={() => onEditar(Number(monto), medio || undefined, referencia.trim() || null)}
             className="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 font-medium"
           >
             Guardar

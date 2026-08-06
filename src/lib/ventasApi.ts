@@ -41,7 +41,8 @@ class VentasApiService {
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
-      headers
+      headers,
+      signal: AbortSignal.timeout(60000),
     })
 
     let data
@@ -77,7 +78,7 @@ class VentasApiService {
   // ---------------- BOLETAS ----------------
 
   async getBoletasDisponibles(rifaId: string) {
-    return this.request<any[]>(`/boletas/rifa/${rifaId}`)
+    return this.request<any[]>(`/boletas/rifa/${rifaId}/disponibles`)
   }
 
   async bloquearBoleta(boletaId: string, tiempoBloqueo = 15) {
@@ -309,7 +310,7 @@ async liberarBloqueosMultiples(
 
   async registrarAbono(
     ventaId: string,
-    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string; boletas_abono?: Array<{ boleta_id: string; monto: number }> }
+    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string; boletas_abono?: Array<{ boleta_id: string; monto: number }>; referencia?: string }
   ) {
     // Validar y limpiar datos antes de enviar
     const montoNum = Number(data.monto)
@@ -331,6 +332,11 @@ async liberarBloqueosMultiples(
     // Solo agregar notas si tiene contenido
     if (data.notas && typeof data.notas === 'string' && data.notas.trim()) {
       payload.notas = data.notas.trim()
+    }
+
+    // Comprobante del pago (requerido por el backend si el medio no es efectivo)
+    if (data.referencia && typeof data.referencia === 'string' && data.referencia.trim()) {
+      payload.referencia = data.referencia.trim()
     }
 
     // Multi-boleta: enviar array de boletas con montos individuales
@@ -367,7 +373,8 @@ async liberarBloqueosMultiples(
         },
         boletas: reservaData.boletas,
         dias_bloqueo: reservaData.dias_bloqueo || 5,
-        notas: reservaData.notas
+        notas: reservaData.notas,
+        linea_origen: reservaData.linea_origen
       })
     })
   }
