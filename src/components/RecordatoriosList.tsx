@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { recordatoriosApi, ClienteRecordatorio, ResumenRecordatorios, Vendedor, NotificacionHistorial } from '@/lib/recordatoriosApi'
+import { formatLineasOrigen, formatNumerosBoletas } from '@/utils/lineaOrigen'
 
 const LINEAS_CONTACTO = [1, 2, 3, 4, 5] as const
 
@@ -373,7 +374,9 @@ export default function RecordatoriosList() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Boletas</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Cliente</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Origen venta</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Teléfono</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Vendedor</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase">Boletas Pend.</th>
@@ -394,6 +397,11 @@ export default function RecordatoriosList() {
                         }`}
                       >
                         <td className="px-4 py-3">
+                          <span className="text-xs font-mono font-bold text-indigo-800 whitespace-nowrap">
+                            {formatNumerosBoletas(cliente.numeros_boletas)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${
                               fueContactado
@@ -412,6 +420,11 @@ export default function RecordatoriosList() {
                               <div className="text-xs text-slate-500">{cliente.email || cliente.identificacion}</div>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-800 text-xs px-2 py-1 rounded-full font-semibold">
+                            {formatLineasOrigen(cliente.lineas_venta)}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-black font-medium">{cliente.telefono}</td>
                         <td className="px-4 py-3">
@@ -485,6 +498,16 @@ export default function RecordatoriosList() {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {(cliente.numeros_boletas?.length ?? 0) > 0 && (
+                        <span className="bg-indigo-100 text-indigo-800 text-xs px-1.5 py-0.5 rounded font-bold font-mono">
+                          {formatNumerosBoletas(cliente.numeros_boletas)}
+                        </span>
+                      )}
+                      {cliente.lineas_venta && (
+                        <span className="bg-slate-100 text-slate-800 text-xs px-1.5 py-0.5 rounded font-semibold">
+                          {formatLineasOrigen(cliente.lineas_venta)}
+                        </span>
+                      )}
                       {(cliente.boletas_reservadas || 0) > 0 && (
                         <span className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0.5 rounded font-bold">
                           {cliente.boletas_reservadas} Res

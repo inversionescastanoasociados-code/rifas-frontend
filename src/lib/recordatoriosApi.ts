@@ -15,6 +15,8 @@ export interface ClienteRecordatorio {
   boletas_abonadas: number
   boletas_crucero: number
   deuda_total: number
+  numeros_boletas: number[]
+  lineas_venta: string | null
   total_notificaciones: number
   ultima_notificacion: string | null
   ultima_linea_contacto: number | null

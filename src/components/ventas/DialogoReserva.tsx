@@ -8,6 +8,8 @@ import { generarWhatsAppChatLink } from '@/utils/telefono'
 import { WHATSAPP_VENTAS_ACTIVO } from '@/config/features'
 import BoletaTicket from '@/components/BoletaTicket'
 import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
+import SelectorLineaOrigen from './SelectorLineaOrigen'
+import { LineaOrigenVenta } from '@/utils/lineaOrigen'
 
 interface DialogoReservaProps {
   isOpen: boolean
@@ -60,6 +62,7 @@ export default function DialogoReserva({
   const [error, setError] = useState<string | null>(null)
   const [paso, setPaso] = useState<'confirmacion' | 'procesando' | 'completado' | 'error'>('confirmacion')
   const [reservaResponse, setReservaResponse] = useState<any>(null)
+  const [lineaOrigen, setLineaOrigen] = useState<LineaOrigenVenta | null>(null)
 
   const subtotal = boletas.length * precioBoleta
 
@@ -114,6 +117,11 @@ export default function DialogoReserva({
       return
     }
 
+    if (!lineaOrigen) {
+      setError('Seleccione la línea o pista de origen de la reserva')
+      return
+    }
+
     setProcesando(true)
     setError(null)
     setPaso('procesando')
@@ -130,7 +138,8 @@ export default function DialogoReserva({
         },
         boletas: boletas.map(b => b.id),
         dias_bloqueo: diasBloqueo,
-        notas: notas || undefined
+        notas: notas || undefined,
+        linea_origen: lineaOrigen
       }
       console.log('[DialogoReserva] Payload enviado:', JSON.stringify(reservaPayload, null, 2))
       const respuesta = await ventasApi.crearReserva(reservaPayload)
@@ -161,6 +170,7 @@ export default function DialogoReserva({
     setPaso('confirmacion')
     setFechaBloqueo(fechaInicialDefault)
     setNotas('')
+    setLineaOrigen(null)
     onClose()
   }
 }
@@ -444,6 +454,16 @@ export default function DialogoReserva({
             </div>
           </div>
 
+          {/* Origen de la venta */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <SelectorLineaOrigen
+              value={lineaOrigen}
+              onChange={setLineaOrigen}
+              disabled={procesando}
+              compact
+            />
+          </div>
+
           {/* Notas */}
           <div>
             <label className="block text-sm font-bold text-black mb-2">
@@ -482,7 +502,7 @@ export default function DialogoReserva({
           </button>
           <button
             onClick={procesarReserva}
-            disabled={procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono}
+            disabled={procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || !lineaOrigen}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors"
           >
             {procesando ? 'Procesando...' : '📌 Crear Reserva'}

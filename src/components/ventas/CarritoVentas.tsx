@@ -8,6 +8,8 @@ import BoletaTicket from '@/components/BoletaTicket'
 import ResponsiveBoletaWrapper from '@/components/ResponsiveBoletaWrapper'
 import DialogoReserva from './DialogoReserva'
 import ReciboAbono, { ReciboAbonoData } from './ReciboAbono'
+import SelectorLineaOrigen from './SelectorLineaOrigen'
+import { LineaOrigenVenta } from '@/utils/lineaOrigen'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { generarWhatsAppChatLink } from '@/utils/telefono'
 import { WHATSAPP_VENTAS_ACTIVO } from '@/config/features'
@@ -54,6 +56,7 @@ export default function CarritoVentas({
   const [mostrarDialogoReserva, setMostrarDialogoReserva] = useState(false)
   const [reciboData, setReciboData] = useState<ReciboAbonoData | null>(null)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
+  const [lineaOrigen, setLineaOrigen] = useState<LineaOrigenVenta | null>(null)
 
   // Calcular totales
   const subtotal = boletas.length * precioBoleta
@@ -122,6 +125,11 @@ export default function CarritoVentas({
       }
     }
 
+    if (!lineaOrigen) {
+      setError('Seleccione la línea o pista de origen de la venta')
+      return
+    }
+
     setProcesando(true)
     setError(null)
     setPaso('procesando')
@@ -144,6 +152,7 @@ export default function CarritoVentas({
         total_venta: total,
         total_pagado: tipoVenta === 'ABONO' ? montoAbono : total,
         notas: notas || undefined,
+        linea_origen: lineaOrigen,
         ...(tipoVenta === 'ABONO' ? {
           abonos_por_boleta: boletas
             .filter(b => (abonosPorBoleta[b.id] || 0) > 0)
@@ -747,7 +756,7 @@ export default function CarritoVentas({
           </button>
         ) : (
           <button
-            onClick={() => setMostrarConfirmacion(true)}
+            onClick={() => { setLineaOrigen(null); setMostrarConfirmacion(true) }}
             disabled={!tipoVentaSeleccionado || procesando || boletas.length === 0 || !cliente.nombre || !cliente.telefono || !medioPagoId || (tipoVenta === 'ABONO' && montoAbono <= 0)}
             className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors ${
               tipoVenta === 'COMPLETA' 
@@ -773,12 +782,21 @@ export default function CarritoVentas({
 
       {/* Modal de confirmación */}
       {mostrarConfirmacion && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[200] p-0 sm:p-4 overscroll-contain">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl max-w-md w-full p-5 sm:p-6 max-h-[92vh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className={`text-center mb-4 p-3 rounded-lg ${tipoVenta === 'COMPLETA' ? 'bg-green-50' : 'bg-yellow-50'}`}>
               <h3 className={`text-lg font-bold ${tipoVenta === 'COMPLETA' ? 'text-green-800' : 'text-yellow-800'}`}>
                 {tipoVenta === 'COMPLETA' ? '✅ Confirmar Pago Total' : '💰 Confirmar Abono'}
               </h3>
+            </div>
+
+            <div className="mb-5">
+              <SelectorLineaOrigen
+                value={lineaOrigen}
+                onChange={setLineaOrigen}
+                disabled={procesando}
+                compact
+              />
             </div>
             
             <div className="space-y-3 text-sm">
@@ -822,15 +840,15 @@ export default function CarritoVentas({
             
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setMostrarConfirmacion(false)}
+                onClick={() => { setMostrarConfirmacion(false); setLineaOrigen(null) }}
                 className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => { setMostrarConfirmacion(false); procesarVenta() }}
-                disabled={procesando}
-                className={`flex-1 px-4 py-2 text-white rounded-lg font-medium disabled:opacity-50 ${
+                disabled={!lineaOrigen || procesando}
+                className={`flex-1 px-4 py-2 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                   tipoVenta === 'COMPLETA' 
                     ? 'bg-green-600 hover:bg-green-700' 
                     : 'bg-yellow-600 hover:bg-yellow-700'

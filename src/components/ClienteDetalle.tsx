@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { clienteApi } from '@/lib/clienteApi'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
+import { formatLineaOrigen } from '@/utils/lineaOrigen'
 import {
   Cliente,
   ClienteDetalleResumen,
@@ -708,6 +709,7 @@ function RifaAccordion({
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-bold text-slate-600 uppercase">Nº Boleta</th>
                   <th className="px-4 py-2 text-center text-xs font-bold text-slate-600 uppercase">Estado</th>
+                  <th className="px-4 py-2 text-center text-xs font-bold text-slate-600 uppercase">Origen</th>
                   <th className="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase">Precio</th>
                   <th className="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase">Pagado</th>
                   <th className="px-4 py-2 text-right text-xs font-bold text-slate-600 uppercase">Debe</th>
@@ -735,6 +737,9 @@ function RifaAccordion({
                         <span className={`px-2 py-1 rounded text-xs font-bold ${estadoColors[boleta.estado] || 'bg-gray-100 text-gray-800'}`}>
                           {boleta.estado}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-xs font-semibold text-indigo-700">
+                        {formatLineaOrigen(boleta.linea_origen)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-black font-medium">
                         {formatCurrency(boleta.precio_unitario)}

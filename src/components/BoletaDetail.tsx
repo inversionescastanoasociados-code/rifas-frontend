@@ -5,6 +5,7 @@ import BoletaTicket from './BoletaTicket'
 import ResponsiveBoletaWrapper from './ResponsiveBoletaWrapper'
 import { downloadBoletaImage } from '@/utils/downloadBoletaImage'
 import type { BoletaDetail } from '@/types/boleta'
+import { formatLineaOrigen } from '@/utils/lineaOrigen'
 
 interface BoletaDetailProps {
   boleta: BoletaDetail
@@ -255,6 +256,15 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                 <span className="text-sm text-slate-600">Estado Venta:</span>
                 <span className="text-sm font-medium text-slate-900">{boleta.venta_info.estado}</span>
               </div>
+
+              {boleta.venta_info.linea_origen && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Origen venta:</span>
+                  <span className="text-sm font-semibold text-indigo-700">
+                    {formatLineaOrigen(boleta.venta_info.linea_origen)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}

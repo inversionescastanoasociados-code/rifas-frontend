@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Cliente, ClienteFiltroEstado, ClienteResumenFiltros } from '@/types/cliente'
 import { clienteApi } from '@/lib/clienteApi'
+import { formatLineasOrigen, formatNumerosBoletas } from '@/utils/lineaOrigen'
 import { RifaConBoletas } from '@/types/cliente'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
@@ -247,6 +248,14 @@ export default function ClienteList({
                           <div>
                             <div className="text-sm font-bold text-black">{cliente.nombre}</div>
                             <div className="text-xs text-slate-500">{cliente.email}</div>
+                            {(cliente.numeros_pendientes?.length ?? 0) > 0 && (
+                              <div className="text-[11px] text-indigo-700 font-semibold mt-0.5">
+                                {formatNumerosBoletas(cliente.numeros_pendientes)}
+                                {cliente.lineas_venta && (
+                                  <span className="text-slate-500 font-normal"> · {formatLineasOrigen(cliente.lineas_venta)}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

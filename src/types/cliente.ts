@@ -13,6 +13,8 @@ export interface Cliente {
   boletas_reservadas?: number
   boletas_abonadas?: number
   deuda_total?: number
+  numeros_pendientes?: number[]
+  lineas_venta?: string | null
 }
 
 export interface ClienteCreateRequest {
@@ -88,6 +90,7 @@ export interface BoletaDetalle {
   saldo: number
   venta_id: string | null
   estado_venta: string | null
+  linea_origen?: string | null
   created_at: string
 }
 
