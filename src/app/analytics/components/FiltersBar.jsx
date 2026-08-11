@@ -150,16 +150,47 @@ export default function FiltersBar({
                   onClick={() => setPersonFilter({ tipo: 'ADMINS', vendedorId: null })}
                   className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'ADMINS' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Administradores
+                  Todos los admins
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPersonFilter({ tipo: 'VENDEDOR', vendedorId: personFilter.vendedorId })}
+                  onClick={() => setPersonFilter({ tipo: 'ADMIN', vendedorId: null })}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'ADMIN' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Administrador
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersonFilter({ tipo: 'VENDEDOR', vendedorId: null })}
                   className={`px-4 py-1.5 text-sm rounded-md transition-colors ${personFilter.tipo === 'VENDEDOR' ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Vendedor
                 </button>
               </div>
+
+              {personFilter.tipo === 'ADMIN' && (
+                <div className="relative">
+                  <select
+                    className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-sm font-medium rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-4 py-2 pr-9 outline-none cursor-pointer transition-all min-w-[240px]"
+                    value={personFilter.vendedorId || ''}
+                    onChange={(e) => setPersonFilter({ tipo: 'ADMIN', vendedorId: e.target.value || null })}
+                  >
+                    <option value="">— Selecciona un administrador —</option>
+                    {vendedores
+                      .filter(v => ['ADMIN', 'SUPER_ADMIN'].includes(String(v.rol).toUpperCase()))
+                      .map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.nombre}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              )}
 
               {personFilter.tipo === 'VENDEDOR' && (
                 <div className="relative">
@@ -191,9 +222,13 @@ export default function FiltersBar({
             <div className="text-xs text-slate-500 italic md:text-right">
               {personFilter.tipo === 'ADMINS'
                 ? 'Mostrando ventas agregadas de TODOS los administradores.'
-                : personFilter.vendedorId
-                  ? 'Mostrando ventas únicamente del vendedor seleccionado.'
-                  : 'Selecciona un vendedor para aplicar el filtro.'}
+                : personFilter.tipo === 'ADMIN' && personFilter.vendedorId
+                  ? 'Mostrando ventas únicamente del administrador seleccionado.'
+                  : personFilter.tipo === 'ADMIN'
+                    ? 'Selecciona un administrador para aplicar el filtro.'
+                    : personFilter.vendedorId
+                      ? 'Mostrando ventas únicamente del vendedor seleccionado.'
+                      : 'Selecciona un vendedor para aplicar el filtro.'}
             </div>
           )}
         </div>

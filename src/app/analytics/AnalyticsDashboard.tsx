@@ -25,7 +25,7 @@ type Vendedor = {
 type Scope = 'global' | 'mis-ventas';
 
 export type PersonFilter = {
-  tipo: 'TODOS' | 'ADMINS' | 'VENDEDOR';
+  tipo: 'TODOS' | 'ADMINS' | 'ADMIN' | 'VENDEDOR';
   vendedorId: string | null;
 };
 
@@ -66,6 +66,9 @@ export default function AnalyticsDashboard({ rifas, scope = 'global', title, esS
   const extraFilters = (() => {
     if (!esSuperAdmin || scope !== 'global') return {};
     if (personFilter.tipo === 'ADMINS') return { filtroRol: 'ADMINS' };
+    if (personFilter.tipo === 'ADMIN' && personFilter.vendedorId) {
+      return { vendedorId: personFilter.vendedorId };
+    }
     if (personFilter.tipo === 'VENDEDOR' && personFilter.vendedorId) {
       return { vendedorId: personFilter.vendedorId };
     }

@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/config/api'
 import { 
   Boleta, 
   BoletaListResponse,
+  BoletaComprobanteSearchResponse,
   BoletaGenerateRequest,
   BoletaGenerateResponse,
   BoletaDetailResponse,
@@ -38,6 +39,15 @@ class BoletaApiService {
       headers: this.getAuthHeaders()
     })
     return this.handleResponse<BoletaListResponse>(response)
+  }
+
+  async searchBoletasByComprobante(rifaId: string, referencia: string): Promise<BoletaComprobanteSearchResponse> {
+    const params = new URLSearchParams({ referencia: referencia.trim() })
+    const response = await fetch(
+      `${API_BASE_URL}/api/boletas/rifa/${rifaId}/by-comprobante?${params.toString()}`,
+      { headers: this.getAuthHeaders() }
+    )
+    return this.handleResponse<BoletaComprobanteSearchResponse>(response)
   }
 
   async getBoletaById(boletaId: string): Promise<BoletaDetailResponse> {

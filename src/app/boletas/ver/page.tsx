@@ -185,6 +185,7 @@ export default function VerBoletasPage() {
           <BoletaList
             boletas={boletas}
             loading={loadingBoletas}
+            rifaId={selectedRifa}
             rifaInfo={rifas.find(r => r.id === selectedRifa) || null}
           />
         ) : !loading && (

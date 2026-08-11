@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Boleta } from '@/types/boleta'
 import type { Rifa } from '@/types/rifa'
@@ -18,11 +18,16 @@ import {
 interface BoletaListProps {
   boletas: Boleta[]
   loading: boolean
+  rifaId?: string
   rifaInfo?: Rifa | null
 }
 
-export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListProps) {
+export default function BoletaList({ boletas, loading, rifaId, rifaInfo }: BoletaListProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [comprobanteSearch, setComprobanteSearch] = useState('')
+  const [comprobanteMatchIds, setComprobanteMatchIds] = useState<Set<string> | null>(null)
+  const [comprobanteLoading, setComprobanteLoading] = useState(false)
+  const [comprobanteMessage, setComprobanteMessage] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [filtroEstado, setFiltroEstado] = useState<string | null>(null)
@@ -34,6 +39,57 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
   const [savingNota, setSavingNota] = useState(false)
   const [notasLocales, setNotasLocales] = useState<Record<string, string | null>>({})
   const router = useRouter()
+
+  useEffect(() => {
+    setComprobanteSearch('')
+    setComprobanteMatchIds(null)
+    setComprobanteMessage(null)
+    setComprobanteLoading(false)
+  }, [rifaId])
+
+  useEffect(() => {
+    const term = comprobanteSearch.trim()
+    if (!term || !rifaId) {
+      setComprobanteMatchIds(null)
+      setComprobanteMessage(null)
+      setComprobanteLoading(false)
+      return
+    }
+
+    setComprobanteLoading(true)
+    setComprobanteMessage(null)
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await boletaApi.searchBoletasByComprobante(rifaId, term)
+        const ids = new Set(response.data.matches.map((m) => m.id))
+        setComprobanteMatchIds(ids)
+        setComprobanteMessage(
+          ids.size > 0
+            ? `${ids.size} boleta(s) encontrada(s) con comprobante ${response.data.referencia}`
+            : `No hay boletas con el comprobante ${term}`
+        )
+      } catch (error) {
+        setComprobanteMatchIds(new Set())
+        setComprobanteMessage(
+          error instanceof Error ? error.message : 'Error al buscar por comprobante'
+        )
+      } finally {
+        setComprobanteLoading(false)
+      }
+    }, 400)
+
+    return () => window.clearTimeout(timer)
+  }, [comprobanteSearch, rifaId])
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm('')
+    setComprobanteSearch('')
+    setComprobanteMatchIds(null)
+    setComprobanteMessage(null)
+    setFiltroEstado(null)
+    setCurrentPage(1)
+  }, [])
 
   // Determina label y clases del estado según la boleta
   const getEstadoInfo = (boleta: Boleta) => {
@@ -83,7 +139,7 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
       })
     }
 
-    // Filtro por búsqueda de texto
+    // Filtro por búsqueda de texto (boleta, nombre, identificación)
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       result = result.filter(boleta => {
@@ -94,8 +150,13 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
       })
     }
 
+    // Filtro por comprobante (búsqueda separada vía API)
+    if (comprobanteMatchIds) {
+      result = result.filter((boleta) => comprobanteMatchIds.has(boleta.id))
+    }
+
     return result
-  }, [boletas, searchTerm, filtroEstado])
+  }, [boletas, searchTerm, filtroEstado, comprobanteMatchIds])
 
   const paginatedBoletas = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
@@ -489,7 +550,7 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
       )}
 
       {/* Buscador y Controles */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
           <div className="w-full lg:w-2/3 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -525,6 +586,39 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
             </select>
           </div>
         </div>
+
+        <div className="border-t border-slate-100 pt-4">
+          <label htmlFor="comprobanteSearch" className="block text-sm font-semibold text-slate-700 mb-2">
+            Buscar por N° comprobante / referencia de pago
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              {comprobanteLoading ? (
+                <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+            </div>
+            <input
+              id="comprobanteSearch"
+              type="text"
+              placeholder="Ej: 0000090300, M05386014..."
+              value={comprobanteSearch}
+              onChange={(e) => {
+                setComprobanteSearch(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="w-full pl-10 pr-4 py-2.5 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition-shadow text-black bg-emerald-50/40 focus:bg-white placeholder:text-slate-500"
+            />
+          </div>
+          {comprobanteMessage && (
+            <p className={`mt-2 text-sm ${comprobanteMatchIds && comprobanteMatchIds.size > 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {comprobanteMessage}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Resumen de Resultados */}
@@ -535,9 +629,9 @@ export default function BoletaList({ boletas, loading, rifaInfo }: BoletaListPro
             <span className="ml-1 text-slate-500">(filtradas de {boletas.length} totales)</span>
           )}
         </div>
-        {(searchTerm || filtroEstado) && (
+        {(searchTerm || comprobanteSearch || filtroEstado) && (
           <button
-            onClick={() => { setSearchTerm(''); setFiltroEstado(null); setCurrentPage(1) }}
+            onClick={clearFilters}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium underline-offset-2 hover:underline"
           >
             Limpiar filtros

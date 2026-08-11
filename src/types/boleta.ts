@@ -90,6 +90,22 @@ export interface BoletaListResponse {
   data: Boleta[]
 }
 
+export interface BoletaComprobanteMatch {
+  id: string
+  numero: number
+  referencia: string
+  origen: 'venta' | 'abono'
+}
+
+export interface BoletaComprobanteSearchResponse {
+  success: boolean
+  message: string
+  data: {
+    referencia: string
+    matches: BoletaComprobanteMatch[]
+  }
+}
+
 export interface BoletaGenerateRequest {
   qr_base_url: string
   imagen_url: string
