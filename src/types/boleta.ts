@@ -36,6 +36,8 @@ export interface AbonoHistorial {
   metodo_pago: string
   notas: string | null
   fecha: string
+  registrado_por_nombre?: string | null
+  registrado_por_rol?: string | null
 }
 
 export interface BoletaDetail {

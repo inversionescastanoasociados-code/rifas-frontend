@@ -312,6 +312,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   <th className="text-right py-2 px-3 text-slate-600 font-medium">Monto</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Método</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Comprobante</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Registrado por</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Estado</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Notas</th>
                 </tr>
@@ -325,6 +326,11 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                     <td className="py-2 px-3 text-slate-900">{abono.metodo_pago}</td>
                     <td className="py-2 px-3 text-slate-900">
                       {abono.referencia || (abono.metodo_pago === 'Efectivo' ? 'Efectivo' : '—')}
+                    </td>
+                    <td className="py-2 px-3 text-slate-900">
+                      {abono.registrado_por_nombre
+                        ? `${abono.registrado_por_nombre}${abono.registrado_por_rol ? ` (${abono.registrado_por_rol})` : ''}`
+                        : '—'}
                     </td>
                     <td className="py-2 px-3">
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -345,7 +351,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   <td className="py-2 px-3 text-right font-bold text-green-700">
                     {formatCurrency(boleta.abonos.reduce((sum, a) => sum + a.monto, 0))}
                   </td>
-                  <td colSpan={4}></td>
+                  <td colSpan={5}></td>
                 </tr>
               </tfoot>
             </table>
