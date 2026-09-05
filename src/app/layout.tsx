@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PausaGuard from "@/components/PausaGuard";
+import ModuleShell from "@/components/layout/ModuleShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[#f8fafc]`}
       >
-        <PausaGuard>{children}</PausaGuard>
+        <PausaGuard>
+          <ModuleShell>{children}</ModuleShell>
+        </PausaGuard>
       </body>
     </html>
   );
