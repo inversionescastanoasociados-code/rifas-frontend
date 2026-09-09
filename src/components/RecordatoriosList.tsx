@@ -150,26 +150,9 @@ export default function RecordatoriosList() {
     const cliente = clienteContactoModal
     setMarcandoContactado(cliente.id)
     try {
-      const res = await recordatoriosApi.registrarNotificacion(cliente.id, lineaSeleccionada)
-      const createdAt = res.data.created_at || new Date().toISOString()
-      setClientes(prev => prev.map(c =>
-        c.id === cliente.id
-          ? {
-              ...c,
-              total_notificaciones: c.total_notificaciones + 1,
-              ultima_notificacion: createdAt,
-              ultima_linea_contacto: lineaSeleccionada
-            }
-          : c
-      ))
-      if (resumen && cliente.total_notificaciones === 0) {
-        setResumen({
-          ...resumen,
-          notificados: resumen.notificados + 1,
-          no_notificados: Math.max(resumen.no_notificados - 1, 0)
-        })
-      }
+      await recordatoriosApi.registrarNotificacion(cliente.id, lineaSeleccionada)
       cerrarModalContacto()
+      await fetchClientes(pagination.page)
     } catch (error) {
       console.error('Error marcando contactado:', error)
       alert('No se pudo registrar el contacto. Intenta de nuevo.')
@@ -179,7 +162,7 @@ export default function RecordatoriosList() {
   }
 
   const abrirHistorial = async (cliente: ClienteRecordatorio) => {
-    if ((cliente.total_notificaciones || 0) === 0) return
+    if (Number(cliente.total_notificaciones || 0) === 0) return
     setCargandoHistorial(cliente.id)
     try {
       const res = await recordatoriosApi.getNotificacionesCliente(cliente.id)
@@ -388,7 +371,7 @@ export default function RecordatoriosList() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {clientes.map((cliente) => {
-                    const fueContactado = cliente.total_notificaciones > 0
+                    const fueContactado = Number(cliente.total_notificaciones) > 0
                     return (
                       <tr
                         key={cliente.id}
@@ -471,7 +454,7 @@ export default function RecordatoriosList() {
 
             <div className="lg:hidden divide-y divide-slate-100">
               {clientes.map((cliente) => {
-                const fueContactado = cliente.total_notificaciones > 0
+                const fueContactado = Number(cliente.total_notificaciones) > 0
                 return (
                   <div key={cliente.id} className={`p-4 ${fueContactado ? 'bg-green-50/60' : ''}`}>
                     <div className="flex items-start gap-3">
