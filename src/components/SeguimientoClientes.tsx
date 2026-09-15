@@ -156,22 +156,9 @@ function FilaBoleta({ b }: { b: BoletaSeguimiento }) {
 }
 
 /* ─── Tarjeta de cliente ─────────────────────────────────────────────────── */
-function TarjetaCliente({ cliente, onContactoRegistrado }: {
-  cliente: ClienteSeguimiento
-  onContactoRegistrado: (clienteId: string, total: number, ultimo: string) => void
-}) {
+function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
   const [expandida, setExpandida]       = useState(false)
-  const [registrando, setRegistrando]   = useState(false)
-  const [enviandoWA, setEnviandoWA]     = useState(false)
   const [numeroCopiado, setNumeroCopiado] = useState(false)
-  const [contactos, setContactos]       = useState({
-    total:  cliente.total_contactos  ?? 0,
-    ultimo: cliente.ultimo_contacto  ?? null as string | null,
-  })
-  const [whatsappState, setWhatsappState] = useState({
-    total:  cliente.total_whatsapp  ?? 0,
-    ultimo: cliente.ultimo_whatsapp ?? null as string | null,
-  })
 
   const totalDeuda = cliente.boletas.reduce(
     (acc, b) => acc + Number(b.saldo_pendiente), 0
@@ -190,24 +177,24 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
 
   const telNorm = normalizarTelefono(cliente.telefono)
   const waUrl = telNorm ? `https://wa.me/${telNorm}` : null
+  const waMsgUrl = generarUrlWhatsAppSeguimiento(cliente)
   const telefonoParaCopiar = (cliente.telefono || '').trim()
 
-  const handleContactar = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (registrando) return
-    setRegistrando(true)
-    try {
-      const res = await seguimientoClientesApi.registrarContacto(cliente.cliente_id)
-      const newTotal  = res.total_contactos
-      const newUltimo = res.ultimo_contacto
-      setContactos({ total: newTotal, ultimo: newUltimo })
-      onContactoRegistrado(cliente.cliente_id, newTotal, newUltimo)
-    } catch {
-      // silencioso — no rompe la UI
-    } finally {
-      setRegistrando(false)
-    }
-  }
+  const fechasCompra = cliente.boletas
+    .map(b => b.fecha_venta)
+    .filter((d): d is string => !!d)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+  const fechaCompraResumen =
+    fechasCompra.length === 0
+      ? null
+      : fechasCompra.length === 1
+        ? fechasCompra[0]
+        : fechasCompra[0]
+
+  const lineaLabel =
+    cliente.total_notificaciones > 0 && cliente.ultima_linea_contacto != null
+      ? `L${cliente.ultima_linea_contacto}`
+      : null
 
   const handleCopiarNumero = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -226,23 +213,6 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
       document.body.removeChild(input)
       setNumeroCopiado(true)
       window.setTimeout(() => setNumeroCopiado(false), 1800)
-    }
-  }
-
-  const handleNotificarWhatsApp = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (enviandoWA) return
-    const url = generarUrlWhatsAppSeguimiento(cliente)
-    if (!url) return
-    setEnviandoWA(true)
-    try {
-      window.open(url, '_blank')
-      const res = await seguimientoClientesApi.registrarWhatsapp(cliente.cliente_id)
-      setWhatsappState({ total: res.total_whatsapp, ultimo: res.ultimo_whatsapp })
-    } catch {
-      // silencioso
-    } finally {
-      setEnviandoWA(false)
     }
   }
 
@@ -291,6 +261,23 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
               </button>
             )}
           </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
+            <span>
+              <span className="text-slate-400">Compra: </span>
+              <span className="font-medium text-slate-600">
+                {fechaCompraResumen ? fmtDate(fechaCompraResumen) : '—'}
+                {fechasCompra.length > 1 ? ` (+${fechasCompra.length - 1} más)` : ''}
+              </span>
+            </span>
+            {lineaLabel ? (
+              <span>
+                <span className="text-slate-400">Línea: </span>
+                <span className="font-medium text-violet-700">{lineaLabel}</span>
+              </span>
+            ) : cliente.total_notificaciones === 0 ? (
+              <span className="text-slate-400">Línea: —</span>
+            ) : null}
+          </div>
           {/* Números de boletas */}
           <div className="flex flex-wrap gap-1 mt-1.5">
             {cliente.boletas.map(b => (
@@ -335,51 +322,8 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
           )}
         </div>
 
-        {/* WhatsApp seguimiento (estado independiente) */}
-        <div className="flex flex-col items-end gap-1 shrink-0 min-w-[130px]">
-          {whatsappState.total === 0 ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-400 border border-slate-200">
-              💬 Sin notificar WA
-            </span>
-          ) : (
-            <div className="text-right">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 border border-green-200">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-                {whatsappState.total}x WA enviado
-              </span>
-              <p className="text-slate-400 text-xs mt-0.5 leading-tight">
-                último: {fmtDateTime(whatsappState.ultimo)}
-              </p>
-            </div>
-          )}
-          {WHATSAPP_MENSAJE_ACTIVO && (
-          <button
-            onClick={handleNotificarWhatsApp}
-            disabled={enviandoWA || !normalizarTelefono(cliente.telefono)}
-            className="mt-0.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
-              bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Notificar por WhatsApp (estado independiente)"
-          >
-            {enviandoWA ? (
-              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-            ) : (
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-            )}
-            {enviandoWA ? 'Enviando…' : 'Notificar WA'}
-          </button>
-          )}
-        </div>
-
-        {/* Recordatorio + contacto */}
-        <div className="flex flex-col items-end gap-1.5 shrink-0 min-w-[140px]">
-          {/* Recordatorios (sistema existente) */}
+        {/* Recordatorio (mismo criterio que módulo Recordatorios) */}
+        <div className="flex flex-col items-end gap-1 shrink-0 min-w-[140px]">
           {cliente.total_notificaciones === 0 ? (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500 border border-slate-200">
               🔕 Sin notificar
@@ -387,45 +331,28 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
           ) : (
             <div className="text-right">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
-                🔔 {cliente.total_notificaciones}x notificado
+                🔔 Notificado
+                {lineaLabel ? ` · ${lineaLabel}` : ''}
               </span>
               <p className="text-slate-400 text-xs mt-0.5 leading-tight">
+                {cliente.total_notificaciones > 1
+                  ? `${cliente.total_notificaciones} veces · `
+                  : ''}
                 último: {fmtDateTime(cliente.ultima_notificacion)}
               </p>
             </div>
           )}
-
-          {/* Contacto seguimiento (nuevo) */}
-          <div className="flex flex-col items-end gap-0.5">
-            {contactos.total === 0 ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-400 border border-slate-200">
-                📵 No contactado
-              </span>
-            ) : (
-              <div className="text-right">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-700 border border-teal-200">
-                  📞 {contactos.total}x contactado
-                </span>
-                <p className="text-slate-400 text-xs mt-0.5 leading-tight">
-                  último: {fmtDateTime(contactos.ultimo)}
-                </p>
-              </div>
-            )}
-            <button
-              onClick={handleContactar}
-              disabled={registrando}
-              className="mt-0.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
-                bg-teal-600 hover:bg-teal-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          {WHATSAPP_MENSAJE_ACTIVO && waMsgUrl && (
+            <a
+              href={waMsgUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition-colors"
             >
-              {registrando ? (
-                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-              ) : '📞'}
-              {registrando ? 'Registrando…' : 'Marcar contactado'}
-            </button>
-          </div>
+              Mensaje WA
+            </a>
+          )}
         </div>
 
         {/* Fecha cliente */}
@@ -455,7 +382,7 @@ function TarjetaCliente({ cliente, onContactoRegistrado }: {
                 <th className="py-2 px-3 text-left">Abonado</th>
                 <th className="py-2 px-3 text-right">Saldo</th>
                 <th className="py-2 px-3 text-left">Vendedor</th>
-                <th className="py-2 px-3 text-left">Fecha venta</th>
+                <th className="py-2 px-3 text-left">Fecha compra</th>
               </tr>
             </thead>
             <tbody>
@@ -833,17 +760,7 @@ export default function SeguimientoClientes() {
       {clientes.length > 0 && (
         <div className="space-y-3">
           {clientes.map(c => (
-            <TarjetaCliente
-              key={c.cliente_id}
-              cliente={c}
-              onContactoRegistrado={(id, total, ultimo) => {
-                setClientes(prev => prev.map(cl =>
-                  cl.cliente_id === id
-                    ? { ...cl, total_contactos: total, ultimo_contacto: ultimo }
-                    : cl
-                ))
-              }}
-            />
+            <TarjetaCliente key={c.cliente_id} cliente={c} />
           ))}
         </div>
       )}
