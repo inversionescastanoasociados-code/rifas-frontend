@@ -11,6 +11,7 @@ export interface BoletaSeguimiento {
   saldo_pendiente: number
   boleta_created_at: string
   fecha_venta: string | null
+  linea_origen: string | null
   es_venta_online: boolean
   vendedor_nombre: string | null
 }
@@ -27,6 +28,8 @@ export interface ClienteSeguimiento {
   ultima_notificacion: string | null
   ultima_linea_contacto: number | null
   ultimo_resultado: 'CONTACTADO' | 'NO_CONTESTO' | null
+  lineas_venta: string | null
+  ultima_fecha_compra: string | null
   total_whatsapp: number
   ultimo_whatsapp: string | null
   boletas: BoletaSeguimiento[]

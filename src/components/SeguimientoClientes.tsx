@@ -13,6 +13,7 @@ import { recordatoriosApi } from '@/lib/recordatoriosApi'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
 import { WHATSAPP_MENSAJE_ACTIVO } from '@/config/features'
+import { formatLineasOrigen } from '@/utils/lineaOrigen'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 const COP = (v: number) =>
@@ -224,16 +225,12 @@ function TarjetaCliente({
     .map(b => b.fecha_venta)
     .filter((d): d is string => !!d)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-  const fechaCompraResumen =
-    fechasCompra.length === 0
-      ? null
-      : fechasCompra.length === 1
-        ? fechasCompra[0]
-        : fechasCompra[0]
+  const ultimaFechaCompra =
+    cliente.ultima_fecha_compra
+    ?? (fechasCompra.length ? fechasCompra[fechasCompra.length - 1] : null)
 
   const estadoContacto = getEstadoSeguimiento(cliente)
-  const lineaLabel =
-    cliente.ultima_linea_contacto != null ? `L${cliente.ultima_linea_contacto}` : null
+  const lineaCompraLabel = formatLineasOrigen(cliente.lineas_venta)
 
   const handleCopiarNumero = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -302,16 +299,9 @@ function TarjetaCliente({
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
             <span>
-              <span className="text-slate-400">Compra: </span>
-              <span className="font-medium text-slate-600">
-                {fechaCompraResumen ? fmtDate(fechaCompraResumen) : '—'}
-                {fechasCompra.length > 1 ? ` (+${fechasCompra.length - 1} más)` : ''}
-              </span>
-            </span>
-            <span>
-              <span className="text-slate-400">Línea contacto: </span>
-              <span className={`font-medium ${lineaLabel ? 'text-violet-700' : 'text-slate-400'}`}>
-                {lineaLabel ?? '—'}
+              <span className="text-slate-400">Línea: </span>
+              <span className={`font-medium ${cliente.lineas_venta ? 'text-indigo-700' : 'text-slate-400'}`}>
+                {lineaCompraLabel}
               </span>
             </span>
           </div>
@@ -369,7 +359,7 @@ function TarjetaCliente({
           {estadoContacto === 'notificado' && (
             <div className="text-right">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
-                🔔 Notificado{lineaLabel ? ` · ${lineaLabel}` : ''}
+                🔔 Notificado
               </span>
               <p className="text-slate-400 text-xs mt-0.5 leading-tight">
                 {cliente.total_notificaciones > 1
@@ -382,7 +372,7 @@ function TarjetaCliente({
           {estadoContacto === 'no_contesto' && (
             <div className="text-right">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200">
-                📵 No contestó{lineaLabel ? ` · ${lineaLabel}` : ''}
+                📵 No contestó
               </span>
               <p className="text-slate-400 text-xs mt-0.5 leading-tight">
                 último intento: {fmtDateTime(cliente.ultima_notificacion)}
@@ -412,10 +402,9 @@ function TarjetaCliente({
           )}
         </div>
 
-        {/* Fecha cliente */}
-        <div className="text-right shrink-0 min-w-[90px]">
-          <p className="text-slate-400 text-xs">Cliente desde</p>
-          <p className="text-slate-600 text-xs font-medium">{fmtDate(cliente.cliente_created_at)}</p>
+        <div className="text-right shrink-0 min-w-[100px]">
+          <p className="text-slate-400 text-xs">Última compra</p>
+          <p className="text-slate-600 text-xs font-medium">{fmtDate(ultimaFechaCompra)}</p>
         </div>
 
         {/* Chevron expand */}
