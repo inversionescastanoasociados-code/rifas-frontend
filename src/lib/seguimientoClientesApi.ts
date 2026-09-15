@@ -22,9 +22,11 @@ export interface ClienteSeguimiento {
   email: string
   identificacion: string
   cliente_created_at: string
+  total_eventos: number
   total_notificaciones: number
   ultima_notificacion: string | null
   ultima_linea_contacto: number | null
+  ultimo_resultado: 'CONTACTADO' | 'NO_CONTESTO' | null
   total_whatsapp: number
   ultimo_whatsapp: string | null
   boletas: BoletaSeguimiento[]
@@ -42,7 +44,7 @@ export interface SeguimientoListResponse {
 }
 
 export type EstadoBoleta = 'todas' | 'RESERVADA' | 'ABONADA' | 'PAGADA'
-export type FiltroNotificado = 'todos' | 'si' | 'no'
+export type FiltroNotificado = 'todos' | 'si' | 'no' | 'no_contesto'
 
 class SeguimientoClientesApiService {
   private getAuthHeaders() {

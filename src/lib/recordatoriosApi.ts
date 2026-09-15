@@ -20,6 +20,8 @@ export interface ClienteRecordatorio {
   total_notificaciones: number
   ultima_notificacion: string | null
   ultima_linea_contacto: number | null
+  ultimo_resultado?: 'CONTACTADO' | 'NO_CONTESTO' | null
+  total_eventos?: number
   vendedor_id: string | null
   vendedor_nombre: string | null
 }
@@ -48,6 +50,7 @@ export interface NotificacionHistorial {
   id: string
   created_at: string
   linea_contacto: number | null
+  resultado?: 'CONTACTADO' | 'NO_CONTESTO'
   notificado_por_nombre: string | null
 }
 
@@ -79,7 +82,7 @@ class RecordatoriosApiService {
     limit: number = 20,
     search: string = '',
     filtro: 'todos' | 'reservadas' | 'abonadas' = 'todos',
-    notificado: 'todos' | 'si' | 'no' = 'todos',
+    notificado: 'todos' | 'si' | 'no' | 'no_contesto' = 'todos',
     vendedor: string = ''
   ): Promise<RecordatorioListResponse> {
     const params = new URLSearchParams({
@@ -99,12 +102,13 @@ class RecordatoriosApiService {
 
   async registrarNotificacion(
     clienteId: string,
-    lineaContacto: number
-  ): Promise<{ success: boolean; data: { id: string; created_at: string; linea_contacto: number } }> {
+    lineaContacto: number,
+    resultado: 'CONTACTADO' | 'NO_CONTESTO' = 'CONTACTADO'
+  ): Promise<{ success: boolean; data: { id: string; created_at: string; linea_contacto: number; resultado: string } }> {
     const response = await fetch(`${API_BASE_URL}/api/recordatorios/${clienteId}/notificar`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify({ linea_contacto: lineaContacto })
+      body: JSON.stringify({ linea_contacto: lineaContacto, resultado })
     })
     return this.handleResponse(response)
   }

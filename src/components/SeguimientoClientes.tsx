@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   seguimientoClientesApi,
   ClienteSeguimiento,
@@ -8,6 +9,7 @@ import {
   EstadoBoleta,
   FiltroNotificado,
 } from '@/lib/seguimientoClientesApi'
+import { recordatoriosApi } from '@/lib/recordatoriosApi'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
 import { WHATSAPP_MENSAJE_ACTIVO } from '@/config/features'
@@ -27,6 +29,38 @@ const fmtDate = (d: string | null) => {
     month: 'short',
     day: 'numeric',
   })
+}
+
+const LINEAS_CONTACTO = [1, 2, 3, 4, 5] as const
+
+type EstadoContactoSeguimiento = 'sin' | 'notificado' | 'no_contesto'
+
+function getEstadoSeguimiento(c: ClienteSeguimiento): EstadoContactoSeguimiento {
+  const eventos = c.total_eventos ?? 0
+  if (eventos === 0 && !c.ultima_notificacion) return 'sin'
+  if (c.ultimo_resultado === 'NO_CONTESTO') return 'no_contesto'
+  return 'notificado'
+}
+
+function ModalPortal({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+  if (!mounted) return null
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/50"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div onClick={e => e.stopPropagation()} className="w-full sm:w-auto">{children}</div>
+    </div>,
+    document.body
+  )
 }
 
 const fmtDateTime = (d: string | null) => {
@@ -156,7 +190,13 @@ function FilaBoleta({ b }: { b: BoletaSeguimiento }) {
 }
 
 /* ─── Tarjeta de cliente ─────────────────────────────────────────────────── */
-function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
+function TarjetaCliente({
+  cliente,
+  onRegistrarEstado,
+}: {
+  cliente: ClienteSeguimiento
+  onRegistrarEstado: (c: ClienteSeguimiento) => void
+}) {
   const [expandida, setExpandida]       = useState(false)
   const [numeroCopiado, setNumeroCopiado] = useState(false)
 
@@ -191,10 +231,9 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
         ? fechasCompra[0]
         : fechasCompra[0]
 
+  const estadoContacto = getEstadoSeguimiento(cliente)
   const lineaLabel =
-    cliente.total_notificaciones > 0 && cliente.ultima_linea_contacto != null
-      ? `L${cliente.ultima_linea_contacto}`
-      : null
+    cliente.ultima_linea_contacto != null ? `L${cliente.ultima_linea_contacto}` : null
 
   const handleCopiarNumero = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -269,14 +308,12 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
                 {fechasCompra.length > 1 ? ` (+${fechasCompra.length - 1} más)` : ''}
               </span>
             </span>
-            {lineaLabel ? (
-              <span>
-                <span className="text-slate-400">Línea: </span>
-                <span className="font-medium text-violet-700">{lineaLabel}</span>
+            <span>
+              <span className="text-slate-400">Línea contacto: </span>
+              <span className={`font-medium ${lineaLabel ? 'text-violet-700' : 'text-slate-400'}`}>
+                {lineaLabel ?? '—'}
               </span>
-            ) : cliente.total_notificaciones === 0 ? (
-              <span className="text-slate-400">Línea: —</span>
-            ) : null}
+            </span>
           </div>
           {/* Números de boletas */}
           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -323,25 +360,45 @@ function TarjetaCliente({ cliente }: { cliente: ClienteSeguimiento }) {
         </div>
 
         {/* Recordatorio (mismo criterio que módulo Recordatorios) */}
-        <div className="flex flex-col items-end gap-1 shrink-0 min-w-[140px]">
-          {cliente.total_notificaciones === 0 ? (
+        <div className="flex flex-col items-end gap-1 shrink-0 min-w-[150px]">
+          {estadoContacto === 'sin' && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500 border border-slate-200">
               🔕 Sin notificar
             </span>
-          ) : (
+          )}
+          {estadoContacto === 'notificado' && (
             <div className="text-right">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
-                🔔 Notificado
-                {lineaLabel ? ` · ${lineaLabel}` : ''}
+                🔔 Notificado{lineaLabel ? ` · ${lineaLabel}` : ''}
               </span>
               <p className="text-slate-400 text-xs mt-0.5 leading-tight">
                 {cliente.total_notificaciones > 1
-                  ? `${cliente.total_notificaciones} veces · `
+                  ? `${cliente.total_notificaciones} contactos · `
                   : ''}
                 último: {fmtDateTime(cliente.ultima_notificacion)}
               </p>
             </div>
           )}
+          {estadoContacto === 'no_contesto' && (
+            <div className="text-right">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200">
+                📵 No contestó{lineaLabel ? ` · ${lineaLabel}` : ''}
+              </span>
+              <p className="text-slate-400 text-xs mt-0.5 leading-tight">
+                último intento: {fmtDateTime(cliente.ultima_notificacion)}
+              </p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              onRegistrarEstado(cliente)
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          >
+            Actualizar estado
+          </button>
           {WHATSAPP_MENSAJE_ACTIVO && waMsgUrl && (
             <a
               href={waMsgUrl}
@@ -542,6 +599,55 @@ export default function SeguimientoClientes() {
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const [modalEstadoCliente, setModalEstadoCliente] = useState<ClienteSeguimiento | null>(null)
+  const [lineaSeleccionada, setLineaSeleccionada] = useState<number | null>(null)
+  const [guardandoEstado, setGuardandoEstado] = useState(false)
+
+  const cerrarModalEstado = () => {
+    if (guardandoEstado) return
+    setModalEstadoCliente(null)
+    setLineaSeleccionada(null)
+  }
+
+  const abrirModalEstado = (c: ClienteSeguimiento) => {
+    setModalEstadoCliente(c)
+    setLineaSeleccionada(c.ultima_linea_contacto ?? null)
+  }
+
+  const aplicarEstadoEnLista = (clienteId: string, patch: Partial<ClienteSeguimiento>) => {
+    setClientes(prev => prev.map(cl => (cl.cliente_id === clienteId ? { ...cl, ...patch } : cl)))
+  }
+
+  const confirmarEstado = async (resultado: 'CONTACTADO' | 'NO_CONTESTO') => {
+    if (!modalEstadoCliente || !lineaSeleccionada || guardandoEstado) return
+    setGuardandoEstado(true)
+    try {
+      const res = await recordatoriosApi.registrarNotificacion(
+        modalEstadoCliente.cliente_id,
+        lineaSeleccionada,
+        resultado
+      )
+      const prev = modalEstadoCliente
+      const totalEventos = (prev.total_eventos ?? 0) + 1
+      const totalNotif =
+        resultado === 'CONTACTADO'
+          ? (prev.total_notificaciones ?? 0) + 1
+          : (prev.total_notificaciones ?? 0)
+      aplicarEstadoEnLista(prev.cliente_id, {
+        total_eventos: totalEventos,
+        total_notificaciones: totalNotif,
+        ultima_notificacion: res.data.created_at,
+        ultima_linea_contacto: res.data.linea_contacto,
+        ultimo_resultado: resultado,
+      })
+      cerrarModalEstado()
+    } catch {
+      // silencioso
+    } finally {
+      setGuardandoEstado(false)
+    }
+  }
+
   const fetchData = useCallback(async (
     p = 1,
     s = search,
@@ -651,19 +757,25 @@ export default function SeguimientoClientes() {
             ))}
           </div>
 
-          {/* Notificado */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {(['todos', 'si', 'no'] as FiltroNotificado[]).map(n => (
+          {/* Estado contacto / recordatorio */}
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 rounded-lg p-1">
+            {(['todos', 'si', 'no', 'no_contesto'] as FiltroNotificado[]).map(n => (
               <button
                 key={n}
                 onClick={() => handleNotificado(n)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
                   notificado === n
                     ? 'bg-white text-violet-700 shadow-sm font-semibold'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {n === 'todos' ? 'Todos' : n === 'si' ? '🔔 Notificados' : '🔕 Sin notificar'}
+                {n === 'todos'
+                  ? 'Todos'
+                  : n === 'si'
+                    ? '🔔 Notificados'
+                    : n === 'no'
+                      ? '🔕 Sin notificar'
+                      : '📵 No contestó'}
               </button>
             ))}
           </div>
@@ -760,7 +872,7 @@ export default function SeguimientoClientes() {
       {clientes.length > 0 && (
         <div className="space-y-3">
           {clientes.map(c => (
-            <TarjetaCliente key={c.cliente_id} cliente={c} />
+            <TarjetaCliente key={c.cliente_id} cliente={c} onRegistrarEstado={abrirModalEstado} />
           ))}
         </div>
       )}
@@ -811,6 +923,64 @@ export default function SeguimientoClientes() {
             </svg>
           </button>
         </div>
+      )}
+
+      {modalEstadoCliente && (
+        <ModalPortal onClose={cerrarModalEstado}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Actualizar estado de contacto</h3>
+              <p className="text-sm text-slate-500 mt-0.5 truncate">
+                {modalEstadoCliente.nombre} — {modalEstadoCliente.telefono}
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm font-semibold text-slate-700 mb-3">Línea desde la que llamó o escribió</p>
+              <div className="grid grid-cols-5 gap-2">
+                {LINEAS_CONTACTO.map(linea => (
+                  <button
+                    key={linea}
+                    type="button"
+                    onClick={() => setLineaSeleccionada(linea)}
+                    className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                      lineaSeleccionada === linea
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    L{linea}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={cerrarModalEstado}
+                disabled={guardandoEstado}
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmarEstado('NO_CONTESTO')}
+                disabled={!lineaSeleccionada || guardandoEstado}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {guardandoEstado ? 'Guardando…' : 'No contestó'}
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmarEstado('CONTACTADO')}
+                disabled={!lineaSeleccionada || guardandoEstado}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+              >
+                {guardandoEstado ? 'Guardando…' : 'Notificado'}
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   )
