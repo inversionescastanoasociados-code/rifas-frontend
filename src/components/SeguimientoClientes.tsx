@@ -307,14 +307,6 @@ function TarjetaCliente({
               </button>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
-            <span>
-              <span className="text-slate-400">Última compra en: </span>
-              <span className={`font-medium ${ultimaLineaCompra ? 'text-indigo-700' : 'text-slate-400'}`}>
-                {lineaCompraLabel}
-              </span>
-            </span>
-          </div>
           {/* Números de boletas */}
           <div className="flex flex-wrap gap-1 mt-1.5">
             {cliente.boletas.map(b => (
@@ -412,9 +404,13 @@ function TarjetaCliente({
           )}
         </div>
 
-        <div className="text-right shrink-0 min-w-[100px]">
+        <div className="text-right shrink-0 min-w-[110px]">
           <p className="text-slate-400 text-xs">Última compra</p>
           <p className="text-slate-600 text-xs font-medium">{fmtDate(ultimaFechaCompra)}</p>
+          <p className="text-slate-400 text-[10px] mt-0.5">Origen</p>
+          <p className={`text-xs font-semibold ${ultimaLineaCompra ? 'text-indigo-700' : 'text-slate-400'}`}>
+            {lineaCompraLabel}
+          </p>
         </div>
 
         {/* Chevron expand */}
@@ -929,14 +925,7 @@ export default function SeguimientoClientes() {
                 {modalEstadoCliente.nombre} — {modalEstadoCliente.telefono}
               </p>
             </div>
-            <div className="px-5 py-4">
-              <p className="text-sm text-slate-600">
-                Última compra registrada en:{' '}
-                <span className="font-semibold text-indigo-700">
-                  {formatLineaOrigen(getUltimaLineaCompra(modalEstadoCliente))}
-                </span>
-              </p>
-            </div>
+            <p className="px-5 py-3 text-sm text-slate-600">¿Cómo fue el contacto con este cliente?</p>
             <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
               <button
                 type="button"

@@ -74,6 +74,13 @@ export const APP_MODULES: AppModule[] = [
     roles: ['SUPER_ADMIN'],
   },
   {
+    id: 'administradores',
+    label: 'Administradores',
+    href: '/administradores',
+    matchPrefixes: ['/administradores'],
+    roles: ['SUPER_ADMIN'],
+  },
+  {
     id: 'clientes',
     label: 'Clientes',
     href: '/clientes',
