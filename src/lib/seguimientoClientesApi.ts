@@ -30,6 +30,7 @@ export interface ClienteSeguimiento {
   ultimo_resultado: 'CONTACTADO' | 'NO_CONTESTO' | null
   lineas_venta: string | null
   ultima_fecha_compra: string | null
+  ultima_linea_compra: string | null
   total_whatsapp: number
   ultimo_whatsapp: string | null
   boletas: BoletaSeguimiento[]

@@ -13,7 +13,7 @@ import { recordatoriosApi } from '@/lib/recordatoriosApi'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
 import { WHATSAPP_MENSAJE_ACTIVO } from '@/config/features'
-import { formatLineasOrigen } from '@/utils/lineaOrigen'
+import { formatLineaOrigen } from '@/utils/lineaOrigen'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 const COP = (v: number) =>
@@ -32,9 +32,18 @@ const fmtDate = (d: string | null) => {
   })
 }
 
-const LINEAS_CONTACTO = [1, 2, 3, 4, 5] as const
-
 type EstadoContactoSeguimiento = 'sin' | 'notificado' | 'no_contesto'
+
+function getUltimaLineaCompra(cliente: ClienteSeguimiento): string | null {
+  if (cliente.ultima_linea_compra) return cliente.ultima_linea_compra
+  let best: BoletaSeguimiento | null = null
+  for (const b of cliente.boletas) {
+    if (!b.fecha_venta) continue
+    const bestFecha = best?.fecha_venta
+    if (!best || !bestFecha || new Date(b.fecha_venta) > new Date(bestFecha)) best = b
+  }
+  return best?.linea_origen ?? null
+}
 
 function getEstadoSeguimiento(c: ClienteSeguimiento): EstadoContactoSeguimiento {
   const eventos = c.total_eventos ?? 0
@@ -230,7 +239,8 @@ function TarjetaCliente({
     ?? (fechasCompra.length ? fechasCompra[fechasCompra.length - 1] : null)
 
   const estadoContacto = getEstadoSeguimiento(cliente)
-  const lineaCompraLabel = formatLineasOrigen(cliente.lineas_venta)
+  const ultimaLineaCompra = getUltimaLineaCompra(cliente)
+  const lineaCompraLabel = formatLineaOrigen(ultimaLineaCompra)
 
   const handleCopiarNumero = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -299,8 +309,8 @@ function TarjetaCliente({
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
             <span>
-              <span className="text-slate-400">Línea: </span>
-              <span className={`font-medium ${cliente.lineas_venta ? 'text-indigo-700' : 'text-slate-400'}`}>
+              <span className="text-slate-400">Última compra en: </span>
+              <span className={`font-medium ${ultimaLineaCompra ? 'text-indigo-700' : 'text-slate-400'}`}>
                 {lineaCompraLabel}
               </span>
             </span>
@@ -589,18 +599,15 @@ export default function SeguimientoClientes() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [modalEstadoCliente, setModalEstadoCliente] = useState<ClienteSeguimiento | null>(null)
-  const [lineaSeleccionada, setLineaSeleccionada] = useState<number | null>(null)
   const [guardandoEstado, setGuardandoEstado] = useState(false)
 
   const cerrarModalEstado = () => {
     if (guardandoEstado) return
     setModalEstadoCliente(null)
-    setLineaSeleccionada(null)
   }
 
   const abrirModalEstado = (c: ClienteSeguimiento) => {
     setModalEstadoCliente(c)
-    setLineaSeleccionada(c.ultima_linea_contacto ?? null)
   }
 
   const aplicarEstadoEnLista = (clienteId: string, patch: Partial<ClienteSeguimiento>) => {
@@ -608,12 +615,12 @@ export default function SeguimientoClientes() {
   }
 
   const confirmarEstado = async (resultado: 'CONTACTADO' | 'NO_CONTESTO') => {
-    if (!modalEstadoCliente || !lineaSeleccionada || guardandoEstado) return
+    if (!modalEstadoCliente || guardandoEstado) return
     setGuardandoEstado(true)
     try {
       const res = await recordatoriosApi.registrarNotificacion(
         modalEstadoCliente.cliente_id,
-        lineaSeleccionada,
+        undefined,
         resultado
       )
       const prev = modalEstadoCliente
@@ -626,7 +633,6 @@ export default function SeguimientoClientes() {
         total_eventos: totalEventos,
         total_notificaciones: totalNotif,
         ultima_notificacion: res.data.created_at,
-        ultima_linea_contacto: res.data.linea_contacto,
         ultimo_resultado: resultado,
       })
       cerrarModalEstado()
@@ -924,23 +930,12 @@ export default function SeguimientoClientes() {
               </p>
             </div>
             <div className="px-5 py-4">
-              <p className="text-sm font-semibold text-slate-700 mb-3">Línea desde la que llamó o escribió</p>
-              <div className="grid grid-cols-5 gap-2">
-                {LINEAS_CONTACTO.map(linea => (
-                  <button
-                    key={linea}
-                    type="button"
-                    onClick={() => setLineaSeleccionada(linea)}
-                    className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
-                      lineaSeleccionada === linea
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    L{linea}
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm text-slate-600">
+                Última compra registrada en:{' '}
+                <span className="font-semibold text-indigo-700">
+                  {formatLineaOrigen(getUltimaLineaCompra(modalEstadoCliente))}
+                </span>
+              </p>
             </div>
             <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
               <button
@@ -954,7 +949,7 @@ export default function SeguimientoClientes() {
               <button
                 type="button"
                 onClick={() => confirmarEstado('NO_CONTESTO')}
-                disabled={!lineaSeleccionada || guardandoEstado}
+                disabled={guardandoEstado}
                 className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
               >
                 {guardandoEstado ? 'Guardando…' : 'No contestó'}
@@ -962,7 +957,7 @@ export default function SeguimientoClientes() {
               <button
                 type="button"
                 onClick={() => confirmarEstado('CONTACTADO')}
-                disabled={!lineaSeleccionada || guardandoEstado}
+                disabled={guardandoEstado}
                 className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
               >
                 {guardandoEstado ? 'Guardando…' : 'Notificado'}
