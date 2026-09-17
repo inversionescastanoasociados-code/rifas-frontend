@@ -359,27 +359,15 @@ function TarjetaCliente({
             </span>
           )}
           {estadoContacto === 'notificado' && (
-            <div className="text-right">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
-                🔔 Notificado
-              </span>
-              <p className="text-slate-400 text-xs mt-0.5 leading-tight">
-                {cliente.total_notificaciones > 1
-                  ? `${cliente.total_notificaciones} contactos · `
-                  : ''}
-                último: {fmtDateTime(cliente.ultima_notificacion)}
-              </p>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 border border-violet-200">
+              🔔 Notificado
+              {cliente.total_notificaciones > 1 ? ` (${cliente.total_notificaciones})` : ''}
+            </span>
           )}
           {estadoContacto === 'no_contesto' && (
-            <div className="text-right">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200">
-                📵 No contestó
-              </span>
-              <p className="text-slate-400 text-xs mt-0.5 leading-tight">
-                último intento: {fmtDateTime(cliente.ultima_notificacion)}
-              </p>
-            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200">
+              📵 No contestó
+            </span>
           )}
           <button
             type="button"
@@ -421,15 +409,37 @@ function TarjetaCliente({
         </div>
       </div>
 
-      {cliente.ultima_observacion?.trim() && (
+      {(cliente.ultima_observacion?.trim() ||
+        (estadoContacto !== 'sin' && cliente.ultima_notificacion)) && (
         <div
           className="px-4 pb-3 -mt-1 border-b border-slate-100"
           onClick={e => e.stopPropagation()}
         >
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-snug">
-            <span className="font-semibold text-amber-900">Observación: </span>
-            <span className="whitespace-pre-wrap break-words">{cliente.ultima_observacion.trim()}</span>
-          </div>
+          {cliente.ultima_observacion?.trim() && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-snug">
+              <span className="font-semibold text-amber-900">Observación: </span>
+              <span className="whitespace-pre-wrap break-words">{cliente.ultima_observacion.trim()}</span>
+            </div>
+          )}
+          {estadoContacto !== 'sin' && cliente.ultima_notificacion && (
+            <p
+              className={`text-xs text-slate-600 ${
+                cliente.ultima_observacion?.trim() ? 'mt-2 px-0.5' : 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2'
+              }`}
+            >
+              {estadoContacto === 'no_contesto' ? (
+                <>
+                  <span className="font-semibold text-amber-900">Marcado como no contestó: </span>
+                  {fmtDateTime(cliente.ultima_notificacion)}
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-violet-800">Marcado como notificado: </span>
+                  {fmtDateTime(cliente.ultima_notificacion)}
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 
