@@ -813,7 +813,7 @@ export default function SeguimientoClientes() {
           ) : (
             <span>
               <strong className="text-slate-700">{total.toLocaleString('es-CO')}</strong> clientes encontrados
-              <span className="text-slate-400"> · orden: última compra más antigua primero</span>
+              <span className="text-slate-400"> · solo rifa activa (proyecto actual) · orden: última compra más antigua primero</span>
               {search && <> · búsqueda: <em>"{search}"</em></>}
               {estadoBoleta === 'ABONADA' && (abonoMin > 0 || abonoMax < ABONO_MAX) && (
                 <> · abono: <em>{COP(abonoMin)} – {COP(abonoMax)}</em></>
