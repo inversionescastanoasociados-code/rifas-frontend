@@ -103,14 +103,26 @@ class RecordatoriosApiService {
   async registrarNotificacion(
     clienteId: string,
     lineaContacto?: number,
-    resultado: 'CONTACTADO' | 'NO_CONTESTO' = 'CONTACTADO'
-  ): Promise<{ success: boolean; data: { id: string; created_at: string; linea_contacto: number | null; resultado: string } }> {
+    resultado: 'CONTACTADO' | 'NO_CONTESTO' = 'CONTACTADO',
+    observacion?: string
+  ): Promise<{
+    success: boolean
+    data: {
+      id: string
+      created_at: string
+      linea_contacto: number | null
+      resultado: string
+      observacion: string | null
+    }
+  }> {
+    const obsTrim = observacion?.trim()
     const response = await fetch(`${API_BASE_URL}/api/recordatorios/${clienteId}/notificar`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
         ...(lineaContacto != null ? { linea_contacto: lineaContacto } : {}),
         resultado,
+        ...(obsTrim ? { observacion: obsTrim } : {}),
       })
     })
     return this.handleResponse(response)

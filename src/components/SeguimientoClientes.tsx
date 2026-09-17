@@ -421,6 +421,18 @@ function TarjetaCliente({
         </div>
       </div>
 
+      {cliente.ultima_observacion?.trim() && (
+        <div
+          className="px-4 pb-3 -mt-1 border-b border-slate-100"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-snug">
+            <span className="font-semibold text-amber-900">Observación: </span>
+            <span className="whitespace-pre-wrap break-words">{cliente.ultima_observacion.trim()}</span>
+          </div>
+        </div>
+      )}
+
       {/* ── Tabla de boletas ── */}
       {expandida && (
         <div className="border-t border-slate-100 overflow-x-auto">
@@ -596,13 +608,16 @@ export default function SeguimientoClientes() {
 
   const [modalEstadoCliente, setModalEstadoCliente] = useState<ClienteSeguimiento | null>(null)
   const [guardandoEstado, setGuardandoEstado] = useState(false)
+  const [observacionEstado, setObservacionEstado] = useState('')
 
   const cerrarModalEstado = () => {
     if (guardandoEstado) return
     setModalEstadoCliente(null)
+    setObservacionEstado('')
   }
 
   const abrirModalEstado = (c: ClienteSeguimiento) => {
+    setObservacionEstado('')
     setModalEstadoCliente(c)
   }
 
@@ -614,10 +629,12 @@ export default function SeguimientoClientes() {
     if (!modalEstadoCliente || guardandoEstado) return
     setGuardandoEstado(true)
     try {
+      const obsTrim = observacionEstado.trim()
       const res = await recordatoriosApi.registrarNotificacion(
         modalEstadoCliente.cliente_id,
         undefined,
-        resultado
+        resultado,
+        obsTrim || undefined
       )
       const prev = modalEstadoCliente
       const totalEventos = (prev.total_eventos ?? 0) + 1
@@ -630,6 +647,7 @@ export default function SeguimientoClientes() {
         total_notificaciones: totalNotif,
         ultima_notificacion: res.data.created_at,
         ultimo_resultado: resultado,
+        ultima_observacion: obsTrim ? obsTrim : prev.ultima_observacion,
       })
       cerrarModalEstado()
     } catch {
@@ -927,6 +945,22 @@ export default function SeguimientoClientes() {
               </p>
             </div>
             <p className="px-5 py-3 text-sm text-slate-600">¿Cómo fue el contacto con este cliente?</p>
+            <div className="px-5 pb-2">
+              <label htmlFor="observacion-seguimiento" className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Observación (opcional)
+              </label>
+              <textarea
+                id="observacion-seguimiento"
+                rows={3}
+                maxLength={2000}
+                value={observacionEstado}
+                onChange={e => setObservacionEstado(e.target.value)}
+                disabled={guardandoEstado}
+                placeholder="Ej.: dijo que paga el viernes, línea ocupada, número equivocado…"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y min-h-[72px] disabled:opacity-50"
+              />
+              <p className="text-[10px] text-slate-400 mt-1 text-right">{observacionEstado.length}/2000</p>
+            </div>
             <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
               <button
                 type="button"

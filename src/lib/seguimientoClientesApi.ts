@@ -28,6 +28,7 @@ export interface ClienteSeguimiento {
   ultima_notificacion: string | null
   ultima_linea_contacto: number | null
   ultimo_resultado: 'CONTACTADO' | 'NO_CONTESTO' | null
+  ultima_observacion: string | null
   lineas_venta: string | null
   ultima_fecha_compra: string | null
   ultima_linea_compra: string | null
