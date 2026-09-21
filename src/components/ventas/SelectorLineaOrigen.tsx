@@ -42,7 +42,7 @@ export default function SelectorLineaOrigen({
           type="button"
           disabled={disabled}
           onClick={() => onChange('PISTA')}
-          className={`col-span-2 rounded-xl font-bold transition-all border-2 disabled:opacity-50 active:scale-95 ${
+          className={`col-span-4 rounded-xl font-bold transition-all border-2 disabled:opacity-50 active:scale-95 ${
             compact ? 'py-2.5 text-sm' : 'py-3 text-sm'
           } ${
             value === 'PISTA'
@@ -50,7 +50,7 @@ export default function SelectorLineaOrigen({
               : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'
           }`}
         >
-          🏪 Pista (físico)
+          🏪 Pista (punto físico)
         </button>
       </div>
     </div>

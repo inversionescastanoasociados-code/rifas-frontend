@@ -1,5 +1,5 @@
-/** Líneas telefónicas y pista para origen de venta/reserva */
-export const LINEAS_ORIGEN_VENTA = ['1', '2', '3', '4', '5', '6'] as const
+/** Líneas telefónicas (1–7) y pista para origen de venta/reserva */
+export const LINEAS_ORIGEN_VENTA = ['1', '2', '3', '4', '5', '6', '7'] as const
 export type LineaOrigenVenta = typeof LINEAS_ORIGEN_VENTA[number] | 'PISTA'
 
 export function formatLineaOrigen(linea: string | null | undefined): string {
