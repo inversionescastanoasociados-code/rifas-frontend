@@ -185,6 +185,13 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                 <span className="text-sm text-slate-600">Email:</span>
                 <span className="text-sm font-medium text-slate-900">{boleta.cliente_info.email}</span>
               </div>
+
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 pt-1 border-t border-slate-100">
+                <span className="text-sm text-slate-600 shrink-0">Dirección / origen:</span>
+                <span className="text-sm font-medium text-slate-900 sm:text-right break-words">
+                  {boleta.cliente_info.direccion?.trim() || '—'}
+                </span>
+              </div>
             </div>
           ) : (
             <div className="text-center py-4">

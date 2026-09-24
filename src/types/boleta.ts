@@ -4,6 +4,7 @@ export interface ClienteInfo {
   email: string
   telefono: string
   identificacion: string
+  direccion?: string | null
 }
 
 export interface VendedorInfo {
