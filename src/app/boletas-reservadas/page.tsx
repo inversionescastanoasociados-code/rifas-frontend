@@ -23,9 +23,25 @@ interface BoletaReservada {
   fecha_reserva: string | null
 }
 
+interface BoletaDevuelta {
+  boleta_id: string
+  numero: number
+  estado: string
+  es_devolucion: boolean
+  devolucion_en: string | null
+  rifa_id: string
+  rifa_nombre: string
+  precio_boleta: number
+  fecha_sorteo: string | null
+}
+
+type VistaBoletas = 'reservadas' | 'devueltas'
+
 export default function BoletasReservadasPage() {
   const router = useRouter()
+  const [vista, setVista] = useState<VistaBoletas>('reservadas')
   const [boletas, setBoletas] = useState<BoletaReservada[]>([])
+  const [boletasDevueltas, setBoletasDevueltas] = useState<BoletaDevuelta[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -37,6 +53,7 @@ export default function BoletasReservadasPage() {
     tipo: 'boleta' | 'venta'
     id: string
     mensaje: string
+    esDevolucion: boolean
   } | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
@@ -44,11 +61,17 @@ export default function BoletasReservadasPage() {
     try {
       setLoading(true)
       setError(null)
-      const response = await ventasPublicasApi.getBoletasReservadas()
-      if (response.success && response.data) {
-        setBoletas(response.data)
+      const [resReservadas, resDevueltas] = await Promise.all([
+        ventasPublicasApi.getBoletasReservadas(),
+        ventasPublicasApi.getBoletasDevueltas(),
+      ])
+      if (resReservadas.success && resReservadas.data) {
+        setBoletas(resReservadas.data)
       } else {
-        throw new Error(response.message || 'Error cargando boletas reservadas')
+        throw new Error(resReservadas.message || 'Error cargando boletas reservadas')
+      }
+      if (resDevueltas.success && resDevueltas.data) {
+        setBoletasDevueltas(resDevueltas.data)
       }
     } catch (err: any) {
       setError(err.message || 'Error de conexión')
@@ -73,13 +96,13 @@ export default function BoletasReservadasPage() {
   }
 
   // Liberar una boleta individual
-  const handleLiberarBoleta = async (boletaId: string) => {
+  const handleLiberarBoleta = async (boletaId: string, esDevolucion: boolean) => {
     try {
       setLiberando(boletaId)
       setConfirmDialog(null)
-      const response = await ventasPublicasApi.liberarBoleta(boletaId)
+      const response = await ventasPublicasApi.liberarBoleta(boletaId, esDevolucion)
       if (response.success) {
-        showSuccess('Boleta liberada correctamente')
+        showSuccess(esDevolucion ? 'Boleta liberada y marcada como devolución' : 'Boleta liberada correctamente')
         await fetchBoletas()
       } else {
         throw new Error(response.message || 'Error al liberar boleta')
@@ -92,13 +115,17 @@ export default function BoletasReservadasPage() {
   }
 
   // Liberar todas las boletas de una venta
-  const handleLiberarVenta = async (ventaId: string) => {
+  const handleLiberarVenta = async (ventaId: string, esDevolucion: boolean) => {
     try {
       setLiberandoVenta(ventaId)
       setConfirmDialog(null)
-      const response = await ventasPublicasApi.liberarBoletasDeVenta(ventaId)
+      const response = await ventasPublicasApi.liberarBoletasDeVenta(ventaId, esDevolucion)
       if (response.success) {
-        showSuccess('Todas las boletas de la venta fueron liberadas')
+        showSuccess(
+          esDevolucion
+            ? 'Boletas liberadas y marcadas como devolución'
+            : 'Todas las boletas de la venta fueron liberadas'
+        )
         await fetchBoletas()
       } else {
         throw new Error(response.message || 'Error al liberar boletas de la venta')
@@ -152,6 +179,18 @@ export default function BoletasReservadasPage() {
     return new Date(b.bloqueo_hasta) < new Date()
   }).length
 
+  const devueltasFiltradas = boletasDevueltas.filter(b => {
+    const term = searchTerm.trim().toLowerCase()
+    const numeroTerm = term.replace(/^#/, '')
+    if (!term) return filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
+    return (
+      (filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa) &&
+      (formatNumeroBoleta(b.numero).includes(numeroTerm) ||
+        b.numero.toString() === numeroTerm ||
+        b.rifa_nombre.toLowerCase().includes(term))
+    )
+  })
+
   const formatFecha = (fecha: string | null) => {
     if (!fecha) return '—'
     return new Date(fecha).toLocaleDateString('es-CO', {
@@ -187,7 +226,7 @@ export default function BoletasReservadasPage() {
                 Boletas Reservadas
               </h1>
               <p className="text-slate-600 mt-1">
-                Administra y libera boletas reservadas que no han sido pagadas
+                Administra reservas, libera boletas y consulta devoluciones
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -202,6 +241,31 @@ export default function BoletasReservadasPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setVista('reservadas')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+              vista === 'reservadas'
+                ? 'bg-amber-600 text-white border-amber-600'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            Reservadas ({totalReservadas})
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('devueltas')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+              vista === 'devueltas'
+                ? 'bg-violet-600 text-white border-violet-600'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            Devueltas ({boletasDevueltas.length})
+          </button>
         </div>
 
         {/* Mensaje de éxito */}
@@ -227,6 +291,8 @@ export default function BoletasReservadasPage() {
           </div>
         )}
 
+        {vista === 'reservadas' && !loading && (
+        <>
         {/* Resumen */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -296,13 +362,12 @@ export default function BoletasReservadasPage() {
           <div className="flex items-center justify-center py-20">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-slate-500 text-sm">Cargando boletas reservadas...</p>
+              <p className="text-slate-500 text-sm">Cargando boletas...</p>
             </div>
           </div>
         )}
 
-        {/* Sin resultados */}
-        {!loading && boletasFiltradas.length === 0 && (
+        {vista === 'reservadas' && !loading && boletasFiltradas.length === 0 && (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -317,7 +382,7 @@ export default function BoletasReservadasPage() {
         )}
 
         {/* Tabla de boletas */}
-        {!loading && boletasFiltradas.length > 0 && (
+        {boletasFiltradas.length > 0 && (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -424,7 +489,8 @@ export default function BoletasReservadasPage() {
                             onClick={() => setConfirmDialog({
                               tipo: 'boleta',
                               id: boleta.boleta_id,
-                              mensaje: `¿Liberar la boleta #${String(boleta.numero).padStart(4, '0')}? Quedará disponible para la venta nuevamente.`
+                              mensaje: `¿Liberar la boleta #${String(boleta.numero).padStart(4, '0')}? Quedará disponible para la venta nuevamente.`,
+                              esDevolucion: false,
                             })}
                             disabled={liberando === boleta.boleta_id}
                             className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -445,7 +511,8 @@ export default function BoletasReservadasPage() {
                               onClick={() => setConfirmDialog({
                                 tipo: 'venta',
                                 id: boleta.venta_id!,
-                                mensaje: `¿Liberar TODAS las ${ventasConBoletas[boleta.venta_id!].length} boletas de esta venta? La venta será cancelada.`
+                                mensaje: `¿Liberar TODAS las ${ventasConBoletas[boleta.venta_id!].length} boletas de esta venta? La venta será cancelada.`,
+                                esDevolucion: false,
                               })}
                               disabled={liberandoVenta === boleta.venta_id}
                               className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -474,6 +541,79 @@ export default function BoletasReservadasPage() {
             </div>
           </div>
         )}
+        </>
+        )}
+
+        {vista === 'devueltas' && !loading && (
+          <>
+            <div className="mb-6 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
+              Boletas <strong>disponibles</strong> que se liberaron marcando <strong>Devolución</strong>.
+              Siguen en el inventario para venderse a otro cliente; al asignarlas de nuevo la etiqueta se quita sola.
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex-1 min-w-[200px]">
+                  <input
+                    type="text"
+                    placeholder="Buscar por # boleta o rifa..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <select
+                  value={filtroRifa}
+                  onChange={(e) => setFiltroRifa(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                >
+                  <option value="TODAS">Todas las rifas</option>
+                  {Array.from(new Set(boletasDevueltas.map(b => b.rifa_nombre))).sort().map(rifa => (
+                    <option key={rifa} value={rifa}>{rifa}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {devueltasFiltradas.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+                No hay boletas marcadas como devolución en este momento.
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-violet-50 border-b border-violet-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Boleta</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Rifa</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Etiqueta</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Marcada devolución</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {devueltasFiltradas.map(b => (
+                      <tr key={b.boleta_id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-mono font-semibold">#{formatNumeroBoleta(b.numero)}</td>
+                        <td className="px-4 py-3">{b.rifa_nombre}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                            Devolución
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{formatFecha(b.devolucion_en)}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-emerald-700 text-xs font-medium">DISPONIBLE (asignable)</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="bg-slate-50 border-t px-4 py-3 text-sm text-slate-500">
+                  {devueltasFiltradas.length} de {boletasDevueltas.length} devueltas
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Modal de confirmación */}
@@ -488,7 +628,23 @@ export default function BoletasReservadasPage() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900">Confirmar liberación</h3>
             </div>
-            <p className="text-slate-600 mb-6">{confirmDialog.mensaje}</p>
+            <p className="text-slate-600 mb-4">{confirmDialog.mensaje}</p>
+            <label className="flex items-start gap-3 mb-6 p-3 rounded-lg border border-violet-200 bg-violet-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={confirmDialog.esDevolucion}
+                onChange={(e) =>
+                  setConfirmDialog(prev => (prev ? { ...prev, esDevolucion: e.target.checked } : null))
+                }
+                className="mt-0.5 h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+              />
+              <span className="text-sm text-violet-950">
+                <span className="font-semibold">Devolución</span>
+                <span className="block text-violet-800/90 text-xs mt-0.5">
+                  La boleta queda libre y aparecerá en el apartado Devueltas hasta que se venda de nuevo.
+                </span>
+              </span>
+            </label>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmDialog(null)}
@@ -499,9 +655,9 @@ export default function BoletasReservadasPage() {
               <button
                 onClick={() => {
                   if (confirmDialog.tipo === 'boleta') {
-                    handleLiberarBoleta(confirmDialog.id)
+                    handleLiberarBoleta(confirmDialog.id, confirmDialog.esDevolucion)
                   } else {
-                    handleLiberarVenta(confirmDialog.id)
+                    handleLiberarVenta(confirmDialog.id, confirmDialog.esDevolucion)
                   }
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"

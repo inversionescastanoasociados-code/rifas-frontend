@@ -166,18 +166,24 @@ class VentasPublicasApiService {
   /**
    * 🔓 Liberar manualmente una boleta reservada
    */
-  async liberarBoleta(boletaId: string): Promise<ApiResponse<any>> {
+  async getBoletasDevueltas(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>('/admin/dashboard/boletas-devueltas')
+  }
+
+  async liberarBoleta(boletaId: string, esDevolucion = false): Promise<ApiResponse<any>> {
     return this.request(`/admin/dashboard/boletas-reservadas/${boletaId}/liberar`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ es_devolucion: esDevolucion }),
     })
   }
 
   /**
    * 🔓 Liberar TODAS las boletas de una venta
    */
-  async liberarBoletasDeVenta(ventaId: string): Promise<ApiResponse<any>> {
+  async liberarBoletasDeVenta(ventaId: string, esDevolucion = false): Promise<ApiResponse<any>> {
     return this.request(`/admin/dashboard/boletas-reservadas/venta/${ventaId}/liberar`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ es_devolucion: esDevolucion }),
     })
   }
 
