@@ -29,13 +29,29 @@ interface BoletaDevuelta {
   estado: string
   es_devolucion: boolean
   devolucion_en: string | null
+  cliente_id: string | null
+  cliente_nombre: string | null
+  cliente_telefono: string | null
   rifa_id: string
   rifa_nombre: string
   precio_boleta: number
   fecha_sorteo: string | null
+  disponible_publicacion?: boolean
 }
 
 type VistaBoletas = 'reservadas' | 'devueltas'
+type FiltroDevolucion = 'disponibles' | 'asignadas'
+
+function esDevolucionDisponible(b: BoletaDevuelta) {
+  return (
+    b.disponible_publicacion === true ||
+    (b.es_devolucion && b.estado === 'DISPONIBLE' && !b.cliente_id)
+  )
+}
+
+function esDevolucionAsignada(b: BoletaDevuelta) {
+  return !!b.devolucion_en && !!b.cliente_id
+}
 
 export default function BoletasReservadasPage() {
   const router = useRouter()
@@ -56,6 +72,8 @@ export default function BoletasReservadasPage() {
     esDevolucion: boolean
   } | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [filtroDevolucion, setFiltroDevolucion] = useState<FiltroDevolucion>('disponibles')
+  const [modoCaptura, setModoCaptura] = useState(false)
 
   const fetchBoletas = useCallback(async () => {
     try {
@@ -179,17 +197,35 @@ export default function BoletasReservadasPage() {
     return new Date(b.bloqueo_hasta) < new Date()
   }).length
 
-  const devueltasFiltradas = boletasDevueltas.filter(b => {
+  const devueltasBase = boletasDevueltas.filter(b => {
+    if (filtroDevolucion === 'disponibles') return esDevolucionDisponible(b)
+    return esDevolucionAsignada(b)
+  })
+
+  const devueltasFiltradas = devueltasBase.filter(b => {
     const term = searchTerm.trim().toLowerCase()
     const numeroTerm = term.replace(/^#/, '')
-    if (!term) return filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
+    const matchRifa = filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
+    if (!term) return matchRifa
     return (
-      (filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa) &&
+      matchRifa &&
       (formatNumeroBoleta(b.numero).includes(numeroTerm) ||
         b.numero.toString() === numeroTerm ||
-        b.rifa_nombre.toLowerCase().includes(term))
+        b.rifa_nombre.toLowerCase().includes(term) ||
+        (b.cliente_nombre && b.cliente_nombre.toLowerCase().includes(term)) ||
+        (b.cliente_telefono && b.cliente_telefono.includes(term)))
     )
   })
+
+  const countDevDisponibles = boletasDevueltas.filter(esDevolucionDisponible).length
+  const countDevAsignadas = boletasDevueltas.filter(esDevolucionAsignada).length
+
+  const devueltasPorRifa = devueltasFiltradas.reduce((acc, b) => {
+    const key = b.rifa_nombre
+    if (!acc[key]) acc[key] = []
+    acc[key].push(b)
+    return acc
+  }, {} as Record<string, BoletaDevuelta[]>)
 
   const formatFecha = (fecha: string | null) => {
     if (!fecha) return '—'
@@ -243,6 +279,7 @@ export default function BoletasReservadasPage() {
           </div>
         </div>
 
+        {!modoCaptura && (
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             type="button"
@@ -264,9 +301,10 @@ export default function BoletasReservadasPage() {
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            Devueltas ({boletasDevueltas.length})
+            Devueltas ({countDevDisponibles + countDevAsignadas})
           </button>
         </div>
+        )}
 
         {/* Mensaje de éxito */}
         {successMsg && (
@@ -546,47 +584,176 @@ export default function BoletasReservadasPage() {
 
         {vista === 'devueltas' && !loading && (
           <>
-            <div className="mb-6 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
-              Boletas <strong>disponibles</strong> que se liberaron marcando <strong>Devolución</strong>.
-              Siguen en el inventario para venderse a otro cliente; al asignarlas de nuevo la etiqueta se quita sola.
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-              <div className="flex flex-wrap gap-4 items-center">
-                <div className="flex-1 min-w-[200px]">
-                  <input
-                    type="text"
-                    placeholder="Buscar por # boleta o rifa..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
-                  />
+            {!modoCaptura && (
+              <>
+                <div className="mb-6 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
+                  Historial de boletas liberadas como <strong>devolución</strong>. Las disponibles se pueden publicar;
+                  al venderse pasan a <strong>asignadas</strong> (conservamos la fecha en que se marcaron).
                 </div>
-                <select
-                  value={filtroRifa}
-                  onChange={(e) => setFiltroRifa(e.target.value)}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroDevolucion('disponibles')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                      filtroDevolucion === 'disponibles'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Disponibles ({countDevDisponibles})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFiltroDevolucion('asignadas')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                      filtroDevolucion === 'asignadas'
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Ya con cliente ({countDevAsignadas})
+                  </button>
+                  {filtroDevolucion === 'disponibles' && countDevDisponibles > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setModoCaptura(true)}
+                      className="ml-auto px-4 py-2 rounded-lg text-sm font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                    >
+                      📸 Modo captura
+                    </button>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex-1 min-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder={
+                          filtroDevolucion === 'asignadas'
+                            ? 'Buscar # boleta, rifa o cliente...'
+                            : 'Buscar por # boleta o rifa...'
+                        }
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                      />
+                    </div>
+                    <select
+                      value={filtroRifa}
+                      onChange={(e) => setFiltroRifa(e.target.value)}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    >
+                      <option value="TODAS">Todas las rifas</option>
+                      {Array.from(new Set(devueltasBase.map(b => b.rifa_nombre))).sort().map(rifa => (
+                        <option key={rifa} value={rifa}>{rifa}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {modoCaptura && (
+              <div className="flex justify-end mb-3">
+                <button
+                  type="button"
+                  onClick={() => setModoCaptura(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
                 >
-                  <option value="TODAS">Todas las rifas</option>
-                  {Array.from(new Set(boletasDevueltas.map(b => b.rifa_nombre))).sort().map(rifa => (
-                    <option key={rifa} value={rifa}>{rifa}</option>
-                  ))}
-                </select>
+                  Salir de modo captura
+                </button>
               </div>
-            </div>
+            )}
+
             {devueltasFiltradas.length === 0 ? (
               <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
-                No hay boletas marcadas como devolución en este momento.
+                {filtroDevolucion === 'disponibles'
+                  ? 'No hay boletas en devolución disponibles para publicar.'
+                  : 'Aún no hay boletas devueltas reasignadas a un cliente.'}
+              </div>
+            ) : filtroDevolucion === 'disponibles' ? (
+              <div
+                id="devoluciones-captura-publicacion"
+                className={`rounded-3xl overflow-hidden ${
+                  modoCaptura
+                    ? 'p-8 sm:p-10 bg-gradient-to-br from-indigo-950 via-violet-900 to-purple-950 shadow-2xl'
+                    : 'p-6 bg-white border border-slate-200'
+                }`}
+              >
+                <div className={`text-center mb-8 ${modoCaptura ? 'text-white' : 'text-slate-800'}`}>
+                  <p className={`text-xs uppercase tracking-[0.2em] font-semibold ${modoCaptura ? 'text-violet-200' : 'text-violet-600'}`}>
+                    Boletas en devolución
+                  </p>
+                  <h2 className={`text-2xl sm:text-3xl font-bold mt-1 ${modoCaptura ? 'text-white' : 'text-slate-900'}`}>
+                    Disponibles para apartar
+                  </h2>
+                  <p className={`text-sm mt-2 ${modoCaptura ? 'text-violet-100/90' : 'text-slate-500'}`}>
+                    {devueltasFiltradas.length} número{devueltasFiltradas.length !== 1 ? 's' : ''} listo{devueltasFiltradas.length !== 1 ? 's' : ''} · {formatFecha(new Date().toISOString())}
+                  </p>
+                </div>
+
+                {Object.entries(devueltasPorRifa)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([rifaNombre, items]) => (
+                    <div key={rifaNombre} className="mb-8 last:mb-0">
+                      {!modoCaptura && (
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3 px-1">{rifaNombre}</h3>
+                      )}
+                      {modoCaptura && (
+                        <p className="text-center text-violet-200 text-sm font-medium mb-4">{rifaNombre}</p>
+                      )}
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+                        {items
+                          .sort((a, b) => a.numero - b.numero)
+                          .map(b => (
+                            <div
+                              key={b.boleta_id}
+                              className={`group relative aspect-[4/5] rounded-2xl p-[2px] shadow-md transition-transform hover:scale-[1.02] ${
+                                modoCaptura
+                                  ? 'bg-gradient-to-br from-amber-300 via-violet-300 to-indigo-400'
+                                  : 'bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600'
+                              }`}
+                            >
+                              <div className="h-full w-full rounded-[14px] bg-white flex flex-col items-center justify-center px-2 py-3">
+                                <span className="text-[9px] uppercase tracking-wider font-bold text-violet-600">
+                                  Devolución
+                                </span>
+                                <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tabular-nums leading-none mt-1">
+                                  {formatNumeroBoleta(b.numero)}
+                                </span>
+                                {!modoCaptura && (
+                                  <span className="text-[10px] text-slate-400 mt-2 text-center line-clamp-2 leading-tight">
+                                    {rifaNombre}
+                                  </span>
+                                )}
+                                <span className="mt-auto pt-2 text-[10px] font-semibold text-emerald-600">
+                                  LIBRE
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+
+                {modoCaptura && (
+                  <p className="text-center text-violet-300/80 text-xs mt-8">
+                    Captura esta pantalla para publicar en redes · Los números siguen disponibles en ventas
+                  </p>
+                )}
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-violet-50 border-b border-violet-100">
+                  <thead className="bg-indigo-50 border-b border-indigo-100">
                     <tr>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Boleta</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Rifa</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Etiqueta</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Marcada devolución</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-violet-800 uppercase">Estado</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-indigo-800 uppercase">Boleta</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-indigo-800 uppercase">Rifa</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-indigo-800 uppercase">Cliente</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-indigo-800 uppercase">Estado boleta</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-indigo-800 uppercase">Devolución marcada</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -595,20 +762,23 @@ export default function BoletasReservadasPage() {
                         <td className="px-4 py-3 font-mono font-semibold">#{formatNumeroBoleta(b.numero)}</td>
                         <td className="px-4 py-3">{b.rifa_nombre}</td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-800 border border-violet-200">
-                            Devolución
+                          <p className="font-medium text-slate-800">{b.cliente_nombre || '—'}</p>
+                          {b.cliente_telefono && (
+                            <p className="text-xs text-slate-400">{b.cliente_telefono}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                            {b.estado}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-600">{formatFecha(b.devolucion_en)}</td>
-                        <td className="px-4 py-3">
-                          <span className="text-emerald-700 text-xs font-medium">DISPONIBLE (asignable)</span>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <div className="bg-slate-50 border-t px-4 py-3 text-sm text-slate-500">
-                  {devueltasFiltradas.length} de {boletasDevueltas.length} devueltas
+                  {devueltasFiltradas.length} reasignada{devueltasFiltradas.length !== 1 ? 's' : ''}
                 </div>
               </div>
             )}
