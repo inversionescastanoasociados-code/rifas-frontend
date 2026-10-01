@@ -16,7 +16,7 @@ export function looksLikeBoletaNumberQuery(raw: string): boolean {
   if (/^#?\d+$/.test(compact)) return true
   const digits = extractBoletaDigits(t)
   if (!digits) return false
-  return digits.length === extractBoletaDigits(compact)
+  return digits.length === extractBoletaDigits(compact).length
 }
 
 export function matchesNumeroBoleta(numero: number, rawQuery: string): boolean {
