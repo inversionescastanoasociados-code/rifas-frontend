@@ -1,8 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
+import {
+  formatNumeroBoleta,
+  looksLikeBoletaNumberQuery,
+  matchesBoletaModuleSearch,
+  sortByNumeroMatchFirst,
+} from '@/utils/boletaSearch'
 
 interface BoletaReservada {
   boleta_id: string
@@ -156,28 +162,29 @@ export default function BoletasReservadasPage() {
   }
 
   // Obtener rifas únicas para el filtro
-  const rifasUnicas = Array.from(new Set(boletas.map(b => b.rifa_nombre))).sort()
+  const rifasUnicas = Array.from(
+    new Set([...boletas.map(b => b.rifa_nombre), ...boletasDevueltas.map(b => b.rifa_nombre)])
+  ).sort()
 
-  const formatNumeroBoleta = (numero: number) => String(numero).padStart(4, '0')
+  const searchNorm = searchTerm.trim()
+  const busquedaPorNumero = looksLikeBoletaNumberQuery(searchNorm)
 
-  // Filtrar boletas
-  const boletasFiltradas = boletas.filter(b => {
-    const term = searchTerm.trim().toLowerCase()
-    const numeroTerm = term.replace(/^#/, '')
-
-    const matchSearch =
-      !term ||
-      formatNumeroBoleta(b.numero).includes(numeroTerm) ||
-      b.numero.toString() === numeroTerm ||
-      (b.cliente_nombre && b.cliente_nombre.toLowerCase().includes(term)) ||
-      (b.cliente_telefono && b.cliente_telefono.includes(term)) ||
-      (b.cliente_identificacion && b.cliente_identificacion.includes(term))
-
-    const matchOrigen = filtroOrigen === 'TODOS' || b.origen === filtroOrigen
-    const matchRifa = filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
-
-    return matchSearch && matchOrigen && matchRifa
-  })
+  const boletasFiltradas = useMemo(() => {
+    const filtered = boletas.filter(b => {
+      const matchSearch = matchesBoletaModuleSearch(b.numero, searchNorm, {
+        cliente_nombre: b.cliente_nombre,
+        cliente_telefono: b.cliente_telefono,
+        cliente_identificacion: b.cliente_identificacion,
+        rifa_nombre: b.rifa_nombre,
+      })
+      const matchOrigen =
+        busquedaPorNumero || filtroOrigen === 'TODOS' || b.origen === filtroOrigen
+      const matchRifa =
+        busquedaPorNumero || filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
+      return matchSearch && matchOrigen && matchRifa
+    })
+    return sortByNumeroMatchFirst(filtered, searchNorm)
+  }, [boletas, searchNorm, busquedaPorNumero, filtroOrigen, filtroRifa])
 
   // Agrupar boletas por venta_id para el botón "Liberar Todas"
   const ventasConBoletas = boletasFiltradas.reduce((acc, b) => {
@@ -202,20 +209,52 @@ export default function BoletasReservadasPage() {
     return esDevolucionAsignada(b)
   })
 
-  const devueltasFiltradas = devueltasBase.filter(b => {
-    const term = searchTerm.trim().toLowerCase()
-    const numeroTerm = term.replace(/^#/, '')
-    const matchRifa = filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
-    if (!term) return matchRifa
-    return (
-      matchRifa &&
-      (formatNumeroBoleta(b.numero).includes(numeroTerm) ||
-        b.numero.toString() === numeroTerm ||
-        b.rifa_nombre.toLowerCase().includes(term) ||
-        (b.cliente_nombre && b.cliente_nombre.toLowerCase().includes(term)) ||
-        (b.cliente_telefono && b.cliente_telefono.includes(term)))
-    )
-  })
+  const devueltasFiltradas = useMemo(() => {
+    const filtered = devueltasBase.filter(b => {
+      const matchSearch = matchesBoletaModuleSearch(b.numero, searchNorm, {
+        cliente_nombre: b.cliente_nombre,
+        cliente_telefono: b.cliente_telefono,
+        rifa_nombre: b.rifa_nombre,
+      })
+      const matchRifa =
+        busquedaPorNumero || filtroRifa === 'TODAS' || b.rifa_nombre === filtroRifa
+      return matchSearch && matchRifa
+    })
+    return sortByNumeroMatchFirst(filtered, searchNorm)
+  }, [devueltasBase, searchNorm, busquedaPorNumero, filtroRifa])
+
+  const sugerenciaBusqueda = useMemo(() => {
+    if (!searchNorm) return null
+    const matchFields = (numero: number, fields: Parameters<typeof matchesBoletaModuleSearch>[2]) =>
+      matchesBoletaModuleSearch(numero, searchNorm, fields)
+
+    if (vista === 'reservadas' && boletasFiltradas.length === 0) {
+      const enDevueltas = devueltasBase.some(b =>
+        matchFields(b.numero, {
+          cliente_nombre: b.cliente_nombre,
+          cliente_telefono: b.cliente_telefono,
+          rifa_nombre: b.rifa_nombre,
+        })
+      )
+      if (enDevueltas) {
+        return `Hay coincidencias en la pestaña «Devueltas». Cambia de pestaña para verlas.`
+      }
+    }
+    if (vista === 'devueltas' && devueltasFiltradas.length === 0) {
+      const enReservadas = boletas.some(b =>
+        matchFields(b.numero, {
+          cliente_nombre: b.cliente_nombre,
+          cliente_telefono: b.cliente_telefono,
+          cliente_identificacion: b.cliente_identificacion,
+          rifa_nombre: b.rifa_nombre,
+        })
+      )
+      if (enReservadas) {
+        return `Hay coincidencias en la pestaña «Reservadas». Cambia de pestaña para verlas.`
+      }
+    }
+    return null
+  }, [searchNorm, vista, boletasFiltradas.length, devueltasFiltradas.length, devueltasBase, boletas])
 
   const countDevDisponibles = boletasDevueltas.filter(esDevolucionDisponible).length
   const countDevAsignadas = boletasDevueltas.filter(esDevolucionAsignada).length
@@ -362,7 +401,7 @@ export default function BoletasReservadasPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Buscar por número, cliente, teléfono..."
+                  placeholder="Buscar # boleta (0345 o 345), cliente, teléfono..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -414,8 +453,11 @@ export default function BoletasReservadasPage() {
             <p className="text-slate-500 text-sm">
               {searchTerm || filtroOrigen !== 'TODOS' || filtroRifa !== 'TODAS'
                 ? 'No hay boletas que coincidan con los filtros aplicados'
-                : 'No hay boletas en estado reservado actualmente'}
+                : 'No hay boletas reservadas o abonadas con cliente actualmente'}
             </p>
+            {sugerenciaBusqueda && (
+              <p className="text-amber-700 text-sm mt-3 font-medium">{sugerenciaBusqueda}</p>
+            )}
           </div>
         )}
 
@@ -440,9 +482,16 @@ export default function BoletasReservadasPage() {
                     <tr key={boleta.boleta_id} className={`hover:bg-slate-50 transition-colors ${isExpirada(boleta.bloqueo_hasta) ? 'bg-red-50/50' : ''}`}>
                       {/* Número de boleta */}
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 font-mono font-semibold text-sm">
-                          #{String(boleta.numero).padStart(4, '0')}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center w-fit px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 font-mono font-semibold text-sm">
+                            #{formatNumeroBoleta(boleta.numero)}
+                          </span>
+                          {boleta.estado === 'ABONADA' && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                              Abonada
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Rifa */}
@@ -527,10 +576,15 @@ export default function BoletasReservadasPage() {
                             onClick={() => setConfirmDialog({
                               tipo: 'boleta',
                               id: boleta.boleta_id,
-                              mensaje: `¿Liberar la boleta #${String(boleta.numero).padStart(4, '0')}? Quedará disponible para la venta nuevamente.`,
+                              mensaje: `¿Liberar la boleta #${formatNumeroBoleta(boleta.numero)}? Quedará disponible para la venta nuevamente.`,
                               esDevolucion: false,
                             })}
-                            disabled={liberando === boleta.boleta_id}
+                            disabled={liberando === boleta.boleta_id || boleta.estado !== 'RESERVADA'}
+                            title={
+                              boleta.estado !== 'RESERVADA'
+                                ? 'Solo se puede liberar desde aquí si la boleta está RESERVADA (sin abono). Gestiona abonadas en Ventas.'
+                                : undefined
+                            }
                             className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {liberando === boleta.boleta_id ? (
@@ -672,6 +726,9 @@ export default function BoletasReservadasPage() {
                 {filtroDevolucion === 'disponibles'
                   ? 'No hay boletas en devolución disponibles para publicar.'
                   : 'Aún no hay boletas devueltas reasignadas a un cliente.'}
+                {sugerenciaBusqueda && (
+                  <p className="text-amber-700 text-sm mt-3 font-medium">{sugerenciaBusqueda}</p>
+                )}
               </div>
             ) : filtroDevolucion === 'disponibles' ? (
               <div
