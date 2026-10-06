@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { ventasApi } from '@/lib/ventasApi'
 import { ReservaResponse } from '@/types/ventas'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
-import { requiereComprobanteMedio } from '@/config/paymentMedios'
+import {
+  MEDIOS_PAGO_VENTAS_UI,
+  requiereComprobanteMedio,
+  labelMedioPagoId,
+} from '@/config/paymentMedios'
 
 interface DialogoConvertirReservaProps {
   isOpen: boolean
@@ -380,8 +384,11 @@ export default function DialogoConvertirReserva({
               className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black"
             >
               <option value="">Seleccionar método de pago</option>
-              <option value="d397d917-c0d0-4c61-b2b3-2ebfab7deeb7">Efectivo</option>
-              <option value="db94562d-bb01-42a3-9414-6e369a1a70ba">PSE</option>
+              {MEDIOS_PAGO_VENTAS_UI.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -403,9 +410,9 @@ export default function DialogoConvertirReserva({
             </div>
           ) : medioPagoId ? (
             <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-              <span>{medioPagoId === 'db94562d-bb01-42a3-9414-6e369a1a70ba' ? '🏦' : '💵'}</span>
+              <span>💳</span>
               <span>
-                Pago por <strong>{medioPagoId === 'db94562d-bb01-42a3-9414-6e369a1a70ba' ? 'PSE' : 'efectivo'}</strong>, no requiere comprobante.
+                Pago por <strong>{labelMedioPagoId(medioPagoId)}</strong>, no requiere comprobante.
               </span>
             </div>
           ) : null}

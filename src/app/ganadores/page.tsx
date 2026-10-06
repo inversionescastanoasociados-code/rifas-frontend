@@ -11,6 +11,7 @@ import {
   BOLETA_RIGHT_WIDTH,
   BOLETA_DEFAULT_HEIGHT,
 } from '@/constants/boletaDimensions'
+import { MEDIOS_PAGO_VENTAS_UI } from '@/config/paymentMedios'
 
 interface VentaInfo {
   monto_total: number
@@ -45,10 +46,7 @@ interface ClienteForm {
   identificacion: string
 }
 
-const MEDIOS_PAGO = [
-  { id: 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7', nombre: 'Efectivo' },
-  { id: 'db94562d-bb01-42a3-9414-6e369a1a70ba', nombre: 'PSE' },
-]
+const MEDIOS_PAGO = MEDIOS_PAGO_VENTAS_UI.map((m) => ({ id: m.id, nombre: m.label }))
 
 export default function GanadoresPage() {
   const router = useRouter()
@@ -63,7 +61,7 @@ export default function GanadoresPage() {
     nombre: '', telefono: '', email: '', direccion: '', identificacion: ''
   })
   const [montoAbono, setMontoAbono] = useState('')
-  const [medioPagoId, setMedioPagoId] = useState(MEDIOS_PAGO[0].id)
+  const [medioPagoId, setMedioPagoId] = useState<string>(MEDIOS_PAGO[0].id)
   const [asignando, setAsignando] = useState(false)
   const [exito, setExito] = useState<string | null>(null)
   const [modo, setModo] = useState<'buscar' | 'directo'>('buscar')

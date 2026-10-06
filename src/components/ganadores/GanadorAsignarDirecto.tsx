@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { API_BASE_URL } from '@/config/api'
+import { MEDIOS_PAGO_VENTAS_UI } from '@/config/paymentMedios'
 
 interface ClienteForm {
   nombre: string
@@ -23,10 +24,7 @@ interface UsuarioOption {
   rol: string
 }
 
-const MEDIOS_PAGO = [
-  { id: 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7', nombre: 'Efectivo' },
-  { id: 'db94562d-bb01-42a3-9414-6e369a1a70ba', nombre: 'PSE' },
-]
+const MEDIOS_PAGO = MEDIOS_PAGO_VENTAS_UI.map((m) => ({ id: m.id, nombre: m.label }))
 
 const ROL_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -49,7 +47,7 @@ export default function GanadorAsignarDirecto() {
   })
   const [fechaVenta, setFechaVenta] = useState(toDatetimeLocalValue(new Date()))
   const [realizadoPor, setRealizadoPor] = useState('')
-  const [medioPagoId, setMedioPagoId] = useState(MEDIOS_PAGO[0].id)
+  const [medioPagoId, setMedioPagoId] = useState<string>(MEDIOS_PAGO[0].id)
   const [alertaBoleta, setAlertaBoleta] = useState<string | null>(null)
   const [boletaDisponible, setBoletaDisponible] = useState<boolean | null>(null)
   const [validando, setValidando] = useState(false)

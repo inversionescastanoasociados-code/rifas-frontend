@@ -10,6 +10,7 @@ import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
 import SelectorLineaOrigen from '@/components/ventas/SelectorLineaOrigen'
 import { LineaOrigenVenta } from '@/utils/lineaOrigen'
+import { MEDIOS_PAGO_ABONO_UI } from '@/config/paymentMedios'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -18,10 +19,15 @@ interface DetalleVentaPublicaProps {
   onAbonoConfirmado?: (abonoId: string) => void
 }
 
-const MEDIOS_PAGO = [
-  { id: 'efectivo', label: '💵 Efectivo' },
-  { id: 'transferencia', label: '🏦 PSE' },
-]
+const MEDIOS_PAGO = MEDIOS_PAGO_ABONO_UI.map((m) => ({
+  id: m.id,
+  label:
+    m.id === 'efectivo'
+      ? '💵 Efectivo'
+      : m.id === 'transferencia'
+        ? '🏦 PSE'
+        : '🌎 Cuenta extranjero',
+}))
 
 export default function DetalleVentaPublica({
   venta,

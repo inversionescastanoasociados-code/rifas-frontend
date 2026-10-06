@@ -13,7 +13,7 @@ import { generarWhatsAppChatLink } from '@/utils/telefono'
 import { WHATSAPP_VENTAS_ACTIVO } from '@/config/features'
 import SelectorLineaOrigen from './SelectorLineaOrigen'
 import { formatLineaOrigen, LineaOrigenVenta } from '@/utils/lineaOrigen'
-import { requiereComprobanteMedio } from '@/config/paymentMedios'
+import { MEDIOS_PAGO_ABONO_UI, requiereComprobanteMedio } from '@/config/paymentMedios'
 
 interface Props {
   ventaId: string
@@ -175,11 +175,6 @@ function estadoBoletaTicket(b: BoletaVenta): string {
   return b.estado
 }
 
-const MEDIOS_PAGO = [
-  { id: 'efectivo', label: 'Efectivo' },
-  { id: 'transferencia', label: 'PSE' },
-]
-
 export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: Props) {
   const [venta, setVenta] = useState<VentaNormalizada | null>(null)
   const [loading, setLoading] = useState(true)
@@ -327,7 +322,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         })
 
         const esPagoTotal = ventaActualizada.saldo_pendiente <= 0
-        const mpLabel = MEDIOS_PAGO.find((m) => m.id === metodoPago)?.label || metodoPago
+        const mpLabel = MEDIOS_PAGO_ABONO_UI.find((m) => m.id === metodoPago)?.label || metodoPago
 
         setBoletasDescargaIds(boletasAbono.map((ba) => ba.boleta_id))
         setExitoReciente({
@@ -406,7 +401,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
         setAccion(null)
 
         const esPagoTotal = ventaActualizada.saldo_pendiente <= 0
-        const mpLabelGen = MEDIOS_PAGO.find((m) => m.id === metodoPago)?.label || metodoPago
+        const mpLabelGen = MEDIOS_PAGO_ABONO_UI.find((m) => m.id === metodoPago)?.label || metodoPago
 
         setBoletasDescargaIds((ventaActualizada.boletas || []).map((b) => b.id))
         setExitoReciente({
@@ -1112,7 +1107,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                 className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white text-black"
               >
                 <option value="">Selecciona método de pago</option>
-                {MEDIOS_PAGO.map((m) => (
+                {MEDIOS_PAGO_ABONO_UI.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}
                   </option>
@@ -1123,7 +1118,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
             {requiereComprobante ? (
               <div>
                 <label className="block text-sm font-bold text-black mb-1">
-                  N° de comprobante ({MEDIOS_PAGO.find((m) => m.id === metodoPago)?.label || 'transferencia'})
+                  N° de comprobante ({MEDIOS_PAGO_ABONO_UI.find((m) => m.id === metodoPago)?.label || 'transferencia'})
                 </label>
                 <input
                   type="text"
@@ -1136,9 +1131,9 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
               </div>
             ) : metodoPago ? (
               <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                <span>{metodoPago === 'transferencia' ? '🏦' : '💵'}</span>
+                <span>💳</span>
                 <span>
-                  Pago por <strong>{MEDIOS_PAGO.find((m) => m.id === metodoPago)?.label || metodoPago}</strong>, no requiere comprobante.
+                  Pago por <strong>{MEDIOS_PAGO_ABONO_UI.find((m) => m.id === metodoPago)?.label || metodoPago}</strong>, no requiere comprobante.
                 </span>
               </div>
             ) : null}
@@ -1296,7 +1291,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Método de pago:</span>
-                      <span className="font-medium text-slate-900">{MEDIOS_PAGO.find(m => m.id === metodoPago)?.label || metodoPago}</span>
+                      <span className="font-medium text-slate-900">{MEDIOS_PAGO_ABONO_UI.find(m => m.id === metodoPago)?.label || metodoPago}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Línea / origen:</span>

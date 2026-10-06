@@ -14,14 +14,12 @@ import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { generarWhatsAppChatLink } from '@/utils/telefono'
 import { WHATSAPP_VENTAS_ACTIVO } from '@/config/features'
 import { downloadBoletaImage } from '@/utils/downloadBoletaImage'
-import { requiereComprobanteMedio } from '@/config/paymentMedios'
-
-const MEDIOS_PAGO_MAP: Record<string, string> = {
-  'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7': 'Efectivo',
-  'af6e15fc-c52c-4491-abe1-20243af301c4': 'Nequi',
-  'db94562d-bb01-42a3-9414-6e369a1a70ba': 'PSE',
-  '57a2f560-b3d7-4fa8-91cf-24e6b2a6d7ff': 'Tarjeta Crédito',
-}
+import {
+  MEDIOS_PAGO_MAP,
+  MEDIOS_PAGO_VENTAS_UI,
+  requiereComprobanteMedio,
+  labelMedioPagoId,
+} from '@/config/paymentMedios'
 
 
 interface CarritoVentasProps {
@@ -682,8 +680,11 @@ export default function CarritoVentas({
             className="w-full px-4 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white text-black"
           >
             <option value="">Seleccionar método de pago</option>
-            <option value="d397d917-c0d0-4c61-b2b3-2ebfab7deeb7">Efectivo</option>
-            <option value="db94562d-bb01-42a3-9414-6e369a1a70ba">PSE</option>
+            {MEDIOS_PAGO_VENTAS_UI.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
           </select>
         </div>
       )}
@@ -831,9 +832,9 @@ export default function CarritoVentas({
               </div>
             ) : medioPagoId ? (
               <div className="mb-5 flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                <span>{MEDIOS_PAGO_MAP[medioPagoId] === 'PSE' ? '🏦' : '💵'}</span>
+                <span>💳</span>
                 <span>
-                  Pago por <strong>{MEDIOS_PAGO_MAP[medioPagoId] || 'este medio'}</strong>, no requiere número de comprobante.
+                  Pago por <strong>{labelMedioPagoId(medioPagoId)}</strong>, no requiere número de comprobante.
                 </span>
               </div>
             ) : null}
