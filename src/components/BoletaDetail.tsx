@@ -267,19 +267,19 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
 
               {boleta.venta_info.linea_origen && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">Origen venta:</span>
+                  <span className="text-sm text-slate-600">Línea / origen venta:</span>
                   <span className="text-sm font-semibold text-indigo-700">
                     {formatLineaOrigen(boleta.venta_info.linea_origen)}
                   </span>
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-600">N° Comprobante:</span>
-                <span className="text-sm font-medium text-slate-900">
-                  {boleta.venta_info.referencia_pago || (boleta.venta_info.metodo_pago === 'Efectivo' ? 'Efectivo' : '—')}
-                </span>
-              </div>
+              {boleta.vendedor_nombre && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Venta registrada por:</span>
+                  <span className="text-sm font-medium text-slate-900">{boleta.vendedor_nombre}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -319,7 +319,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Fecha</th>
                   <th className="text-right py-2 px-3 text-slate-600 font-medium">Monto</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Método</th>
-                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Comprobante</th>
+                  <th className="text-left py-2 px-3 text-slate-600 font-medium">Línea / origen</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Registrado por</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Estado</th>
                   <th className="text-left py-2 px-3 text-slate-600 font-medium">Notas</th>
@@ -333,7 +333,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
                     <td className="py-2 px-3 text-right font-medium text-green-700">{formatCurrency(abono.monto)}</td>
                     <td className="py-2 px-3 text-slate-900">{abono.metodo_pago}</td>
                     <td className="py-2 px-3 text-slate-900">
-                      {abono.referencia || (abono.metodo_pago === 'Efectivo' ? 'Efectivo' : '—')}
+                      {formatLineaOrigen(abono.linea_origen)}
                     </td>
                     <td className="py-2 px-3 text-slate-900">
                       {abono.registrado_por_nombre

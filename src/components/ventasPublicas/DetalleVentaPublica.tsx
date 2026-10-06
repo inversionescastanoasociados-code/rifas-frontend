@@ -8,6 +8,8 @@ import ReciboAbono, { ReciboAbonoData } from '@/components/ventas/ReciboAbono'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoTexto } from '@/config/paymentInfo'
+import SelectorLineaOrigen from '@/components/ventas/SelectorLineaOrigen'
+import { LineaOrigenVenta } from '@/utils/lineaOrigen'
 
 interface DetalleVentaPublicaProps {
   venta: VentaPublicaDetalle
@@ -38,6 +40,7 @@ export default function DetalleVentaPublica({
   const [mostrarFormAbono, setMostrarFormAbono] = useState(false)
   const [montoAbono, setMontoAbono] = useState<number>(0)
   const [metodoPago, setMetodoPago] = useState<string>('')
+  const [lineaOrigenAbono, setLineaOrigenAbono] = useState<LineaOrigenVenta | null>(null)
   const [notasAbono, setNotasAbono] = useState('')
   const [pagarTodo, setPagarTodo] = useState(false)
   const [procesandoAbono, setProcesandoAbono] = useState(false)
@@ -176,16 +179,27 @@ export default function DetalleVentaPublica({
       setError('Debe seleccionar un método de pago')
       return
     }
+    if (!lineaOrigenAbono) {
+      setError('Seleccione la línea o pista donde se hizo el abono')
+      return
+    }
 
     setProcesandoAbono(true)
     setError(null)
     setExito(null)
 
     try {
-      const datosAbono: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string } = {
+      const datosAbono: {
+        monto: number
+        metodo_pago: string
+        notas?: string
+        boleta_id?: string
+        linea_origen: string
+      } = {
         monto: montoValidado,
         metodo_pago: metodoPago,
-        notas: notasAbono.trim() || undefined
+        notas: notasAbono.trim() || undefined,
+        linea_origen: lineaOrigenAbono
       }
 
       // Si es abono por boleta individual, enviar boleta_id
@@ -259,6 +273,7 @@ export default function DetalleVentaPublica({
       setMostrarFormAbono(false)
       setMontoAbono(0)
       setNotasAbono('')
+      setLineaOrigenAbono(null)
       setPagarTodo(false)
       setAbonarBoleta(null)
 
@@ -330,22 +345,26 @@ export default function DetalleVentaPublica({
       setError('Debe seleccionar un método de pago')
       return
     }
+    if (!lineaOrigenAbono) {
+      setError('Seleccione la línea o pista donde se hizo el abono')
+      return
+    }
 
     setProcesandoAbono(true)
     setError(null)
     setExito(null)
 
     try {
-      // Registrar abonos secuencialmente, uno por boleta
-      for (const { boletaId, monto } of abonosARegistrar) {
-        const payload: { monto: number; metodo_pago: string; notas?: string; boleta_id: string } = {
-          monto,
-          metodo_pago: metodoPago,
-          notas: notasAbono.trim() || undefined,
-          boleta_id: boletaId
-        }
-        await ventasApi.registrarAbono(venta.id, payload)
-      }
+      await ventasApi.registrarAbono(venta.id, {
+        monto: totalAbonoMulti,
+        metodo_pago: metodoPago,
+        notas: notasAbono.trim() || undefined,
+        linea_origen: lineaOrigenAbono,
+        boletas_abono: abonosARegistrar.map(({ boletaId, monto }) => ({
+          boleta_id: boletaId,
+          monto
+        }))
+      })
 
       setExito(
         `✅ Se registraron ${abonosARegistrar.length} abono(s) por un total de ${formatoMoneda(totalAbonoMulti)} exitosamente.`
@@ -391,6 +410,7 @@ export default function DetalleVentaPublica({
 
       setMostrarFormAbono(false)
       setModoMultiBoleta(false)
+      setLineaOrigenAbono(null)
       setMontoAbono(0)
       setAbonosPorBoleta({})
       setNotasAbono('')
@@ -1096,13 +1116,21 @@ export default function DetalleVentaPublica({
                 </select>
               </div>
 
+              <SelectorLineaOrigen
+                title="¿En qué línea o pista se hizo este abono?"
+                value={lineaOrigenAbono}
+                onChange={setLineaOrigenAbono}
+                disabled={procesandoAbono}
+                compact
+              />
+
               {/* Notas */}
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">Notas (opcional)</label>
                 <textarea
                   value={notasAbono}
                   onChange={(e) => setNotasAbono(e.target.value)}
-                  placeholder="Ej: Comprobante Nequi #12345, pago verificado..."
+                  placeholder="Ej: pago verificado en caja..."
                   rows={2}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 placeholder:text-slate-400"
                 />
@@ -1123,6 +1151,7 @@ export default function DetalleVentaPublica({
                     setError(null)
                     setAbonosPorBoleta({})
                     setNotasAbono('')
+                    setLineaOrigenAbono(null)
                   }}
                   className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
                 >
@@ -1130,7 +1159,7 @@ export default function DetalleVentaPublica({
                 </button>
                 <button
                   onClick={handleRegistrarAbonoMultiple}
-                  disabled={procesandoAbono || !metodoPago || totalAbonoMulti <= 0}
+                  disabled={procesandoAbono || !metodoPago || !lineaOrigenAbono || totalAbonoMulti <= 0}
                   className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {procesandoAbono ? (
@@ -1140,6 +1169,8 @@ export default function DetalleVentaPublica({
                     </>
                   ) : !metodoPago ? (
                     <span>Selecciona método de pago</span>
+                  ) : !lineaOrigenAbono ? (
+                    <span>Selecciona línea o pista</span>
                   ) : (
                     <>
                       <span>💰</span>
@@ -1221,6 +1252,14 @@ export default function DetalleVentaPublica({
                 </select>
               </div>
 
+              <SelectorLineaOrigen
+                title="¿En qué línea o pista se hizo este abono?"
+                value={lineaOrigenAbono}
+                onChange={setLineaOrigenAbono}
+                disabled={procesandoAbono}
+                compact
+              />
+
               {/* Monto */}
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-slate-800 mb-1">
@@ -1265,7 +1304,7 @@ export default function DetalleVentaPublica({
                 <textarea
                   value={notasAbono}
                   onChange={(e) => setNotasAbono(e.target.value)}
-                  placeholder="Ej: Comprobante Nequi #12345, pago verificado..."
+                  placeholder="Ej: pago verificado en caja..."
                   rows={2}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-slate-900 placeholder:text-slate-400"
                 />
@@ -1280,6 +1319,7 @@ export default function DetalleVentaPublica({
                     setError(null)
                     setMontoAbono(0)
                     setNotasAbono('')
+                    setLineaOrigenAbono(null)
                     setPagarTodo(false)
                     setAbonarBoleta(null)
                   }}
@@ -1289,7 +1329,7 @@ export default function DetalleVentaPublica({
                 </button>
                 <button
                   onClick={handleRegistrarAbono}
-                  disabled={procesandoAbono || !metodoPago || montoAbono <= 0}
+                  disabled={procesandoAbono || !metodoPago || !lineaOrigenAbono || montoAbono <= 0}
                   className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {procesandoAbono ? (
@@ -1299,6 +1339,8 @@ export default function DetalleVentaPublica({
                     </>
                   ) : !metodoPago ? (
                     <span>Selecciona método de pago</span>
+                  ) : !lineaOrigenAbono ? (
+                    <span>Selecciona línea o pista</span>
                   ) : (
                     <>
                       <span>{pagarTodo ? '✅' : '💰'}</span>

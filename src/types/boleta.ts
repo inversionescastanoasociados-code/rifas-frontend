@@ -37,6 +37,7 @@ export interface AbonoHistorial {
   metodo_pago: string
   notas: string | null
   fecha: string
+  linea_origen?: string | null
   registrado_por_nombre?: string | null
   registrado_por_rol?: string | null
 }

@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { ventasApi } from '@/lib/ventasApi'
 import { ReservaResponse } from '@/types/ventas'
 import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
-
-const MEDIO_PAGO_EFECTIVO_ID = 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7'
+import { requiereComprobanteMedio } from '@/config/paymentMedios'
 
 interface DialogoConvertirReservaProps {
   isOpen: boolean
@@ -29,7 +28,7 @@ export default function DialogoConvertirReserva({
   const [paso, setPaso] = useState<'confirmacion' | 'procesando' | 'completado' | 'error'>('confirmacion')
   const [ventaResponse, setVentaResponse] = useState<any>(null)
 
-  const requiereComprobante = !!medioPagoId && medioPagoId !== MEDIO_PAGO_EFECTIVO_ID
+  const requiereComprobante = !!medioPagoId && requiereComprobanteMedio(medioPagoId)
 
   if (!isOpen) return null
 
@@ -402,10 +401,12 @@ export default function DialogoConvertirReserva({
               />
               <p className="text-xs text-slate-500 mt-1">Cada comprobante solo se puede usar una vez.</p>
             </div>
-          ) : medioPagoId === MEDIO_PAGO_EFECTIVO_ID ? (
+          ) : medioPagoId ? (
             <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-              <span>💵</span>
-              <span>Pago en <strong>efectivo</strong>, no requiere comprobante.</span>
+              <span>{medioPagoId === 'db94562d-bb01-42a3-9414-6e369a1a70ba' ? '🏦' : '💵'}</span>
+              <span>
+                Pago por <strong>{medioPagoId === 'db94562d-bb01-42a3-9414-6e369a1a70ba' ? 'PSE' : 'efectivo'}</strong>, no requiere comprobante.
+              </span>
             </div>
           ) : null}
 

@@ -7,6 +7,8 @@ interface SelectorLineaOrigenProps {
   onChange: (value: LineaOrigenVenta) => void
   disabled?: boolean
   compact?: boolean
+  /** Texto del encabezado (venta vs abono) */
+  title?: string
 }
 
 export default function SelectorLineaOrigen({
@@ -14,11 +16,12 @@ export default function SelectorLineaOrigen({
   onChange,
   disabled = false,
   compact = false,
+  title = '¿Desde dónde se hizo la venta?',
 }: SelectorLineaOrigenProps) {
   return (
     <div>
       <p className={`font-semibold text-slate-700 ${compact ? 'text-xs mb-2' : 'text-sm mb-3'}`}>
-        ¿Desde dónde se hizo la venta?
+        {title}
       </p>
       <div className={`grid grid-cols-4 ${compact ? 'gap-1.5' : 'gap-2'}`}>
         {LINEAS_ORIGEN_VENTA.map((linea) => (

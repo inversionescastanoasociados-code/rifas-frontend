@@ -14,6 +14,7 @@ import { formatearInputPesos, parsearInputPesos } from '@/utils/formatPesos'
 import { generarWhatsAppChatLink } from '@/utils/telefono'
 import { WHATSAPP_VENTAS_ACTIVO } from '@/config/features'
 import { downloadBoletaImage } from '@/utils/downloadBoletaImage'
+import { requiereComprobanteMedio } from '@/config/paymentMedios'
 
 const MEDIOS_PAGO_MAP: Record<string, string> = {
   'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7': 'Efectivo',
@@ -22,7 +23,6 @@ const MEDIOS_PAGO_MAP: Record<string, string> = {
   '57a2f560-b3d7-4fa8-91cf-24e6b2a6d7ff': 'Tarjeta Crédito',
 }
 
-const MEDIO_PAGO_EFECTIVO_ID = 'd397d917-c0d0-4c61-b2b3-2ebfab7deeb7'
 
 interface CarritoVentasProps {
   boletas: BoletaEnCarrito[]
@@ -61,7 +61,8 @@ export default function CarritoVentas({
   const [lineaOrigen, setLineaOrigen] = useState<LineaOrigenVenta | null>(null)
   const [comprobante, setComprobante] = useState('')
 
-  const requiereComprobante = tipoVenta !== 'RESERVA' && !!medioPagoId && medioPagoId !== MEDIO_PAGO_EFECTIVO_ID
+  const requiereComprobante =
+    tipoVenta !== 'RESERVA' && !!medioPagoId && requiereComprobanteMedio(medioPagoId)
 
   // Calcular totales
   const subtotal = boletas.length * precioBoleta
@@ -828,12 +829,14 @@ export default function CarritoVentas({
                 />
                 <p className="text-xs text-slate-500 mt-1">Cada comprobante solo se puede usar una vez.</p>
               </div>
-            ) : (
+            ) : medioPagoId ? (
               <div className="mb-5 flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                <span>💵</span>
-                <span>Pago en <strong>efectivo</strong>, no requiere comprobante.</span>
+                <span>{MEDIOS_PAGO_MAP[medioPagoId] === 'PSE' ? '🏦' : '💵'}</span>
+                <span>
+                  Pago por <strong>{MEDIOS_PAGO_MAP[medioPagoId] || 'este medio'}</strong>, no requiere número de comprobante.
+                </span>
               </div>
-            )}
+            ) : null}
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">

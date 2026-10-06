@@ -310,7 +310,15 @@ async liberarBloqueosMultiples(
 
   async registrarAbono(
     ventaId: string,
-    data: { monto: number; metodo_pago: string; notas?: string; boleta_id?: string; boletas_abono?: Array<{ boleta_id: string; monto: number }>; referencia?: string }
+    data: {
+      monto: number
+      metodo_pago: string
+      notas?: string
+      boleta_id?: string
+      boletas_abono?: Array<{ boleta_id: string; monto: number }>
+      referencia?: string
+      linea_origen: string
+    }
   ) {
     // Validar y limpiar datos antes de enviar
     const montoNum = Number(data.monto)
@@ -323,10 +331,16 @@ async liberarBloqueosMultiples(
       throw new Error('El método de pago es requerido')
     }
 
+    const lineaOrigen = (data.linea_origen || '').trim()
+    if (!lineaOrigen) {
+      throw new Error('Seleccione la línea o pista donde se hizo el abono')
+    }
+
     // Construir payload sin valores undefined/null
     const payload: Record<string, any> = {
       monto: montoNum,
-      metodo_pago: metodoPago
+      metodo_pago: metodoPago,
+      linea_origen: lineaOrigen
     }
 
     // Solo agregar notas si tiene contenido
