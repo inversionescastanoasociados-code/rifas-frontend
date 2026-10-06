@@ -37,6 +37,10 @@ function formatFecha(iso: string | null) {
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
 }
 
+function clienteMarcadoEnviado(grupo: ClienteGrupo): boolean {
+  return grupo.numeros.length > 0 && grupo.numeros.every((n) => n.enviada)
+}
+
 function agruparPorCliente(items: Preasignacion[]): ClienteGrupo[] {
   const mapa = new Map<string, ClienteGrupo>()
   for (const item of items) {
@@ -64,6 +68,7 @@ export default function PreasignacionesPage() {
   const [items, setItems] = useState<Preasignacion[]>([])
   const [gruposNuevos, setGruposNuevos] = useState<ClienteGrupo[]>([])
   const [q, setQ] = useState('')
+  const [filtroEnvio, setFiltroEnvio] = useState<'todas' | 'pendientes' | 'enviadas'>('todas')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
@@ -123,14 +128,26 @@ export default function PreasignacionesPage() {
     const extras = gruposNuevos.filter((g) => !idsExistentes.has(g.clienteId))
     const todos = [...extras, ...gruposExistentes]
     const termino = q.trim().toLowerCase()
-    if (!termino) return todos
-    return todos.filter((g) =>
+    let filtrados = todos
+    if (filtroEnvio === 'pendientes') {
+      filtrados = filtrados.filter((g) => g.numeros.length > 0 && !clienteMarcadoEnviado(g))
+    } else if (filtroEnvio === 'enviadas') {
+      filtrados = filtrados.filter((g) => clienteMarcadoEnviado(g))
+    }
+    if (!termino) return filtrados
+    return filtrados.filter((g) =>
       g.clienteNombre.toLowerCase().includes(termino) ||
       (g.clienteIdentificacion || '').toLowerCase().includes(termino) ||
       (g.clienteTelefono || '').toLowerCase().includes(termino) ||
       g.numeros.some((n) => formatNumero(n.numero_boleta).includes(termino))
     )
-  }, [gruposExistentes, gruposNuevos, q])
+  }, [gruposExistentes, gruposNuevos, q, filtroEnvio])
+
+  const resumenEnvio = useMemo(() => {
+    const conBoletas = gruposExistentes.filter((g) => g.numeros.length > 0)
+    const enviadas = conBoletas.filter((g) => clienteMarcadoEnviado(g)).length
+    return { pendientes: conBoletas.length - enviadas, enviadas }
+  }, [gruposExistentes])
 
   const totalNumeros = items.length
 
@@ -213,6 +230,23 @@ export default function PreasignacionesPage() {
       await cargar()
     } catch (e: any) {
       setError(e.message || 'Error al actualizar el número')
+    } finally {
+      setProcesando(null)
+    }
+  }
+
+  const toggleEnviadaCliente = async (grupo: ClienteGrupo) => {
+    if (grupo.numeros.length === 0) return
+    const marcar = !clienteMarcadoEnviado(grupo)
+    setProcesando(grupo.clienteId)
+    setError('')
+    setAviso('')
+    try {
+      await preasignacionesApi.setEnviadaCliente(grupo.clienteId, marcar)
+      setAviso(marcar ? `Marcado como enviado: ${grupo.clienteNombre}` : `Marcado como pendiente: ${grupo.clienteNombre}`)
+      await cargar()
+    } catch (e: any) {
+      setError(e.message || 'Error al actualizar estado de envío')
     } finally {
       setProcesando(null)
     }
@@ -304,16 +338,39 @@ export default function PreasignacionesPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Filtrar por cliente o número ({totalNumeros} número{totalNumeros !== 1 ? 's' : ''} preasignado{totalNumeros !== 1 ? 's' : ''})
-          </label>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-sm font-medium text-slate-700">
+              {totalNumeros} número{totalNumeros !== 1 ? 's' : ''} preasignado{totalNumeros !== 1 ? 's' : ''}
+            </label>
+            <p className="text-xs text-slate-500">
+              Envío: <span className="font-semibold text-amber-700">{resumenEnvio.pendientes} pendiente{resumenEnvio.pendientes !== 1 ? 's' : ''}</span>
+              {' · '}
+              <span className="font-semibold text-emerald-700">{resumenEnvio.enviadas} enviada{resumenEnvio.enviadas !== 1 ? 's' : ''}</span>
+            </p>
+          </div>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Ej: 0047  ó  Juan Pérez"
             className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          <div className="flex flex-wrap gap-2">
+            {(['todas', 'pendientes', 'enviadas'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFiltroEnvio(f)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                  filtroEnvio === f
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {f === 'todas' ? 'Todos' : f === 'pendientes' ? 'Pendientes de envío' : 'Ya enviadas'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -336,8 +393,13 @@ export default function PreasignacionesPage() {
           <div className="space-y-3">
             {grupos.map((grupo) => {
               const abierto = expandido[grupo.clienteId] ?? grupo.numeros.length <= 6
+              const enviado = clienteMarcadoEnviado(grupo)
+              const parcialEnvio = grupo.numeros.some((n) => n.enviada) && !enviado
               return (
-                <div key={grupo.clienteId} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div
+                  key={grupo.clienteId}
+                  className={`bg-white rounded-2xl border overflow-hidden ${enviado ? 'border-emerald-200' : 'border-slate-200'}`}
+                >
                   <button
                     onClick={() => setExpandido((prev) => ({ ...prev, [grupo.clienteId]: !abierto }))}
                     className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50"
@@ -349,6 +411,26 @@ export default function PreasignacionesPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
+                      {grupo.numeros.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleEnviadaCliente(grupo)
+                          }}
+                          disabled={procesando === grupo.clienteId}
+                          title={enviado ? 'Desmarcar envío' : 'Marcar como ya enviado al cliente'}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border disabled:opacity-50 ${
+                            enviado
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200'
+                              : parcialEnvio
+                                ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          {enviado ? '✓ Enviada' : parcialEnvio ? '◐ Parcial' : 'Pendiente envío'}
+                        </button>
+                      )}
                       <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
                         {grupo.numeros.length} boleta{grupo.numeros.length !== 1 ? 's' : ''}
                       </span>

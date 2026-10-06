@@ -13,6 +13,7 @@ export interface Preasignacion {
   ultima_aplicacion_rifa_nombre: string | null
   ultima_aplicacion_venta_id: string | null
   ultima_aplicacion_en: string | null
+  enviada: boolean
   created_at: string
   updated_at: string
   cliente_nombre: string
@@ -82,7 +83,7 @@ class PreasignacionesApi {
 
   async actualizar(
     id: string,
-    body: { cliente_id?: string; numero_boleta?: number; notas?: string }
+    body: { cliente_id?: string; numero_boleta?: number; notas?: string; enviada?: boolean }
   ): Promise<Preasignacion> {
     const res = await this.fetchWithTimeout(`${BASE}/${id}`, {
       method: 'PUT',
@@ -96,6 +97,15 @@ class PreasignacionesApi {
     const res = await this.fetchWithTimeout(`${BASE}/${id}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
+    })
+    return this.handle(res)
+  }
+
+  async setEnviadaCliente(clienteId: string, enviada: boolean): Promise<{ cliente_id: string; enviada: boolean; actualizadas: number }> {
+    const res = await this.fetchWithTimeout(`${BASE}/cliente/${clienteId}/enviada`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ enviada }),
     })
     return this.handle(res)
   }
