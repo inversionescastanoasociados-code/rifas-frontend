@@ -575,6 +575,7 @@ export default function RegistrarAbono({ ventaId, onBack, onAbonoRegistrado }: P
                         identificacion: venta.cliente_identificacion,
                       }}
                       deuda={b.saldo_pendiente_boleta ?? 0}
+                      abono={b.total_pagado_boleta ?? 0}
                       reservadaHasta={b.bloqueo_hasta}
                       precio={b.precio_boleta ?? null}
                       nota={b.nota}

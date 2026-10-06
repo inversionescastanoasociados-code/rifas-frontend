@@ -19,6 +19,7 @@ interface BoletaInfo {
   qr_url?: string
   imagen_url?: string
   nota?: string | null
+  bloqueo_hasta?: string | null
 }
 
 export default function VentasBoletasPage() {
@@ -187,6 +188,8 @@ export default function VentasBoletasPage() {
                         identificacion: clienteIdentificacion
                       }}
                       deuda={boleta.saldo_pendiente_boleta}
+                      abono={boleta.total_pagado_boleta}
+                      reservadaHasta={boleta.bloqueo_hasta}
                       precio={boleta.precio_boleta}
                       nota={boleta.nota}
                     />

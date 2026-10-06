@@ -237,6 +237,7 @@ export default function MisBoletasPage() {
                             identificacion: cliente.identificacion
                           } : null}
                           deuda={boleta.saldo_pendiente > 0 ? boleta.saldo_pendiente : null}
+                          abono={boleta.total_pagado > 0 ? boleta.total_pagado : null}
                           reservadaHasta={boleta.bloqueo_hasta}
                           precio={boleta.precio_boleta}
                           nota={boleta.nota}
@@ -248,7 +249,7 @@ export default function MisBoletasPage() {
                       <div className="text-sm text-slate-600">
                         {boleta.saldo_pendiente > 0 ? (
                           <span className="text-amber-600 font-medium">
-                            ⚠️ Saldo pendiente: ${boleta.saldo_pendiente.toLocaleString('es-CO')}
+                            Abono: ${boleta.total_pagado.toLocaleString('es-CO')} · Saldo: ${boleta.saldo_pendiente.toLocaleString('es-CO')}
                           </span>
                         ) : (
                           <span className="text-green-600 font-medium">✅ Pago completo</span>

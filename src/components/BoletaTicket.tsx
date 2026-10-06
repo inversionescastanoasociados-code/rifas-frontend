@@ -22,6 +22,8 @@ interface BoletaTicketProps {
     identificacion?: string
   } | null
   deuda?: number | string | null
+  /** Monto abonado confirmado en esta boleta */
+  abono?: number | string | null
   reservadaHasta?: string | null
   precio?: number | null
   nota?: string | null
@@ -37,6 +39,7 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     estado,
     clienteInfo,
     deuda,
+    abono,
     reservadaHasta,
     precio,
     nota,
@@ -68,6 +71,27 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       ? deuda
       : deuda
       ? Number(String(deuda).replace(/[^0-9.-]/g, '')) || null
+      : null
+  const abonoNum =
+    typeof abono === 'number'
+      ? abono
+      : abono
+      ? Number(String(abono).replace(/[^0-9.-]/g, '')) || null
+      : null
+  const precioNum =
+    typeof precio === 'number'
+      ? precio
+      : precio
+      ? Number(String(precio).replace(/[^0-9.-]/g, '')) || null
+      : null
+  const abonoMostrar =
+    typeof abonoNum === 'number' && abonoNum > 0
+      ? abonoNum
+      : typeof precioNum === 'number' &&
+        typeof deudaNum === 'number' &&
+        deudaNum >= 0 &&
+        precioNum >= deudaNum
+      ? precioNum - deudaNum
       : null
   const tieneCliente = Boolean(clienteInfo && (clienteInfo.nombre || clienteInfo.identificacion))
 
@@ -175,6 +199,11 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       return (
         <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
           {badge('ABONADA', 'bg-orange-400 text-black')}
+          {typeof abonoMostrar === 'number' && abonoMostrar > 0 && (
+            <p className="font-extrabold text-green-800">
+              Abono: ${abonoMostrar.toLocaleString('es-CO')}
+            </p>
+          )}
           <p className="font-extrabold">
             Deuda: {typeof deudaNum === 'number' ? `$${deudaNum.toLocaleString('es-CO')}` : '—'}
           </p>

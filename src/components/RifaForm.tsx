@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Rifa, RifaCreateRequest, RifaUpdateRequest } from '@/types/rifa'
+import { uploadApi } from '@/lib/uploadApi'
+import { getStorageImageUrl } from '@/lib/storageImageUrl'
 
 interface RifaFormProps {
   rifa?: Rifa | null
@@ -20,7 +22,13 @@ export default function RifaForm({ rifa, onSubmit, onCancel }: RifaFormProps) {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [precioFormateado, setPrecioFormateado] = useState('')
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [cachedImageFile, setCachedImageFile] = useState<File | null>(null)
+  const [imagenRemoved, setImagenRemoved] = useState(false)
+  const [currentImagenUrl, setCurrentImagenUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Función para formatear número a formato pesos colombianos
   const formatearPesos = (valor: number): string => {
@@ -51,8 +59,70 @@ export default function RifaForm({ rifa, onSubmit, onCancel }: RifaFormProps) {
         estado: rifa.estado
       })
       setPrecioFormateado(formatearPesos(precioBoleta))
+      const img = rifa.imagen_url
+        ? getStorageImageUrl(rifa.imagen_url) ?? rifa.imagen_url
+        : null
+      setCurrentImagenUrl(img)
+      setImagePreview(null)
+      setCachedImageFile(null)
+      setImagenRemoved(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } else {
+      setCurrentImagenUrl(null)
+      setImagePreview(null)
+      setCachedImageFile(null)
+      setImagenRemoved(false)
     }
   }, [rifa])
+
+  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        imagen: 'Solo JPG, PNG o WEBP',
+      }))
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        imagen: 'Máximo 5 MB',
+      }))
+      return
+    }
+
+    setErrors((prev) => {
+      const next = { ...prev }
+      delete next.imagen
+      return next
+    })
+    setImagenRemoved(false)
+
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setCachedImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const handleRemoveImage = () => {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+    setCachedImageFile(null)
+    setImagePreview(null)
+    setImagenRemoved(true)
+    setCurrentImagenUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const previewSrc =
+    imagePreview ||
+    (!imagenRemoved && currentImagenUrl ? currentImagenUrl : null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -159,13 +229,25 @@ export default function RifaForm({ rifa, onSubmit, onCancel }: RifaFormProps) {
       // Si estamos editando, eliminar total_boletas del objeto a enviar
       if (rifa) {
         const { total_boletas, ...dataParaActualizar } = submissionData
-        await onSubmit(dataParaActualizar)
+        let updatePayload: RifaUpdateRequest = dataParaActualizar
+
+        if (cachedImageFile) {
+          setUploadingImage(true)
+          const uploadResponse = await uploadApi.uploadImagen(cachedImageFile)
+          updatePayload = { ...updatePayload, imagen_url: uploadResponse.url }
+          setUploadingImage(false)
+        } else if (imagenRemoved) {
+          updatePayload = { ...updatePayload, imagen_url: null }
+        }
+
+        await onSubmit(updatePayload)
       } else {
         // Si es creación, enviar todos los campos
         await onSubmit(submissionData)
       }
     } finally {
       setLoading(false)
+      setUploadingImage(false)
     }
   }
 
@@ -349,6 +431,68 @@ export default function RifaForm({ rifa, onSubmit, onCancel }: RifaFormProps) {
           </div>
         </div>
 
+        {rifa && (
+          <div className="border-t border-slate-200 pt-6">
+            <h3 className="text-sm font-bold text-black mb-2">Imagen de la boleta</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Al guardar, la plantilla se aplica a <strong>todas</strong> las boletas de esta rifa
+              (impresión, descarga y vista pública).
+            </p>
+
+            {errors.imagen && (
+              <p className="mb-3 text-sm text-red-600">{errors.imagen}</p>
+            )}
+
+            {previewSrc ? (
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                <div className="w-full max-w-xs border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                  <img
+                    src={previewSrc}
+                    alt="Plantilla boleta"
+                    className="w-full h-auto object-contain max-h-64"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading || uploadingImage}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm"
+                  >
+                    Cambiar imagen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={loading || uploadingImage}
+                    className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 text-sm"
+                  >
+                    Quitar imagen
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || uploadingImage}
+                className="px-4 py-2 border border-dashed border-slate-400 text-slate-700 rounded-lg hover:bg-slate-50 text-sm"
+              >
+                Subir imagen de plantilla
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+              onChange={handleImageFileChange}
+              disabled={loading || uploadingImage}
+            />
+          </div>
+        )}
+
         <div className="flex justify-end space-x-4 pt-6 border-t border-slate-200">
           <button
             type="button"
@@ -359,10 +503,10 @@ export default function RifaForm({ rifa, onSubmit, onCancel }: RifaFormProps) {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploadingImage}
             className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? 'Guardando...' : (rifa ? 'Actualizar' : 'Crear')}
+            {loading || uploadingImage ? 'Guardando...' : (rifa ? 'Actualizar' : 'Crear')}
           </button>
         </div>
       </form>

@@ -375,6 +375,9 @@ export default function CarritoVentas({
                       ? Math.max(precioBoleta - (abonosPorBoleta[b.id] || 0), 0)
                       : 0
                   }
+                  abono={
+                    tipoVenta === 'ABONO' ? (abonosPorBoleta[b.id] || 0) : precioBoleta
+                  }
                   precio={precioBoleta}
                 />
               </ResponsiveBoletaWrapper>

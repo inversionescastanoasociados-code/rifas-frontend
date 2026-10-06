@@ -36,6 +36,8 @@ export interface RifaUpdateRequest {
   precio_boleta?: number
   fecha_sorteo?: string
   estado?: 'BORRADOR' | 'ACTIVA' | 'PAUSADA' | 'TERMINADA'
+  /** Nueva plantilla visual; actualiza rifa y todas sus boletas */
+  imagen_url?: string | null
 }
 
 export interface RifaListResponse {

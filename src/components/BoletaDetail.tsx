@@ -112,6 +112,7 @@ export default function BoletaDetail({ boleta, onPrint }: BoletaDetailProps) {
             estado={boleta.estado}
             clienteInfo={boleta.cliente_info}
             deuda={boleta.boleta_financiero?.saldo_pendiente ?? boleta.venta_info?.saldo_pendiente}
+            abono={boleta.boleta_financiero?.total_pagado ?? boleta.venta_info?.total_pagado}
             reservadaHasta={boleta.bloqueo_hasta}
             precio={boleta.boleta_financiero?.precio_boleta}
             nota={boleta.nota}
