@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { getStorageImageUrl } from '@/lib/storageImageUrl'
 import {
   BOLETA_WIDTH,
@@ -9,6 +9,8 @@ import {
   BOLETA_DEFAULT_HEIGHT,
   boletaHeightForImage,
 } from '@/constants/boletaDimensions'
+import { lineaCondicionesReserva, textoReservadaHasta } from '@/utils/boletaReservaText'
+import { BOLETA_LEFT_BG, BOLETA_LEFT_BORDER, BOLETA_LEFT_FONT, BOLETA_LEFT_MONO } from '@/utils/boletaLeftPanelTheme'
 
 interface BoletaTicketProps {
   qrUrl: string
@@ -22,17 +24,53 @@ interface BoletaTicketProps {
     identificacion?: string
   } | null
   deuda?: number | string | null
-  /** Monto abonado confirmado en esta boleta */
   abono?: number | string | null
   reservadaHasta?: string | null
   precio?: number | null
   nota?: string | null
 }
 
+type StatusTone = 'reserved' | 'paid' | 'abonada' | 'available' | 'cancel' | 'blocked'
+
+const STATUS_STYLES: Record<StatusTone, string> = {
+  reserved: 'border-sky-400/40 bg-sky-500/10 text-sky-200',
+  paid: 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100',
+  abonada: 'border-orange-400/40 bg-orange-500/10 text-orange-100',
+  available: 'border-teal-400/35 bg-teal-500/10 text-teal-100',
+  cancel: 'border-red-400/40 bg-red-500/10 text-red-200',
+  blocked: 'border-amber-400/40 bg-amber-500/10 text-amber-100',
+}
+
+function StatusPill({ label, tone }: { label: string; tone: StatusTone }) {
+  return (
+    <div
+      className={`w-full py-1.5 px-1 text-center rounded-md border text-[8px] font-semibold uppercase tracking-[0.2em] ${STATUS_STYLES[tone]}`}
+    >
+      {label}
+    </div>
+  )
+}
+
+function FieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[7px] uppercase tracking-[0.16em] text-slate-500 font-semibold mt-1.5 mb-0.5">
+      {children}
+    </p>
+  )
+}
+
+function MoneyRow({ label, amount, className }: { label: string; amount: number; className: string }) {
+  return (
+    <div className={`mt-1 ${className}`}>
+      <span className="text-[7px] uppercase tracking-[0.14em] opacity-80 block">{label}</span>
+      <span className="text-[10px] font-semibold tabular-nums">${amount.toLocaleString('es-CO')}</span>
+    </div>
+  )
+}
+
 export default function BoletaTicket(props: BoletaTicketProps) {
   const {
     qrUrl,
-    barcode,
     numero,
     imagenUrl,
     rifaNombre,
@@ -64,7 +102,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     img.src = imagen
   }, [imagen, hasImagen])
 
-  // --- Helpers ---
   const estadoNorm = (estado ?? '').toString().trim().toUpperCase()
   const deudaNum =
     typeof deuda === 'number'
@@ -95,206 +132,166 @@ export default function BoletaTicket(props: BoletaTicketProps) {
       : null
   const tieneCliente = Boolean(clienteInfo && (clienteInfo.nombre || clienteInfo.identificacion))
 
-  const formatDateDisplay = (d?: string | null) => {
-    if (!d) return undefined
-    try {
-      const dt = new Date(d)
-      if (isNaN(dt.getTime())) return d
-      return dt.toLocaleString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return d
-    }
-  }
-
-  // Calcular días de caducidad dinámicamente
-  const diasCaducidad = (() => {
-    if (!reservadaHasta) return null
-    try {
-      const hasta = new Date(reservadaHasta)
-      const ahora = new Date()
-      const diffMs = hasta.getTime() - ahora.getTime()
-      const dias = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
-      return dias
-    } catch {
-      return null
-    }
-  })()
-
   const esReservada = estadoNorm === 'RESERVADA'
   const esCancelada = estadoNorm === 'ANULADA' || estadoNorm === 'CANCELADA'
-
   const estadoPagadoWords = new Set(['CON_PAGO', 'PAGADA', 'PAGADO', 'VENDIDA'])
   const esPagada = (estadoPagadoWords.has(estadoNorm) || (tieneCliente && deudaNum === 0)) && tieneCliente
-
   const esAbonada =
     estadoNorm === 'ABONADA' || (tieneCliente && typeof deudaNum === 'number' && deudaNum > 0)
 
-  const badge = (label: string, className: string) => (
-    <div
-      className={`w-full py-1 text-center font-extrabold text-[11px] ${className}`}
-      style={{ letterSpacing: '0.5px' }}
-    >
-      {label}
-    </div>
+  const lineaReservaCondiciones = lineaCondicionesReserva({
+    reservadaHasta,
+    esReservada,
+    esAbonada,
+    tieneCliente,
+  })
+  const textoReserva = textoReservadaHasta(reservadaHasta)
+  const mostrarFechaReserva =
+    Boolean(textoReserva) && tieneCliente && (esReservada || esAbonada)
+
+  const clienteBlock = (
+    <>
+      <FieldLabel>A nombre de</FieldLabel>
+      <p className="text-[9px] text-slate-100 leading-snug font-medium">{clienteInfo?.nombre ?? '—'}</p>
+      <p className="text-[8px] text-slate-400 tabular-nums">CC {clienteInfo?.identificacion ?? '—'}</p>
+    </>
   )
 
-  const baseText = 'text-[9px] text-left space-y-1 text-black leading-snug'
+  const reservaDateBlock = mostrarFechaReserva ? (
+    <p className="text-[8px] text-cyan-200/95 font-medium mt-2 pt-2 border-t border-white/10 leading-snug">
+      {textoReserva}
+    </p>
+  ) : null
 
   const renderEstado = () => {
     if (esCancelada) {
       return (
-        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-          {badge('BOLETA CANCELADA', 'bg-red-600 text-white')}
-          <p className="font-bold">Esta boleta no tiene validez</p>
+        <div className="space-y-1">
+          <StatusPill label="Boleta cancelada" tone="cancel" />
+          <p className="text-[8px] text-slate-400">Sin validez</p>
         </div>
       )
     }
 
     if (esReservada && tieneCliente) {
       return (
-        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-          {badge('RESERVADA', 'bg-blue-600 text-white')}
+        <div>
+          <StatusPill label="Reservada" tone="reserved" />
           {typeof deudaNum === 'number' && deudaNum > 0 && (
-            <p className="font-extrabold">
-              Deuda: ${deudaNum.toLocaleString('es-CO')}
-            </p>
+            <MoneyRow label="Deuda" amount={deudaNum} className="text-amber-200" />
           )}
-          <p className="font-semibold">A nombre de:</p>
-          <p>{clienteInfo?.nombre ?? '—'}</p>
-          <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
-          <p className="font-bold" style={{ wordSpacing: '1px' }}>
-            Reservada hasta: {formatDateDisplay(reservadaHasta) ?? '—'}
-          </p>
+          {clienteBlock}
+          {reservaDateBlock}
         </div>
       )
     }
 
     if (esReservada && !tieneCliente) {
       return (
-        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-          {badge('BLOQUEADA', 'bg-amber-200 text-black')}
-          <p className="font-semibold">Boleta bloqueada momentáneamente</p>
+        <div>
+          <StatusPill label="Bloqueada" tone="blocked" />
+          <p className="text-[8px] text-slate-400 mt-1">Temporalmente no disponible</p>
         </div>
       )
     }
 
     if (esPagada) {
       return (
-        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-          {badge('PAGADA', 'bg-green-700 text-white')}
-          <p className="font-semibold">A nombre de:</p>
-          <p>{clienteInfo?.nombre ?? '—'}</p>
-          <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
+        <div>
+          <StatusPill label="Pagada" tone="paid" />
+          {clienteBlock}
         </div>
       )
     }
 
     if (esAbonada) {
       return (
-        <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-          {badge('ABONADA', 'bg-orange-400 text-black')}
+        <div>
+          <StatusPill label="Abonada" tone="abonada" />
           {typeof abonoMostrar === 'number' && abonoMostrar > 0 && (
-            <p className="font-extrabold text-green-800">
-              Abono: ${abonoMostrar.toLocaleString('es-CO')}
-            </p>
+            <MoneyRow label="Abono" amount={abonoMostrar} className="text-emerald-300" />
           )}
-          <p className="font-extrabold">
-            Deuda: {typeof deudaNum === 'number' ? `$${deudaNum.toLocaleString('es-CO')}` : '—'}
-          </p>
-          <p className="font-semibold">A nombre de:</p>
-          <p>{clienteInfo?.nombre ?? '—'}</p>
-          <p>CC. {clienteInfo?.identificacion ?? '—'}</p>
+          {typeof deudaNum === 'number' && (
+            <MoneyRow label="Deuda" amount={deudaNum} className="text-amber-200" />
+          )}
+          {clienteBlock}
+          {reservaDateBlock}
         </div>
       )
     }
 
     return (
-      <div className={baseText} style={{ wordSpacing: '3px', letterSpacing: '0.6px' }}>
-        {badge('DISPONIBLE', 'bg-emerald-300 text-black')}
+      <div>
+        <StatusPill label="Disponible" tone="available" />
       </div>
     )
   }
 
-  // Dimensiones: ancho fijo 800px; altura según proporción del arte de la rifa (~334px).
+  const reglaSecundaria = lineaReservaCondiciones
+    ? lineaReservaCondiciones.replace(/^-\s*/, '')
+    : 'Válida hasta el día del sorteo'
+
   return (
     <div
-      className="boleta-ticket flex border-2 border-black overflow-hidden bg-white"
-      style={{ width: `${BOLETA_WIDTH}px`, height: `${ticketHeight}px`, minWidth: `${BOLETA_WIDTH}px` }}
+      className="boleta-ticket flex overflow-hidden bg-white shadow-sm"
+      style={{
+        width: `${BOLETA_WIDTH}px`,
+        height: `${ticketHeight}px`,
+        minWidth: `${BOLETA_WIDTH}px`,
+        border: '1px solid rgba(15, 23, 42, 0.12)',
+      }}
     >
-      {/* LEFT */}
       <div
-        className="flex-shrink-0 p-2 flex flex-col justify-between border-r-2 border-black"
+        className="flex-shrink-0 flex flex-col justify-between"
         style={{
           width: `${BOLETA_LEFT_WIDTH}px`,
           height: `${ticketHeight}px`,
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          fontKerning: 'none',
-          fontVariantLigatures: 'none',
+          padding: '10px 9px',
+          background: BOLETA_LEFT_BG,
+          borderRight: BOLETA_LEFT_BORDER,
+          fontFamily: BOLETA_LEFT_FONT,
           overflow: 'hidden',
-          whiteSpace: 'normal',
-          wordBreak: 'break-word',
         }}
       >
-        {/* Condiciones */}
-        <div
-          className="text-[9px] text-black font-semibold leading-snug text-left"
-          style={{ overflowWrap: 'break-word', wordBreak: 'break-word', wordSpacing: '3px', letterSpacing: '0.6px' }}
-        >
-          <p>- Boleta sin pagar no juega</p>
-          {diasCaducidad !== null ? (
-            <p>- {diasCaducidad} días de caducidad</p>
-          ) : (
-            <p>- Válida hasta el día del sorteo</p>
-          )}
-          <p>- Juega hasta quedar en poder del público</p>
+        <div className="text-[7.5px] uppercase tracking-[0.14em] leading-relaxed font-semibold text-slate-500">
+          <p className="m-0 mb-1">Boleta sin pagar no juega</p>
+          <p className="m-0 mb-1 text-sky-300/90 normal-case tracking-normal">{reglaSecundaria}</p>
+          <p className="m-0">Juega hasta quedar en poder del público</p>
         </div>
 
-        {/* Estado */}
-        <div className="flex-1 flex items-center mt-1 mb-1 overflow-hidden">
-          <div className="w-full" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+        <div className="flex-1 flex items-center my-1.5 min-h-0">
+          <div className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-2 text-left">
             {renderEstado()}
           </div>
         </div>
 
-        {/* QR */}
-        <div className="flex justify-center mb-1">
-          <img
-            src={qrUrl}
-            alt="QR"
-            style={{ width: '72px', height: '72px', border: '1px solid #000' }}
-          />
+        <div className="flex justify-center mb-1.5">
+          <div className="rounded-lg bg-white p-[5px] shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
+            <img src={qrUrl} alt="QR" style={{ width: '72px', height: '72px', display: 'block' }} />
+          </div>
         </div>
 
-        {/* Nota */}
         {nota && (
-          <div
-            className="text-center text-[8px] italic text-slate-600"
-            style={{ maxHeight: '24px', overflow: 'hidden', lineHeight: '10px' }}
-          >
+          <div className="text-center text-[7px] italic text-slate-500 max-h-[22px] overflow-hidden leading-tight mb-1">
             {nota}
           </div>
         )}
 
-        {/* Número y precio */}
-        <div className="text-center mt-1">
-          <div className="text-lg font-extrabold text-black leading-tight">
+        <div className="text-center pt-1 border-t border-white/[0.08]">
+          <div
+            className="text-[20px] font-semibold text-slate-50 leading-none tracking-tight tabular-nums"
+            style={{ fontFamily: BOLETA_LEFT_MONO }}
+          >
             #{numero.toString().padStart(4, '0')}
           </div>
-          {typeof precio === 'number' && precio > 0 && (
-            <div className="text-[11px] font-bold text-black leading-snug">
-              ${precio.toLocaleString('es-CO')}
+          {typeof precioNum === 'number' && precioNum > 0 && (
+            <div className="text-[10px] font-medium text-slate-400 mt-0.5 tabular-nums">
+              ${precioNum.toLocaleString('es-CO')}
             </div>
           )}
         </div>
       </div>
 
-      {/* RIGHT — altura = ticketHeight para que el arte llene sin márgenes */}
       <div className="flex-shrink-0 h-full" style={{ width: `${BOLETA_RIGHT_WIDTH}px` }}>
         {hasImagen && !imageError && imagen ? (
           <img
@@ -311,10 +308,10 @@ export default function BoletaTicket(props: BoletaTicketProps) {
             alt={rifaNombre}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-white">
-            <div className="text-center text-black">
+          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+            <div className="text-center text-slate-800">
               <p className="text-xl font-bold">{rifaNombre}</p>
-              <p>Boleta #{numero.toString().padStart(4, '0')}</p>
+              <p className="text-sm">Boleta #{numero.toString().padStart(4, '0')}</p>
             </div>
           </div>
         )}

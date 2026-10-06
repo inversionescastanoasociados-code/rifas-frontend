@@ -9,11 +9,15 @@ import { boletaApi } from '@/lib/boletaApi'
 import { downloadBoletaFromElement } from '@/utils/downloadBoletaImage'
 import {
   BOLETA_WIDTH,
-  BOLETA_LEFT_WIDTH,
   BOLETA_RIGHT_WIDTH,
   BOLETA_DEFAULT_HEIGHT,
   boletaHeightForImage,
 } from '@/constants/boletaDimensions'
+import { lineaCondicionesReserva, textoReservadaHasta } from '@/utils/boletaReservaText'
+import {
+  buildBoletaLeftPanelHtml,
+  statusBadgeHtml,
+} from '@/utils/boletaLeftPanelTheme'
 
 interface BoletaListProps {
   boletas: Boleta[]
@@ -297,49 +301,42 @@ export default function BoletaList({ boletas, loading, rifaId, rifaInfo }: Bolet
         const tieneCliente = Boolean(boleta.cliente_info && (boleta.cliente_info.nombre || boleta.cliente_info.identificacion))
         const precioNum = rifaInfo?.precio_boleta ? Number(rifaInfo.precio_boleta) : null
 
-        let diasCaducidad: number | null = null
-        if (boleta.bloqueo_hasta) {
-          try {
-            const hasta = new Date(boleta.bloqueo_hasta)
-            const diffMs = hasta.getTime() - Date.now()
-            diasCaducidad = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
-          } catch { /* ignore */ }
-        }
-
-        const reservadaHastaFmt = boleta.bloqueo_hasta ? (() => {
-          try {
-            const dt = new Date(boleta.bloqueo_hasta)
-            if (isNaN(dt.getTime())) return boleta.bloqueo_hasta
-            return dt.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-          } catch { return boleta.bloqueo_hasta }
-        })() : null
+        const reservadaTexto = textoReservadaHasta(boleta.bloqueo_hasta)
 
         const esReservada = estadoNorm === 'RESERVADA'
         const esCancelada = estadoNorm === 'ANULADA' || estadoNorm === 'CANCELADA'
         const esPagada = ['CON_PAGO', 'PAGADA', 'PAGADO', 'VENDIDA'].includes(estadoNorm) && tieneCliente
         const esAbonada = estadoNorm === 'ABONADA'
 
+        const reservaBlock = reservadaTexto
+          ? `<p style="margin:8px 0 0;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);font-size:8px;color:#a5f3fc;font-weight:500;">${reservadaTexto}</p>`
+          : ''
+
         let estadoHTML = ''
         if (esCancelada) {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#dc2626;color:white;">BOLETA CANCELADA</div><p style="font-weight:700;text-align:center;font-size:10px;">Esta boleta no tiene validez</p>`
+          estadoHTML = `${statusBadgeHtml('Boleta cancelada', 'cancel')}<p style="font-size:8px;color:#94a3b8;margin:0;">Sin validez</p>`
         } else if (esReservada && tieneCliente) {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#2563eb;color:white;">RESERVADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p><p style="font-weight:700;text-align:center;font-size:10px;">Reservada hasta: ${reservadaHastaFmt ?? '—'}</p>`
+          estadoHTML = `${statusBadgeHtml('Reservada', 'reserved')}<p style="font-size:7px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;margin:6px 0 2px;">A nombre de</p><p style="font-size:9px;color:#f1f5f9;margin:0;font-weight:500;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="font-size:8px;color:#94a3b8;margin:0;">CC ${boleta.cliente_info?.identificacion ?? '—'}</p>${reservaBlock}`
         } else if (esReservada && !tieneCliente) {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fde68a;color:black;">BLOQUEADA</div><p style="font-weight:600;text-align:center;font-size:10px;">Boleta bloqueada momentáneamente</p>`
+          estadoHTML = `${statusBadgeHtml('Bloqueada', 'blocked')}<p style="font-size:8px;color:#94a3b8;margin:4px 0 0;">Temporalmente no disponible</p>`
         } else if (esPagada) {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#15803d;color:white;">PAGADA</div><p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
+          estadoHTML = `${statusBadgeHtml('Pagada', 'paid')}<p style="font-size:7px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;margin:6px 0 2px;">A nombre de</p><p style="font-size:9px;color:#f1f5f9;margin:0;font-weight:500;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="font-size:8px;color:#94a3b8;margin:0;">CC ${boleta.cliente_info?.identificacion ?? '—'}</p>`
         } else if (esAbonada) {
           const fin = financieroMap[boleta.id]
           const abonado = fin ? fin.total_pagado : 0
           const saldo = fin ? fin.saldo_pendiente : (precioNum ? precioNum : 0)
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#fb923c;color:black;">ABONADA</div>${fin && abonado > 0 ? `<p style="font-weight:800;text-align:center;font-size:10px;color:#15803d;">Abono: $${abonado.toLocaleString('es-CO')}</p>` : ''}${fin ? `<p style="font-weight:800;text-align:center;font-size:10px;color:#dc2626;">Deuda: $${saldo.toLocaleString('es-CO')}</p>` : ''}<p style="font-weight:600;text-align:center;font-size:10px;">A nombre de:</p><p style="text-align:center;font-size:10px;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="text-align:center;font-size:10px;">CC. ${boleta.cliente_info?.identificacion ?? '—'}</p>`
+          estadoHTML = `${statusBadgeHtml('Abonada', 'abonada')}${fin && abonado > 0 ? `<p style="margin:4px 0 0;font-size:9px;color:#6ee7b7;"><span style="font-size:7px;text-transform:uppercase;letter-spacing:0.12em;display:block;color:#64748b;">Abono</span>$${abonado.toLocaleString('es-CO')}</p>` : ''}${fin ? `<p style="margin:4px 0 0;font-size:9px;color:#fcd34d;"><span style="font-size:7px;text-transform:uppercase;letter-spacing:0.12em;display:block;color:#64748b;">Deuda</span>$${saldo.toLocaleString('es-CO')}</p>` : ''}<p style="font-size:7px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;margin:6px 0 2px;">A nombre de</p><p style="font-size:9px;color:#f1f5f9;margin:0;font-weight:500;">${boleta.cliente_info?.nombre ?? '—'}</p><p style="font-size:8px;color:#94a3b8;margin:0;">CC ${boleta.cliente_info?.identificacion ?? '—'}</p>${reservaBlock}`
         } else {
-          estadoHTML = `<div style="width:100%;padding:4px 0;text-align:center;font-weight:800;font-size:11px;letter-spacing:0.05em;background:#6ee7b7;color:black;">DISPONIBLE</div>`
+          estadoHTML = statusBadgeHtml('Disponible', 'available')
         }
 
-        const caducidadText = diasCaducidad !== null
-          ? `- ${diasCaducidad} días de caducidad`
-          : '- Válida hasta el día del sorteo'
+        const caducidadText =
+          lineaCondicionesReserva({
+            reservadaHasta: boleta.bloqueo_hasta,
+            esReservada,
+            esAbonada,
+            tieneCliente,
+          })?.replace(/^-\s*/, '') ?? 'Válida hasta el día del sorteo'
 
         const qrSrc = boleta.qr_url || ''
         const numPad = boleta.numero.toString().padStart(4, '0')
@@ -349,26 +346,24 @@ export default function BoletaList({ boletas, loading, rifaId, rifaInfo }: Bolet
           ? `<img src="${imagenDataUrl}" style="width:100%;height:100%;object-fit:fill;display:block;" />`
           : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:white;"><div style="text-align:center;color:black;"><p style="font-size:20px;font-weight:700;">${rifaInfo?.nombre || 'Rifa'}</p><p>Boleta #${numPad}</p></div></div>`
 
+        const notaHtml = (() => {
+          const n = getNotaBoleta(boleta)
+          return n
+            ? `<div style="text-align:center;font-size:7px;font-style:italic;color:#64748b;padding:0 4px;max-height:22px;overflow:hidden;line-height:1.2;margin-bottom:4px;">${n}</div>`
+            : ''
+        })()
+
         container.innerHTML = `
-          <div class="boleta-ticket" style="display:flex;border:2px solid black;overflow:hidden;background:white;width:${BOLETA_WIDTH}px;height:${ticketHeight}px;">
-            <div style="flex-shrink:0;padding:8px;display:flex;flex-direction:column;justify-content:space-between;border-right:2px solid black;width:${BOLETA_LEFT_WIDTH}px;height:${ticketHeight}px;">
-              <div style="font-size:10px;text-align:center;color:black;font-weight:500;">
-                <p>- Boleta sin pagar no juega</p>
-                <p>${caducidadText}</p>
-                <p>- Juega hasta quedar en poder del público</p>
-              </div>
-              <div style="font-size:10px;text-align:center;color:black;">
-                ${estadoHTML}
-              </div>
-              <div style="display:flex;justify-content:center;">
-                <img src="${qrSrc}" style="width:80px;height:80px;border:1px solid black;" alt="QR" />
-              </div>
-              ${(() => { const n = getNotaBoleta(boleta); return n ? `<div style="text-align:center;font-size:8px;font-style:italic;color:#475569;padding:0 4px;max-height:24px;overflow:hidden;line-height:1.2;">${n}</div>` : ''; })()}
-              <div>
-                <div style="text-align:center;font-size:18px;font-weight:800;color:black;">#${numPad}</div>
-                ${precioNum ? `<div style="text-align:center;font-size:11px;font-weight:700;color:black;">$${precioNum.toLocaleString('es-CO')}</div>` : ''}
-              </div>
-            </div>
+          <div class="boleta-ticket" style="display:flex;border:1px solid rgba(15,23,42,0.12);overflow:hidden;background:white;width:${BOLETA_WIDTH}px;height:${ticketHeight}px;">
+            ${buildBoletaLeftPanelHtml({
+              height: ticketHeight,
+              caducidadText,
+              estadoHTML,
+              qrSrc,
+              numPad,
+              precioNum,
+              notaHtml,
+            })}
             <div style="flex-shrink:0;height:100%;width:${BOLETA_RIGHT_WIDTH}px;">
               ${rightContent}
             </div>
