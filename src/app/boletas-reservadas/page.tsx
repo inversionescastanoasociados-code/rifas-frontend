@@ -301,7 +301,7 @@ export default function BoletasReservadasPage() {
                 Boletas Reservadas
               </h1>
               <p className="text-slate-600 mt-1">
-                Administra reservas, libera boletas y consulta devoluciones
+                Administra reservas, libera boletas y consulta devoluciones. Solo rifa activa.
               </p>
             </div>
             <div className="flex items-center gap-3">

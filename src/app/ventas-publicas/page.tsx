@@ -61,7 +61,7 @@ export default function GestionarVentasPublicasPage() {
                 Gestión de Ventas Públicas
               </h1>
               <p className="text-slate-600 mt-1">
-                Confirma pagos de clientes desde la web pública
+                Confirma pagos de clientes desde la web pública. Solo rifa activa.
               </p>
             </div>
             <svg

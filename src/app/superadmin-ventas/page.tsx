@@ -149,7 +149,7 @@ export default function SuperadminVentasPage() {
               ← Dashboard
             </button>
             <h1 className="text-xl font-bold text-slate-900">Edición de Ventas (Super Admin)</h1>
-            <p className="text-xs text-slate-500">Editar abonos, métodos de pago, liberar boletas, estados y más.</p>
+            <p className="text-xs text-slate-500">Editar abonos, métodos de pago, liberar boletas, estados y más. Solo rifa activa.</p>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
             Acceso exclusivo Super Admin
