@@ -39,7 +39,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     clienteInfo,
     deuda,
     abono,
-    reservadaHasta,
     precio,
     nota,
   } = props
@@ -101,7 +100,6 @@ export default function BoletaTicket(props: BoletaTicketProps) {
     estadoNorm === 'ABONADA' || (tieneCliente && typeof deudaNum === 'number' && deudaNum > 0)
 
   const lineaReservaCondiciones = lineaCondicionesReserva({
-    reservadaHasta,
     esReservada,
     esAbonada,
     tieneCliente,

@@ -325,7 +325,6 @@ export default function BoletaList({ boletas, loading, rifaId, rifaInfo }: Bolet
         }
 
         const caducidadLine = lineaCondicionesReserva({
-          reservadaHasta: boleta.bloqueo_hasta,
           esReservada,
           esAbonada,
           tieneCliente,
