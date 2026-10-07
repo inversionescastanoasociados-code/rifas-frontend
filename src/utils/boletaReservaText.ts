@@ -1,5 +1,8 @@
-/** Texto fijo en boleta impresa (no depende de sorteo ni bloqueo_hasta). */
-export const TEXTO_RESERVADA_HASTA = 'Reservada hasta el 26 de diciembre'
+/**
+ * Texto fijo en boleta impresa (panel izquierdo del ticket).
+ * Plazo de reserva/abono — no confundir con la fecha del premio mayor (26 dic).
+ */
+export const TEXTO_RESERVADA_HASTA = 'Reservada hasta el 23 de diciembre'
 
 export const LINEA_CONDICIONES_RESERVA = `- ${TEXTO_RESERVADA_HASTA}`
 
