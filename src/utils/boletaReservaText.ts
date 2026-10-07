@@ -1,5 +1,5 @@
 /** Texto fijo en boleta impresa (no depende de sorteo ni bloqueo_hasta). */
-export const TEXTO_RESERVADA_HASTA = 'Reservada hasta el 23 de diciembre'
+export const TEXTO_RESERVADA_HASTA = 'Reservada hasta el 26 de diciembre'
 
 export const LINEA_CONDICIONES_RESERVA = `- ${TEXTO_RESERVADA_HASTA}`
 

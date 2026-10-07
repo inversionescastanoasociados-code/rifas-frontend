@@ -5,6 +5,7 @@ import { VentaPublicaListado } from '@/types/ventasPublicas'
 import { ventasPublicasApi } from '@/lib/ventasPublicasApi'
 import { normalizarTelefono } from '@/utils/telefono'
 import { getMediosDePagoBloque } from '@/config/paymentInfo'
+import { getBloqueReglasPremiosWhatsApp } from '@/config/rifaPromoMensajes'
 
 interface ListaVentasPublicasProps {
   onSelectVenta: (ventaId: string) => void
@@ -129,7 +130,7 @@ export default function ListaVentasPublicas({
 
     let mensaje = ''
 
-    const infoAnticipados = `\n\n🏆 *PARA PARTICIPAR EN LOS PREMIOS:*\n✅ *Anticipados:* mínimo $90.000 abonados todos los sábados por $2.000.000 acumulables\n🎁 *Premio mayor (20 de junio):* boleta pagada al 100%`
+    const infoAnticipados = getBloqueReglasPremiosWhatsApp()
 
     if (venta.estado_venta === 'SIN_REVISAR') {
       mensaje = `Hola ${venta.cliente_nombre}, recibimos tu reserva en la rifa *${venta.rifa_nombre}* para las boletas *${numeros}*, por un total de *${formatoMoneda(venta.monto_total)}*.${infoAnticipados}${mediosDePago}${linkBoletas}\n\nRecuerda enviar el comprobante de pago por este medio. ¡Gracias! 🙏`
